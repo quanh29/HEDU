@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEDU - Học tập không giới hạn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Tokyo+Zoo&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            padding: 1rem 0;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #FF6B6B;
+            flex-shrink: 0;
+            font-family: 'Zen Tokyo Zoo', cursive;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .logo:hover {
+            color: #ff5252;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav-discover {
+            position: relative;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 25px;
+            padding: 0.5rem 1.5rem;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: all 0.3s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-discover:hover {
+            background: #e9ecef;
+        }
+
+        .nav-discover:hover .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-arrow {
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 1rem 0;
+            min-width: 250px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            margin-top: 5px;
+        }
+
+        .nav-discover:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-category {
+            position: relative;
+        }
+
+        .dropdown-category-link {
+            padding: 0.75rem 1.5rem;
+            color: #333;
+            text-decoration: none;
+            display: block;
+            transition: background 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .dropdown-category:hover .dropdown-category-link {
+            background: #f8f9fa;
+            border-left-color: #FF6B6B;
+        }
+
+        .dropdown-category-title {
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dropdown-category-desc {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .category-arrow {
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+            color: #999;
+        }
+
+        .dropdown-category:hover .category-arrow {
+            transform: translateX(3px);
+        }
+
+        /* Sub-menu styles */
+        .sub-menu {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 1rem 0;
+            min-width: 220px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-10px);
+            transition: all 0.3s ease;
+            z-index: 1001;
+            margin-left: 5px;
+        }
+
+        .dropdown-category:hover .sub-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        /* Auto-adjust sub-menu position if it would overflow */
+        .dropdown-category:nth-last-child(-n+2) .sub-menu {
+            top: auto;
+            bottom: 0;
+        }
+
+        .sub-menu-item {
+            padding: 0.6rem 1.2rem;
+            color: #333;
+            text-decoration: none;
+            display: block;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            font-size: 0.9rem;
+        }
+
+        .sub-menu-item:hover {
+            background: #f8f9fa;
+            border-left-color: #FF6B6B;
+        }
+
+        .search-bar {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-bar input {
+            padding: 0.8rem 1.5rem;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            width: 100%;
+            outline: none;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar input:focus {
+            border-color: #4a4a4a;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+            background: #fafafa;
+            transform: scale(1.02);
+        }
+
+        .search-bar input::placeholder {
+            color: #999;
+            transition: color 0.3s ease;
+        }
+
+        .search-bar input:focus::placeholder {
+            color: #ccc;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            color: #6c757d;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.3s ease;
+            border-radius: 50%;
+        }
+
+        .search-bar:focus-within .search-btn {
+            color: #000000;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: #333;
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.7rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #333;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: #FFFFFF;
+            padding: 80px 0 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 25%;
+            height: 100%;
+            background: #F4F1ED;
+            clip-path: polygon(95% 0%, 100% 0%, 100% 100%, 0% 100%);
+            z-index: 1;
+        }
+
+        .hero-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-content {
+            color: #333;
+        }
+
+        .hero-content h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .hero-content p {
+            font-size: 1.2rem;
+            margin-bottom: 2.5rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .btn-hero {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-hero:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .hero-visual {
+            position: relative;
+            height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-illustration {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: url('frontend/src/assets/9 SCENE.svg') no-repeat center;
+            background-size: contain;
+        }
+
+        /* Stats Section */
+        .stats {
+            background: #fff;
+            padding: 0 0 4rem;
+        }
+
+        .stats-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            padding: 0 2rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #f0f0f0;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        /* Courses Section */
+        .courses {
+            padding: 4rem 0;
+        }
+
+        .courses-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .courses-carousel {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .courses-track {
+            display: flex;
+            transition: transform 0.3s ease;
+            gap: 1.5rem;
+        }
+
+        .course-card {
+            flex: 0 0 280px;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .course-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .course-image {
+            height: 180px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .course-content {
+            padding: 1.5rem;
+        }
+
+        .course-title {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .course-author {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .course-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stars {
+            color: #FFD700;
+        }
+
+        .course-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #FF6B6B;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .carousel-btn:hover {
+            background: white;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-btn.prev {
+            left: -25px;
+        }
+
+        .carousel-btn.next {
+            right: -25px;
+        }
+
+        /* Testimonials */
+        .testimonials {
+            background: #f8f9fa;
+            padding: 4rem 0;
+        }
+
+        .testimonials-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .testimonials-track {
+            display: flex;
+            gap: 2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .testimonial-card {
+            flex: 0 0 350px;
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .testimonial-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #FF6B6B, #FFD93D);
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .testimonial-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .testimonial-role {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .testimonial-text {
+            font-style: italic;
+            color: #555;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 3rem 0 1rem;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            color: #FF6B6B;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-section ul li a {
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-section ul li a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid #34495e;
+            color: #bdc3c7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .search-bar {
+                display: none;
+            }
+
+            .auth-buttons {
+                gap: 0.5rem;
+            }
+
+            .auth-buttons .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            .hero-container {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .hero-content h1 {
+                font-size: 2rem;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dropdown-menu {
+                min-width: 200px;
+                left: -50px;
+            }
+
+            .nav-discover {
+                padding: 0.4rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            /* Hide sub-menu on mobile */
+            .sub-menu {
+                display: none;
+            }
+
+            .category-arrow {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-left">
+                <a href="#home" class="logo">HEDU</a>
+                <div class="nav-discover">
+                    <span>Khám phá</span>
+                    <span class="dropdown-arrow">▼</span>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-category">
+                            <a href="#programming" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Lập trình
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">Web, Mobile, Desktop Development</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#web" class="sub-menu-item">Lập trình Web</a>
+                                <a href="#mobile" class="sub-menu-item">Lập trình Mobile</a>
+                                <a href="#desktop" class="sub-menu-item">Lập trình Desktop</a>
+                                <a href="#backend" class="sub-menu-item">Backend Development</a>
+                                <a href="#frontend" class="sub-menu-item">Frontend Development</a>
+                                <a href="#fullstack" class="sub-menu-item">Full Stack Development</a>
+                                <a href="#devops" class="sub-menu-item">DevOps</a>
+                            </div>
+                        </div>
+                        <div class="dropdown-category">
+                            <a href="#design" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Thiết kế
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">UI/UX, Graphic Design, Video</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#uiux" class="sub-menu-item">UI/UX Design</a>
+                                <a href="#graphic" class="sub-menu-item">Graphic Design</a>
+                                <a href="#video" class="sub-menu-item">Video Editing</a>
+                                <a href="#motion" class="sub-menu-item">Motion Graphics</a>
+                                <a href="#illustration" class="sub-menu-item">Illustration</a>
+                                <a href="#photography" class="sub-menu-item">Photography</a>
+                            </div>
+                        </div>
+                        <div class="dropdown-category">
+                            <a href="#business" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Kinh doanh
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">Marketing, Management, Finance</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#marketing" class="sub-menu-item">Digital Marketing</a>
+                                <a href="#management" class="sub-menu-item">Project Management</a>
+                                <a href="#finance" class="sub-menu-item">Finance & Accounting</a>
+                                <a href="#sales" class="sub-menu-item">Sales</a>
+                                <a href="#startup" class="sub-menu-item">Entrepreneurship</a>
+                                <a href="#strategy" class="sub-menu-item">Business Strategy</a>
+                            </div>
+                        </div>
+                        <div class="dropdown-category">
+                            <a href="#data" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Dữ liệu
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">Data Science, Analytics, AI</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#datascience" class="sub-menu-item">Data Science</a>
+                                <a href="#analytics" class="sub-menu-item">Data Analytics</a>
+                                <a href="#ai" class="sub-menu-item">Artificial Intelligence</a>
+                                <a href="#ml" class="sub-menu-item">Machine Learning</a>
+                                <a href="#bigdata" class="sub-menu-item">Big Data</a>
+                                <a href="#visualization" class="sub-menu-item">Data Visualization</a>
+                            </div>
+                        </div>
+                        <div class="dropdown-category">
+                            <a href="#language" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Ngoại ngữ
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">English, Chinese, Japanese</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#english" class="sub-menu-item">Tiếng Anh</a>
+                                <a href="#chinese" class="sub-menu-item">Tiếng Trung</a>
+                                <a href="#japanese" class="sub-menu-item">Tiếng Nhật</a>
+                                <a href="#korean" class="sub-menu-item">Tiếng Hàn</a>
+                                <a href="#french" class="sub-menu-item">Tiếng Pháp</a>
+                                <a href="#german" class="sub-menu-item">Tiếng Đức</a>
+                            </div>
+                        </div>
+                        <div class="dropdown-category">
+                            <a href="#skills" class="dropdown-category-link">
+                                <div class="dropdown-category-title">
+                                    Kỹ năng mềm
+                                    <span class="category-arrow">▶</span>
+                                </div>
+                                <div class="dropdown-category-desc">Communication, Leadership</div>
+                            </a>
+                            <div class="sub-menu">
+                                <a href="#communication" class="sub-menu-item">Kỹ năng giao tiếp</a>
+                                <a href="#leadership" class="sub-menu-item">Lãnh đạo</a>
+                                <a href="#teamwork" class="sub-menu-item">Làm việc nhóm</a>
+                                <a href="#presentation" class="sub-menu-item">Thuyết trình</a>
+                                <a href="#timemanagement" class="sub-menu-item">Quản lý thời gian</a>
+                                <a href="#problemsolving" class="sub-menu-item">Giải quyết vấn đề</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" placeholder="Tìm kiếm khóa học...">
+                <button class="search-btn">
+                    <img src="frontend/src/assets/search-svgrepo-com.svg" alt="Search" width="16" height="16">
+                </button>
+            </div>
+            
+            <ul class="nav-links">
+                <li><a href="#teaching">Giảng dạy</a></li>
+                <li><a href="#about">Về chúng tôi</a></li>
+                <li><a href="#contact">Liên hệ</a></li>
+            </ul>
+            
+            <div class="auth-buttons">
+                <button class="btn btn-secondary">Đăng nhập</button>
+                <button class="btn btn-primary">Đăng ký</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>Học tập không giới hạn cùng các khóa học chất lượng cao</h1>
+                <p>Tiết kiệm thời gian và chi phí với phương pháp học tập trực tuyến linh hoạt. Phát triển sự nghiệp, nâng cao tư duy chỉ với vài cú click.</p>
+                <div class="hero-buttons">
+                    <a href="#courses" class="btn-hero">Tham gia ngay</a>
+                    <a href="#demo" class="btn-hero">Xem demo</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-illustration"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number">999,999</div>
+                <div class="stat-label">Học viên tham gia</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">999,999</div>
+                <div class="stat-label">Khóa học</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">999,999</div>
+                <div class="stat-label">Đối tác quốc tế</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Courses Section -->
+    <section class="courses" id="courses">
+        <div class="courses-container">
+            <h2 class="section-title">Các khóa học nổi bật</h2>
+            <div class="courses-carousel">
+                <div class="courses-track" id="coursesTrack">
+                    <div class="course-card">
+                        <div class="course-image">Web Development</div>
+                        <div class="course-content">
+                            <h3 class="course-title">Lập trình Web từ cơ bản đến nâng cao</h3>
+                            <div class="course-author">Bởi: Nguyễn Văn A</div>
+                            <div class="course-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>(125 đánh giá)</span>
+                            </div>
+                            <div class="course-price">1,500,000 VND</div>
+                        </div>
+                    </div>
+                    <div class="course-card">
+                        <div class="course-image">Data Science</div>
+                        <div class="course-content">
+                            <h3 class="course-title">Khoa học dữ liệu với Python</h3>
+                            <div class="course-author">Bởi: Trần Thị B</div>
+                            <div class="course-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>(98 đánh giá)</span>
+                            </div>
+                            <div class="course-price">2,000,000 VND</div>
+                        </div>
+                    </div>
+                    <div class="course-card">
+                        <div class="course-image">Digital Marketing</div>
+                        <div class="course-content">
+                            <h3 class="course-title">Marketing số từ A đến Z</h3>
+                            <div class="course-author">Bởi: Lê Văn C</div>
+                            <div class="course-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>(87 đánh giá)</span>
+                            </div>
+                            <div class="course-price">1,200,000 VND</div>
+                        </div>
+                    </div>
+                    <div class="course-card">
+                        <div class="course-image">UI/UX Design</div>
+                        <div class="course-content">
+                            <h3 class="course-title">Thiết kế UI/UX chuyên nghiệp</h3>
+                            <div class="course-author">Bởi: Phạm Thị D</div>
+                            <div class="course-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>(156 đánh giá)</span>
+                            </div>
+                            <div class="course-price">1,800,000 VND</div>
+                        </div>
+                    </div>
+                    <div class="course-card">
+                        <div class="course-image">Mobile App</div>
+                        <div class="course-content">
+                            <h3 class="course-title">Phát triển ứng dụng di động</h3>
+                            <div class="course-author">Bởi: Hoàng Văn E</div>
+                            <div class="course-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>(92 đánh giá)</span>
+                            </div>
+                            <div class="course-price">2,200,000 VND</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-btn prev" onclick="scrollCourses(-1)">❮</button>
+                <button class="carousel-btn next" onclick="scrollCourses(1)">❯</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="testimonials-container">
+            <h2 class="section-title">Trải nghiệm từ người dùng</h2>
+            <div class="testimonials-track">
+                <div class="testimonial-card">
+                    <div class="testimonial-avatar">A</div>
+                    <div class="testimonial-name">Nguyễn Minh An</div>
+                    <div class="testimonial-role">Sinh viên IT</div>
+                    <div class="testimonial-text">"Khóa học rất chất lượng, giảng viên nhiệt tình và kiến thức thực tế. Tôi đã tìm được công việc mơ ước sau khi hoàn thành khóa học."</div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-avatar">B</div>
+                    <div class="testimonial-name">Trần Thị Bích</div>
+                    <div class="testimonial-role">Marketing Manager</div>
+                    <div class="testimonial-text">"Nội dung khóa học được cập nhật liên tục theo xu hướng mới. Tôi có thể áp dụng ngay vào công việc và thấy hiệu quả rõ rệt."</div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-avatar">C</div>
+                    <div class="testimonial-name">Lê Văn Cường</div>
+                    <div class="testimonial-role">Freelance Designer</div>
+                    <div class="testimonial-text">"Hệ thống học tập linh hoạt, có thể học mọi lúc mọi nơi. Giá cả hợp lý và chất lượng vượt mong đợi."</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>HEDU</h3>
+                    <p>Nền tảng học tập trực tuyến hàng đầu Việt Nam, mang đến những khóa học chất lượng cao với chi phí hợp lý.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Liên kết nhanh</h3>
+                    <ul>
+                        <li><a href="#home">Trang chủ</a></li>
+                        <li><a href="#courses">Khóa học</a></li>
+                        <li><a href="#about">Về chúng tôi</a></li>
+                        <li><a href="#contact">Liên hệ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Hỗ trợ</h3>
+                    <ul>
+                        <li><a href="#">Câu hỏi thường gặp</a></li>
+                        <li><a href="#">Hướng dẫn sử dụng</a></li>
+                        <li><a href="#">Chính sách bảo mật</a></li>
+                        <li><a href="#">Điều khoản dịch vụ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Liên hệ</h3>
+                    <ul>
+                        <li>📧 contact@hedu.vn</li>
+                        <li>📞 0123 456 789</li>
+                        <li>📍 Hà Nội, Việt Nam</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 HEDU. Tất cả quyền được bảo lưu.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentCourseIndex = 0;
+        const courseCards = document.querySelectorAll('.course-card');
+        const coursesTrack = document.getElementById('coursesTrack');
+        const cardWidth = 280 + 24; // card width + gap
+
+        function scrollCourses(direction) {
+            const maxIndex = Math.max(0, courseCards.length - 4);
+            currentCourseIndex += direction;
+            
+            if (currentCourseIndex < 0) {
+                currentCourseIndex = 0;
+            } else if (currentCourseIndex > maxIndex) {
+                currentCourseIndex = maxIndex;
+            }
+            
+            const translateX = -currentCourseIndex * cardWidth;
+            coursesTrack.style.transform = `translateX(${translateX}px)`;
+        }
+
+        // Auto-scroll courses
+        setInterval(() => {
+            scrollCourses(1);
+            if (currentCourseIndex >= courseCards.length - 4) {
+                currentCourseIndex = -1;
+            }
+        }, 5000);
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll effect to navbar
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.style.background = 'rgba(255, 255, 255, 0.95)';
+                navbar.style.backdropFilter = 'blur(10px)';
+            } else {
+                navbar.style.background = '#fff';
+                navbar.style.backdropFilter = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

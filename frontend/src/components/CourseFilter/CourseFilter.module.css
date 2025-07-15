@@ -1,0 +1,32 @@
+.filterContainer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.button {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: white;
+  color: #4a5568;
+  transition: all 0.2s ease;
+}
+
+.buttonActive {
+  background: #3182ce;
+  color: white;
+}

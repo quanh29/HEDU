@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lập trình Web từ cơ bản đến nâng cao - HEDU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        /* Header */
+        .header {
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            padding: 1rem 0;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #000;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: 80px;
+            padding: 2rem 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            margin-bottom: 2rem;
+            color: #666;
+        }
+
+        .breadcrumb a {
+            color: #333;
+            text-decoration: none;
+        }
+
+        /* Course Layout */
+        .course-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        /* Course Main Info */
+        .course-main {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .course-image {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(45deg, #333, #666);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+        }
+
+        .course-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .course-meta {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stars {
+            color: #FFD700;
+            font-size: 1.2rem;
+        }
+
+        .rating-text {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .review-count {
+            color: #666;
+        }
+
+        .students-count {
+            color: #666;
+        }
+
+        .course-tags {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #f8f9fa;
+            color: #333;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid #ddd;
+        }
+
+        .course-description {
+            color: #555;
+            font-size: 1.1rem;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .instructor-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border: 1px solid #ddd;
+        }
+
+        .instructor-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #333, #666);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .instructor-details h4 {
+            color: #333;
+            margin-bottom: 0.3rem;
+        }
+
+        .instructor-details p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Course Sidebar */
+        .course-sidebar {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+
+        .price-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .original-price {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .price {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #333;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #000;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #333;
+            border: 2px solid #333;
+        }
+
+        .btn-secondary:hover {
+            background: #333;
+            color: white;
+        }
+
+        .course-includes {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .course-includes h4 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .includes-list {
+            list-style: none;
+        }
+
+        .includes-list li {
+            padding: 0.5rem 0;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .includes-list li::before {
+            content: "✓";
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        /* Content Sections */
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .learning-objectives {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .objective-item::before {
+            content: "🎯";
+            font-size: 1.2rem;
+        }
+
+        .learning-objectives-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .learning-objectives-list li {
+            padding: 0.75rem 0;
+            color: #555;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .learning-objectives-list li::before {
+            content: "✓";
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 0.1rem;
+        }
+
+        .requirements-list {
+            list-style: none;
+        }
+
+        .requirements-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .requirements-list li::before {
+            content: "📋";
+            font-size: 1rem;
+        }
+
+        /* Course Curriculum */
+        .curriculum-section {
+            margin-bottom: 2rem;
+        }
+
+        .curriculum-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .curriculum-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+            border: 1px solid #ddd;
+        }
+
+        .curriculum-header:hover {
+            background: #e9ecef;
+        }
+
+        .curriculum-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .lesson-count {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .curriculum-content {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .curriculum-content.expanded {
+            max-height: 500px;
+            padding: 1rem 1.5rem;
+        }
+
+        .lesson-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .lesson-item:last-child {
+            border-bottom: none;
+        }
+
+        .lesson-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .lesson-icon {
+            color: #666;
+        }
+
+        .lesson-duration {
+            color: #999;
+            font-size: 0.85rem;
+        }
+
+        /* Related Courses */
+        .related-courses {
+            margin-top: 3rem;
+        }
+
+        .courses-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .course-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+
+        .course-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-image {
+            height: 200px;
+            background: linear-gradient(45deg, #333, #666);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .card-instructor {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-price {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .course-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .course-sidebar {
+                position: static;
+            }
+
+            .course-title {
+                font-size: 2rem;
+            }
+
+            .course-meta {
+                gap: 1rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .learning-objectives {
+                grid-template-columns: 1fr;
+            }
+
+            .learning-objectives-list {
+                margin: 0;
+            }
+
+            .courses-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cart notification */
+        .cart-notification {
+            position: fixed;
+            top: 100px;
+            right: 2rem;
+            background: #333;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .cart-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="nav-container">
+            <a href="#" class="logo">HEDU</a>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="#">Trang chủ</a></li>
+                    <li><a href="#">Khóa học</a></li>
+                    <li><a href="#">Về chúng tôi</a></li>
+                    <li><a href="#">Liên hệ</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Breadcrumb -->
+            <div class="breadcrumb">
+                <a href="#">Trang chủ</a> > <a href="#">Lập trình</a> > <a href="#">Web Development</a> > Lập trình Web từ cơ bản đến nâng cao
+            </div>
+
+            <!-- Course Layout -->
+            <div class="course-layout">
+                <!-- Course Main Info -->
+                <div class="course-main">
+                    <div class="course-image">
+                        Web Development Masterclass
+                    </div>
+
+                    <h1 class="course-title">Lập trình Web từ cơ bản đến nâng cao</h1>
+
+                    <div class="course-meta">
+                        <div class="rating">
+                            <span class="stars">⭐⭐⭐⭐⭐</span>
+                            <span class="rating-text">4.8</span>
+                            <span class="review-count">(1,234 đánh giá)</span>
+                        </div>
+                        <div class="students-count">15,847 học viên</div>
+                    </div>
+
+                    <div class="course-tags">
+                        <span class="tag">Web Development</span>
+                        <span class="tag">HTML/CSS</span>
+                        <span class="tag">JavaScript</span>
+                        <span class="tag">React</span>
+                        <span class="tag">Node.js</span>
+                        <span class="tag">Dành cho người mới</span>
+                    </div>
+
+                    <p class="course-description">
+                        Khóa học toàn diện giúp bạn từ người mới bắt đầu trở thành lập trình viên web chuyên nghiệp. 
+                        Học HTML, CSS, JavaScript, React, Node.js và nhiều công nghệ hiện đại khác thông qua các dự án thực tế.
+                    </p>
+
+                    <div class="instructor-section">
+                        <h3 class="instructor-section-title">Giảng viên</h3>
+                        <div class="instructor-info">
+                            <div class="instructor-avatar">NVA</div>
+                            <div class="instructor-details">
+                                <h4>Nguyễn Văn An</h4>
+                                <p>Senior Full Stack Developer • 8+ năm kinh nghiệm • 50,000+ học viên</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course Sidebar -->
+                <div class="course-sidebar">
+                    <div class="price-card">
+                        <div class="original-price">2,500,000đ</div>
+                        <div class="price">1,500,000đ</div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="buyCourse()">Mua ngay</button>
+                            <button class="btn btn-secondary" onclick="addToCart()">Thêm vào giỏ hàng</button>
+                        </div>
+
+                        <div class="course-includes">
+                            <h4>Khóa học bao gồm:</h4>
+                            <ul class="includes-list">
+                                <li>40 giờ video HD</li>
+                                <li>120 bài tập thực hành</li>
+                                <li>15 dự án thực tế</li>
+                                <li>Tài liệu PDF</li>
+                                <li>Source code đầy đủ</li>
+                                <li>Chứng chỉ hoàn thành</li>
+                                <li>Hỗ trợ 24/7</li>
+                                <li>Truy cập trọn đời</li>
+                                <li>Cập nhật miễn phí</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What You'll Learn -->
+            <div class="content-section">
+                <h2 class="section-title">Những gì bạn sẽ học được</h2>
+                <ul class="learning-objectives-list">
+                    <li>Xây dựng website responsive với HTML5 và CSS3</li>
+                    <li>Lập trình JavaScript từ cơ bản đến nâng cao</li>
+                    <li>Phát triển ứng dụng web với React.js</li>
+                    <li>Xây dựng API với Node.js và Express</li>
+                    <li>Làm việc với cơ sở dữ liệu MongoDB</li>
+                    <li>Deploy ứng dụng lên cloud platform</li>
+                    <li>Áp dụng Git và GitHub trong dự án</li>
+                    <li>Hiểu về bảo mật web và best practices</li>
+                </ul>
+            </div>
+
+            <!-- Requirements -->
+            <div class="content-section">
+                <h2 class="section-title">Yêu cầu</h2>
+                <ul class="requirements-list">
+                    <li>Máy tính có kết nối internet</li>
+                    <li>Không cần kiến thức lập trình trước đó</li>
+                    <li>Sẵn sàng dành 2-3 giờ/ngày để học</li>
+                    <li>Có tinh thần học hỏi và kiên trì</li>
+                    <li>Text editor (VS Code được khuyến nghị)</li>
+                </ul>
+            </div>
+
+            <!-- Course Description -->
+            <div class="content-section">
+                <h2 class="section-title">Mô tả khóa học</h2>
+                <div style="line-height: 1.8; color: #555;">
+                    <p style="margin-bottom: 1.5rem;">
+                        <strong>Khóa học Lập trình Web từ cơ bản đến nâng cao</strong> là một hành trình toàn diện giúp bạn 
+                        trở thành một lập trình viên web chuyên nghiệp. Với hơn 40 giờ video chất lượng cao và 120 bài tập thực hành, 
+                        bạn sẽ học được tất cả những kỹ năng cần thiết để phát triển ứng dụng web hiện đại.
+                    </p>
+                    
+                    <p style="margin-bottom: 1.5rem;">
+                        Khóa học bắt đầu từ những kiến thức cơ bản nhất về HTML và CSS, sau đó tiến dần đến JavaScript, 
+                        các framework hiện đại như React.js, và backend development với Node.js. Mỗi concept đều được 
+                        giải thích một cách dễ hiểu với nhiều ví dụ thực tế.
+                    </p>
+                    
+                    <p style="margin-bottom: 1.5rem;">
+                        Điểm đặc biệt của khóa học là <strong>15 dự án thực tế</strong> từ đơn giản đến phức tạp, 
+                        giúp bạn áp dụng kiến thức đã học và xây dựng portfolio ấn tượng. Bạn sẽ tạo ra những ứng dụng 
+                        như blog cá nhân, e-commerce website, social media app, và nhiều hơn nữa.
+                    </p>
+                    
+                    <p>
+                        Sau khi hoàn thành khóa học, bạn sẽ có đủ kiến thức và kỹ năng để ứng tuyển vào các vị trí 
+                        Junior Frontend Developer, Junior Backend Developer, hoặc Full Stack Developer tại các công ty công nghệ.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Course Curriculum -->
+            <div class="content-section">
+                <h2 class="section-title">Nội dung khóa học</h2>
+                <div class="curriculum-section">
+                    
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(0)">
+                            <div>
+                                <div class="curriculum-title">Phần 1: HTML và CSS cơ bản</div>
+                                <div class="lesson-count">8 bài học • 4 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Giới thiệu về HTML</span>
+                                </div>
+                                <span class="lesson-duration">25 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Cấu trúc tài liệu HTML</span>
+                                </div>
+                                <span class="lesson-duration">30 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>CSS selectors và properties</span>
+                                </div>
+                                <span class="lesson-duration">35 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Thực hành: Tạo trang web đầu tiên</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(1)">
+                            <div>
+                                <div class="curriculum-title">Phần 2: CSS nâng cao và Responsive Design</div>
+                                <div class="lesson-count">10 bài học • 5 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Flexbox Layout</span>
+                                </div>
+                                <span class="lesson-duration">40 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>CSS Grid System</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Media Queries và Responsive</span>
+                                </div>
+                                <span class="lesson-duration">35 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Dự án: Landing Page Responsive</span>
+                                </div>
+                                <span class="lesson-duration">2 giờ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(2)">
+                            <div>
+                                <div class="curriculum-title">Phần 3: JavaScript cơ bản</div>
+                                <div class="lesson-count">12 bài học • 6 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Biến và kiểu dữ liệu</span>
+                                </div>
+                                <span class="lesson-duration">30 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Functions và Scope</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>DOM Manipulation</span>
+                                </div>
+                                <span class="lesson-duration">50 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Dự án: Todo List App</span>
+                                </div>
+                                <span class="lesson-duration">1.5 giờ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(3)">
+                            <div>
+                                <div class="curriculum-title">Phần 4: React.js Framework</div>
+                                <div class="lesson-count">15 bài học • 8 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Giới thiệu React và JSX</span>
+                                </div>
+                                <span class="lesson-duration">40 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Components và Props</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>State và Lifecycle</span>
+                                </div>
+                                <span class="lesson-duration">50 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Dự án: E-commerce Website</span>
+                                </div>
+                                <span class="lesson-duration">3 giờ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(4)">
+                            <div>
+                                <div class="curriculum-title">Phần 5: Backend với Node.js</div>
+                                <div class="lesson-count">18 bài học • 10 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Giới thiệu Node.js và NPM</span>
+                                </div>
+                                <span class="lesson-duration">35 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Express.js Framework</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>MongoDB và Mongoose</span>
+                                </div>
+                                <span class="lesson-duration">60 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Dự án: RESTful API</span>
+                                </div>
+                                <span class="lesson-duration">4 giờ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-item">
+                        <div class="curriculum-header" onclick="toggleCurriculum(5)">
+                            <div>
+                                <div class="curriculum-title">Phần 6: Deployment và Production</div>
+                                <div class="lesson-count">8 bài học • 4 giờ</div>
+                            </div>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="curriculum-content">
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Git và GitHub</span>
+                                </div>
+                                <span class="lesson-duration">40 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Deploy lên Heroku</span>
+                                </div>
+                                <span class="lesson-duration">45 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">📺</span>
+                                    <span>Bảo mật web cơ bản</span>
+                                </div>
+                                <span class="lesson-duration">35 phút</span>
+                            </div>
+                            <div class="lesson-item">
+                                <div class="lesson-info">
+                                    <span class="lesson-icon">💻</span>
+                                    <span>Dự án cuối: Full Stack Application</span>
+                                </div>
+                                <span class="lesson-duration">2 giờ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Courses -->
+            <div class="related-courses">
+                <h2 class="section-title">Khóa học liên quan</h2>
+                <div class="courses-grid">
+                    <div class="course-card">
+                        <div class="card-image">React Advanced</div>
+                        <div class="card-content">
+                            <h3 class="card-title">React.js nâng cao và Redux</h3>
+                            <p class="card-instructor">Bởi: Trần Thị Bích</p>
+                            <div class="card-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>4.7 (892)</span>
+                            </div>
+                            <div class="card-price">1,800,000đ</div>
+                        </div>
+                    </div>
+
+                    <div class="course-card">
+                        <div class="card-image">Node.js Expert</div>
+                        <div class="card-content">
+                            <h3 class="card-title">Node.js và Microservices</h3>
+                            <p class="card-instructor">Bởi: Lê Văn Cường</p>
+                            <div class="card-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>4.9 (567)</span>
+                            </div>
+                            <div class="card-price">2,200,000đ</div>
+                        </div>
+                    </div>
+
+                    <div class="course-card">
+                        <div class="card-image">Vue.js Complete</div>
+                        <div class="card-content">
+                            <h3 class="card-title">Vue.js từ cơ bản đến chuyên nghiệp</h3>
+                            <p class="card-instructor">Bởi: Phạm Thị Duyên</p>
+                            <div class="card-rating">
+                                <span class="stars">⭐⭐⭐⭐⭐</span>
+                                <span>4.6 (723)</span>
+                            </div>
+                            <div class="card-price">1,600,000đ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Cart Notification -->
+    <div class="cart-notification" id="cartNotification">
+        <span>✓ Đã thêm vào giỏ hàng thành công!</span>
+    </div>
+
+    <script>
+        // Toggle curriculum sections
+        function toggleCurriculum(index) {
+            const content = document.querySelectorAll('.curriculum-content')[index];
+            const icon = document.querySelectorAll('.toggle-icon')[index];
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('expanded');
+                icon.textContent = '▲';
+            }
+        }
+
+        // Buy course function
+        function buyCourse() {
+            alert('Chuyển hướng đến trang thanh toán...');
+            // Trong thực tế, bạn sẽ chuyển hướng đến trang checkout
+            // window.location.href = '/checkout?course=web-development-basic-to-advanced';
+        }
+
+        // Add to cart function
+        function addToCart() {
+            // Hiển thị thông báo
+            const notification = document.getElementById('cartNotification');
+            notification.classList.add('show');
+            
+            // Ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+            
+            // Trong thực tế, bạn sẽ thêm logic để lưu vào giỏ hàng
+            console.log('Đã thêm khóa học vào giỏ hàng');
+        }
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Sticky sidebar effect
+        window.addEventListener('scroll', function() {
+            const sidebar = document.querySelector('.course-sidebar');
+            const scrolled = window.pageYOffset;
+            const rate = scrolled * -0.5;
+            
+            if (window.innerWidth > 768) {
+                sidebar.style.transform = `translateY(${rate}px)`;
+            }
+        });
+    </script>
+</body>
+</html>

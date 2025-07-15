@@ -1,0 +1,93 @@
+/* src/components/CourseCard/CourseCard.css */
+
+/* Main container */
+.courseCard {
+  width: 16rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.courseCard:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: scale(1.05);
+}
+
+/* Image container */
+.courseImageContainer {
+  width: 100%;
+  height: 10rem;
+  background-color: #e5e7eb;
+  overflow: hidden;
+}
+
+/* Course image */
+.courseImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+/* Course info container */
+.courseInfo {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.courseInfo > * {
+  margin-bottom: 0.5rem;
+}
+
+.courseInfo > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Course title */
+.courseTitle {
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: color 0.2s ease;
+}
+
+/* Course author */
+.courseAuthor {
+  color: #6b7280;
+}
+
+/* Rating container */
+.courseRating {
+  display: flex;
+  align-items: center;
+}
+
+/* Rating number */
+.ratingNumber {
+  margin-right: 0.25rem;
+}
+
+/* Star icon */
+.starIcon {
+  height: 1.25rem;
+  width: 1.25rem;
+  color: #f59e0b;
+  fill: #f59e0b;
+  margin-right: 0.25rem;
+}
+
+/* Review count */
+.reviewCount {
+  color: #6b7280;
+}
+
+/* Course price */
+.coursePrice {
+  font-weight: 700;
+  transition: color 0.2s ease;
+}

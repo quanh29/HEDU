@@ -1,0 +1,27 @@
+.container {
+  display: flex;
+  height: 85rem;
+  width: 100%;
+}
+
+.leftImage {
+  width: 100%;
+  display: none;
+}
+@media (min-width: 768px) {
+  .leftImage {
+    display: inline-block;
+  }
+}
+.leftImageImg {
+  height: 100%;
+}
+
+.rightContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+

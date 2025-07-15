@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Zen+Tokyo+Zoo&display=swap');
+@import "tailwindcss";
+
+body{
+    background-color: white;
+}
+
+*{
+    font-family:  'Arial', sans-serif;
+}

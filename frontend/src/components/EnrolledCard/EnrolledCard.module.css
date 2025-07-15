@@ -1,0 +1,148 @@
+.courseCard {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.courseCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.courseImage {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.courseImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.courseCard:hover  {
+  transform: scale(1.05);
+}
+
+.courseContent {
+  padding: 1.5rem;
+}
+
+.courseTitle {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-height: calc(1.4em * 2);
+  max-height: calc(1.4em * 2);
+}
+
+.courseInstructor {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+
+.progressSection {
+  margin-bottom: 1.5rem;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progressText {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.progressStats {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressPercentage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+.courseActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.continueBtn,
+.viewCourseBtn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.continueBtn {
+  background: #6366f1;
+  color: white;
+}
+
+.continueBtn:hover {
+  background: #5b5cf6;
+  transform: translateY(-1px);
+}
+
+.viewCourseBtn {
+  background: transparent;
+  color: #6366f1;
+  border: 2px solid #6366f1;
+}
+
+.viewCourseBtn:hover {
+  background: #6366f1;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .courseActions {
+    flex-direction: column;
+  }
+}

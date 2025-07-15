@@ -1,0 +1,126 @@
+@keyframes marqueeScroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.marqueeInner {
+  animation: marqueeScroll 25s linear infinite;
+}
+
+.marqueeReverse {
+  animation-direction: reverse;
+}
+
+.marqueeRow {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 80rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.gradientLeft {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 5rem;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to right, #fff, transparent);
+}
+
+.gradientRight {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5rem;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(to left, #fff, transparent);
+}
+
+.card {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 0 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: box-shadow 0.2s, transform 0.2s;
+  width: 18rem;
+  flex-shrink: 0;
+  background: #fff;
+}
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transform: translateY(-2px) scale(1.03);
+}
+
+.cardHeader {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cardImage {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+}
+
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cardName {
+  font-weight: 500;
+}
+
+.cardHandle {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.cardText {
+  font-size: 0.95rem;
+  padding: 1rem 0;
+  color: #334155;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.cardFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cardFooterLink {
+  color: inherit;
+  transition: color 0.2s;
+}
+.cardFooterLink:hover {
+  color: #0ea5e9;
+}
+
+@media (max-width: 768px) {
+  .card {
+    width: 14rem;
+  }
+  .gradientLeft, .gradientRight {
+    width: 3rem;
+  }
+}
