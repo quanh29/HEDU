@@ -403,9 +403,8 @@
 
 /* Review Styles */
 .reviewContainer {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  /* Remove max-width and margin to work within the right content area */
+  padding: 0;
 }
 
 .reviewQuestion {

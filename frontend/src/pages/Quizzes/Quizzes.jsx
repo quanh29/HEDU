@@ -210,8 +210,9 @@ const Quizzes = () => {
             onClick={() => navigate(-1)}
           >
             <ChevronLeft size={20} />
-            Quay lại
+            Quay lại danh sách bài học
           </button>
+          <h1>{quizData.title}</h1>
         </div>
 
         <div className={styles.resultsContainer}>
@@ -267,27 +268,44 @@ const Quizzes = () => {
         <div className={styles.header}>
           <button 
             className={styles.backButton}
-            onClick={() => setShowReview(false)}
+            onClick={() => navigate(-1)}
           >
             <ChevronLeft size={20} />
-            Quay lại kết quả
+            Quay lại danh sách bài học
           </button>
-          <h1>Xem lại bài làm</h1>
+          <h1>{quizData.title}</h1>
         </div>
 
-        <div className={styles.reviewContainer}>
-          {quizData.questions.map((question, index) => {
-            const userAnswer = answers[question.id] || [];
-            const isCorrect = isAnswerCorrect(question, userAnswer);
-            return (
-              <ReviewQuestion
-                key={question.id}
-                question={{ ...question, index }}
-                userAnswer={userAnswer}
-                isCorrect={isCorrect}
-              />
-            );
-          })}
+        <div className={styles.quizContent}>
+          <div className={styles.quizLayout}>
+            {/* Question Navigation - Left Side */}
+            <QuestionNav
+              questions={quizData.questions}
+              answers={answers}
+              currentQuestionIndex={currentQuestionIndex}
+              goToQuestion={goToQuestion}
+              handleSubmit={() => setShowReview(false)}
+              isReviewMode={true}
+            />
+
+            {/* Review Content - Right Side */}
+            <div className={styles.rightContent}>
+              <div className={styles.reviewContainer}>
+                {quizData.questions.map((question, index) => {
+                  const userAnswer = answers[question.id] || [];
+                  const isCorrect = isAnswerCorrect(question, userAnswer);
+                  return (
+                    <ReviewQuestion
+                      key={question.id}
+                      question={{ ...question, index }}
+                      userAnswer={userAnswer}
+                      isCorrect={isCorrect}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -302,7 +320,7 @@ const Quizzes = () => {
           onClick={() => navigate(-1)}
         >
           <ChevronLeft size={20} />
-          Quay lại
+          Quay lại danh sách bài học
         </button>
         <h1>{quizData.title}</h1>
       </div>
