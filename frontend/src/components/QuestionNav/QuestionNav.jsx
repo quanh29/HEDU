@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './QuestionNav.module.css';
 
-const QuestionNav = ({ questions, answers, currentQuestionIndex, goToQuestion, handleSubmit }) => (
+const QuestionNav = ({ questions, answers, currentQuestionIndex, goToQuestion, handleSubmit, isReviewMode = false }) => (
   <div className={styles.questionNav}>
     <h3 className={styles.navTitle}>Câu hỏi</h3>
     <div className={styles.questionNavGrid}>
@@ -24,7 +24,7 @@ const QuestionNav = ({ questions, answers, currentQuestionIndex, goToQuestion, h
       className={styles.navSubmitButton}
       onClick={handleSubmit}
     >
-      Nộp bài
+      {isReviewMode ? 'Quay lại kết quả' : 'Nộp bài'}
     </button>
   </div>
 );

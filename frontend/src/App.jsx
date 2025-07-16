@@ -28,6 +28,9 @@ function App() {
           <Route path='/my-learning/*'element={<MyLearning/>}/>
           <Route path='/course/:slug/content/'element={<CourseContent/>}/>
           <Route path='/course/:slug/content/video' element={<VideoSection/>}/>
+          <Route path='/quizzes/attempt' element={<Quizzes/>}/>
+          <Route path='/quizzes/result' element={<Quizzes/>}/>
+          <Route path='/quizzes/result/review' element={<Quizzes/>}/>
           <Route path='/quizzes' element={<Quizzes/>}/>
         </Routes>
       </div>

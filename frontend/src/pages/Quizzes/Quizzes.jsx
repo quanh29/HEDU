@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import styles from './Quizzes.module.css';
 import QuestionNav from '../../components/QuestionNav/QuestionNav.jsx';
@@ -7,17 +7,38 @@ import QuestionContainer from '../../components/QuestionContainer/QuestionContai
 import ReviewQuestion from '../../components/ReviewQuestion/ReviewQuestion.jsx';
 
 const Quizzes = () => {
-  const { courseId, quizId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine current view based on URL
+  const isAttemptView = location.pathname.includes('/attempt');
+  const isResultView = location.pathname.includes('/result') && !location.pathname.includes('/review');
+  const isReviewView = location.pathname.includes('/result/review');
 
   // Quiz states
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [showReview, setShowReview] = useState(false);
   const [score, setScore] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+
+  // Initialize state based on URL
+  useEffect(() => {
+    if (isResultView || isReviewView) {
+      setIsSubmitted(true);
+      // You could load saved results from localStorage or API here
+      const savedResults = localStorage.getItem(`quiz_results`);
+      if (savedResults) {
+        const { answers: savedAnswers, score: savedScore, correctAnswers: savedCorrect } = JSON.parse(savedResults);
+        setAnswers(savedAnswers || {});
+        setScore(savedScore || 0);
+        setCorrectAnswers(savedCorrect || 0);
+      }
+    } else if (!isAttemptView && !isResultView && !isReviewView) {
+      // If user directly accesses quiz without specific path, redirect to attempt
+      navigate(`/quizzes/attempt`, { replace: true });
+    }
+  }, [isResultView, isReviewView, isAttemptView, navigate]);
 
   // Sample quiz data
   const quizData = {
@@ -178,7 +199,18 @@ const Quizzes = () => {
     setCorrectAnswers(result.correct);
     setScore(result.percentage);
     setIsSubmitted(true);
-    setShowResults(true);
+    
+    // Save results to localStorage
+    const resultsData = {
+      answers,
+      score: result.percentage,
+      correctAnswers: result.correct,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem(`quiz_results`, JSON.stringify(resultsData));
+    
+    // Navigate to results page
+    navigate(`/quizzes/result`);
   };
 
   // Navigation functions
@@ -200,8 +232,27 @@ const Quizzes = () => {
 
   const currentQuestion = quizData.questions[currentQuestionIndex];
 
+  // Handle retake
+  const handleRetake = () => {
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setIsSubmitted(false);
+    localStorage.removeItem(`quiz_results`);
+    navigate(`/quizzes/attempt`);
+  };
+
+  // Handle review
+  const handleReview = () => {
+    navigate(`/quizzes/result/review`);
+  };
+
+  // Handle back to results
+  const handleBackToResults = () => {
+    navigate(`/quizzes/result`);
+  };
+
   // Results view
-  if (showResults && !showReview) {
+  if (isResultView) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
@@ -237,19 +288,13 @@ const Quizzes = () => {
             <div className={styles.actionButtons}>
               <button 
                 className={styles.reviewButton}
-                onClick={() => setShowReview(true)}
+                onClick={handleReview}
               >
                 Xem lại bài làm
               </button>
               <button 
                 className={styles.retakeButton}
-                onClick={() => {
-                  setCurrentQuestionIndex(0);
-                  setAnswers({});
-                  setIsSubmitted(false);
-                  setShowResults(false);
-                  setShowReview(false);
-                }}
+                onClick={handleRetake}
               >
                 <RotateCcw size={16} />
                 Làm lại
@@ -262,18 +307,18 @@ const Quizzes = () => {
   }
 
   // Review view
-  if (showReview) {
+  if (isReviewView) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
           <button 
             className={styles.backButton}
-            onClick={() => navigate(-1)}
+            onClick={handleBackToResults}
           >
             <ChevronLeft size={20} />
             Quay lại danh sách bài học
           </button>
-          <h1>{quizData.title}</h1>
+          <h1>{quizData.title} - Xem lại bài làm</h1>
         </div>
 
         <div className={styles.quizContent}>
@@ -284,7 +329,7 @@ const Quizzes = () => {
               answers={answers}
               currentQuestionIndex={currentQuestionIndex}
               goToQuestion={goToQuestion}
-              handleSubmit={() => setShowReview(false)}
+              handleSubmit={handleBackToResults}
               isReviewMode={true}
             />
 
@@ -312,67 +357,72 @@ const Quizzes = () => {
   }
 
   // Quiz taking view
-  return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <button 
-          className={styles.backButton}
-          onClick={() => navigate(-1)}
-        >
-          <ChevronLeft size={20} />
-          Quay lại danh sách bài học
-        </button>
-        <h1>{quizData.title}</h1>
-      </div>
+  if (isAttemptView) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <button 
+            className={styles.backButton}
+            onClick={() => navigate(-1)}
+          >
+            <ChevronLeft size={20} />
+            Quay lại danh sách bài học
+          </button>
+          <h1>{quizData.title}</h1>
+        </div>
 
-      <div className={styles.quizContent}>
-        {/* Question Navigation and Current Question */}
-        <div className={styles.quizLayout}>
-          {/* Question Navigation - Left Side */}
-          <QuestionNav
-            questions={quizData.questions}
-            answers={answers}
-            currentQuestionIndex={currentQuestionIndex}
-            goToQuestion={goToQuestion}
-            handleSubmit={handleSubmit}
-          />
-
-          {/* Right Side Content */}
-          <div className={styles.rightContent}>
-            {/* Current Question */}
-            <QuestionContainer
-              question={{
-                ...currentQuestion,
-                index: currentQuestionIndex,
-                total: quizData.questions.length
-              }}
+        <div className={styles.quizContent}>
+          {/* Question Navigation and Current Question */}
+          <div className={styles.quizLayout}>
+            {/* Question Navigation - Left Side */}
+            <QuestionNav
+              questions={quizData.questions}
               answers={answers}
-              handleAnswerSelect={handleAnswerSelect}
+              currentQuestionIndex={currentQuestionIndex}
+              goToQuestion={goToQuestion}
+              handleSubmit={handleSubmit}
             />
 
-            {/* Navigation Controls */}
-            <div className={styles.navigationControls}>
-              <button
-                className={styles.navButton}
-                onClick={prevQuestion}
-                disabled={currentQuestionIndex === 0}
-              >
-                Câu trước
-              </button>
+            {/* Right Side Content */}
+            <div className={styles.rightContent}>
+              {/* Current Question */}
+              <QuestionContainer
+                question={{
+                  ...currentQuestion,
+                  index: currentQuestionIndex,
+                  total: quizData.questions.length
+                }}
+                answers={answers}
+                handleAnswerSelect={handleAnswerSelect}
+              />
 
-              <button
-                className={styles.navButton}
-                onClick={nextQuestion}
-                disabled={currentQuestionIndex === quizData.questions.length - 1}
-              >
-                Câu tiếp
-              </button>
+              {/* Navigation Controls */}
+              <div className={styles.navigationControls}>
+                <button
+                  className={styles.navButton}
+                  onClick={prevQuestion}
+                  disabled={currentQuestionIndex === 0}
+                >
+                  Câu trước
+                </button>
+
+                <button
+                  className={styles.navButton}
+                  onClick={nextQuestion}
+                  disabled={currentQuestionIndex === quizData.questions.length - 1}
+                >
+                  Câu tiếp
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Loading or redirect state
+  return <div>Đang tải...</div>;
 };
 
 export default Quizzes;
