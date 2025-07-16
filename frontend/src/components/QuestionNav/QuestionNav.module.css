@@ -1,0 +1,97 @@
+.questionNav {
+  width: 280px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  position: sticky;
+  top: 150px;
+  display: flex;
+  flex-direction: column;
+}
+
+.navTitle {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.75rem;
+}
+
+.questionNavGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.questionNavButton {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.navSubmitButton {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #28a745;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: auto;
+}
+
+.navSubmitButton:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.questionNavButton:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.questionNavButton.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.questionNavButton.answered {
+  background: #28a745;
+  border-color: #28a745;
+  color: white;
+}
+
+.questionNavButton.answered.active {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+@media (max-width: 768px) {
+  .questionNav {
+    width: 100%;
+    position: relative;
+    top: auto;
+    order: 2;
+  }
+  .questionNavGrid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+  }
+}

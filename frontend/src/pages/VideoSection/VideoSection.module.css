@@ -69,8 +69,8 @@
 }
 
 .videoPlayerWrapper {
-    background: #00000026;
-    padding: 1vh;
+    background: #000000;
+    padding: 0.1vh;
   margin-bottom: 2rem;
   border-radius: 12px;
   overflow: hidden;

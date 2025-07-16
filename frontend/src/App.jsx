@@ -9,6 +9,7 @@ import Authentication from './pages/Authentication/Authentication.jsx'
 import MyLearning from './pages/MyLearning/MyLearning.jsx'
 import CourseContent from './pages/CourseContent/CourseContent.jsx'
 import VideoSection from './pages/VideoSection/VideoSection.jsx'
+import Quizzes from './pages/Quizzes/Quizzes.jsx'
 
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path='/my-learning/*'element={<MyLearning/>}/>
           <Route path='/course/:slug/content/'element={<CourseContent/>}/>
           <Route path='/course/:slug/content/video' element={<VideoSection/>}/>
+          <Route path='/quizzes' element={<Quizzes/>}/>
         </Routes>
       </div>
       {!isAdmin && <Footer/>}
