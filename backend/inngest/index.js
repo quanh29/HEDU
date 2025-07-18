@@ -17,8 +17,7 @@ const syncUserCreation = inngest.createFunction(
       emailAddress: email_addresses[0].email_address,
       avaUrl: image_url || '',
     };
-    const newUser = new User(UserData);
-    await newUser.save();
+    await User.create(UserData);
   }
 );
 
