@@ -11,11 +11,11 @@ const syncUserCreation = inngest.createFunction(
   async ({ event }) => {
     const { id, first_name, last_name, email_addresses, image_url} = event.data;
     const UserData = {
-      _id: id,
+      userId: id,
       // if lastName is not provided, fullName will be firstName.
-      fullName: first_name + " " + last_name,
+      fullName: last_name ? `${first_name} ${last_name}` : first_name,
       emailAddress: email_addresses[0].email_address,
-      avaUrl: image_url,
+      avaUrl: image_url || '',
     };
     await User.create(UserData);
   }
