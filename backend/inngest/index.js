@@ -9,15 +9,14 @@ const syncUserCreation = inngest.createFunction(
   { id: "Sync-User-Data" },
   { event: "clerk.user.created" },
   async ({ event }) => {
-    const { id, firstName, lastName, emailAddresses, image_url} = event.data;
+    const { id, first_name, last_name, email_addresses, image_url} = event.data;
     const UserData = {
       userId: id,
       // if lastName is not provided, fullName will be firstName.
-      fullName: lastName ? `${firstName} ${lastName}` : firstName,
-      emailAddresses: emailAddresses[0].emailAddress,
+      fullName: last_name ? `${first_name} ${last_name}` : first_name,
+      emailAddress: email_addresses[0].email_address,
       avaUrl: image_url || '',
     };
-    console.log("event data", event.data);
     await User.create(UserData);
   }
 );
