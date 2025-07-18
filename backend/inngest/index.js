@@ -6,16 +6,16 @@ export const inngest = new Inngest({ id: "HEDU" });
 
 // Inngest function to save user data to database
 const syncUserCreation = inngest.createFunction(
-  { id: "Sync-User-Data" },
+  { id: "sync-user-data" },
   { event: "clerk/user.created" },
   async ({ event }) => {
     const { id, first_name, last_name, email_addresses, image_url} = event.data;
     const UserData = {
-      userId: id,
+      _id: id,
       // if lastName is not provided, fullName will be firstName.
-      fullName: last_name ? `${first_name} ${last_name}` : first_name,
+      fullName: first_name + " " + last_name,
       emailAddress: email_addresses[0].email_address,
-      avaUrl: image_url || '',
+      avaUrl: image_url,
     };
     await User.create(UserData);
   }
