@@ -24,19 +24,51 @@
   opacity: 0.9;
 }
 
-.googleBtn {
+
+.socialRow {
   width: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
   margin-top: 2rem;
+  margin-bottom: 0.5rem;
+}
+.googleBtn {
+  flex: 1 1 0;
   background: rgba(107, 114, 128, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.75rem;
   height: 3rem;
   border-radius: 9999px;
   transition: cursor 0.2s;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+  border: none;
 }
 .googleBtn:hover {
   cursor: pointer;
+}
+.facebookBtn {
+  flex: 1 1 0;
+  background: #1877F2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 3rem;
+  border-radius: 9999px;
+  transition: all 0.2s;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: none;
+}
+.facebookBtn:hover {
+  cursor: pointer;
+  background: #166fe5;
 }
 
 .divider {
@@ -133,4 +165,12 @@
 .signupLink {
   color: #818cf8;
   text-decoration: underline;
+}
+
+/* Clerk CAPTCHA styling */
+#clerk-captcha {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }

@@ -1,14 +1,28 @@
 
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import styles from './Authentication.module.css';
-import LoginForm from '../../components/LoginForm/LoginForm';
-import SignupForm from '../../components/SignupForm/SignupForm';
+import LoginForm from '../../components/LoginForm/LoginForm.jsx';
+import SignupForm from '../../components/SignupForm/SignupForm.jsx';
+import ResetPassword from '../../components/ResetPassword/ResetPassword.jsx';
 
 export default function Authentication() {
     const location = useLocation();
+    const { isSignedIn, isLoaded } = useUser();
     const isLoginPage = location.pathname === '/auth/login';
     const isSignupPage = location.pathname === '/auth/signup';
+    const isResetPage = location.pathname === '/auth/reset';
+
+    // Show loading while Clerk is initializing
+    if (!isLoaded) {
+        return <div>Loading...</div>;
+    }
+
+    // Redirect to home if user is already signed in
+    if (isSignedIn) {
+        return <Navigate to="/" replace />;
+    }
 
     return (
         <div className={styles.container}>
@@ -18,7 +32,8 @@ export default function Authentication() {
             <div className={styles.rightContent}>
                 {isLoginPage && <LoginForm />}
                 {isSignupPage && <SignupForm />}
-                {!isLoginPage && !isSignupPage && <LoginForm />}
+                {isResetPage && <ResetPassword />}
+                {!isLoginPage && !isSignupPage && !isResetPage && <LoginForm />}
             </div>
         </div>
     );

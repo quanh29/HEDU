@@ -10,6 +10,7 @@ import MyLearning from './pages/MyLearning/MyLearning.jsx'
 import CourseContent from './pages/CourseContent/CourseContent.jsx'
 import VideoSection from './pages/VideoSection/VideoSection.jsx'
 import Quizzes from './pages/Quizzes/Quizzes.jsx'
+import SSOCallback from './components/SSOCallback/SSOCallback.jsx'
 
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path='/course/search/' element={<CourseSearch/>}/>
           <Route path='/course/:slug' element={<CoursePage/>}/>
           <Route path='/auth/*' element={<Authentication/>}/>
+          <Route path='/sso-callback' element={<SSOCallback/>}/>
           <Route path='/my-learning/*'element={<MyLearning/>}/>
           <Route path='/course/:slug/content/'element={<CourseContent/>}/>
           <Route path='/course/:slug/content/video' element={<VideoSection/>}/>

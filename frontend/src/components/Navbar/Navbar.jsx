@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Navbar.module.css';
 import { useNavigate } from 'react-router-dom';
+import { useUser, UserButton } from '@clerk/clerk-react';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
+  const { isSignedIn, isLoaded } = useUser();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -196,12 +198,33 @@ const Navbar = () => {
         </ul>
         
         <div className={styles.authButtons}>
-          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleLoginClick}>
-            Đăng nhập
-          </button>
-          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleSignupClick}>
-            Đăng ký
-          </button>
+          {!isLoaded ? (
+            // Show loading state while Clerk is initializing
+            <div className={styles.loading}>Loading...</div>
+          ) : isSignedIn ? (
+            // Show UserButton when user is signed in
+            <UserButton 
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: {
+                    height: '40px',
+                    width: '40px'
+                  }
+                }
+              }}
+            />
+          ) : (
+            // Show login/signup buttons when user is not signed in
+            <>
+              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleLoginClick}>
+                Đăng nhập
+              </button>
+              <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleSignupClick}>
+                Đăng ký
+              </button>
+            </>
+          )}
         </div>
       </div>
     </nav>
