@@ -1,50 +1,49 @@
 import mongoose from "mongoose";
 
 const courseSchema = new mongoose.Schema({
-    courseId: {
-    type: String,
-    required: true,
-    unique: true,
-    },
     title: {
-    type: String,
-    required: true,
+        type: String,
+        required: true,
     },
     instructor: {
-    type: Array,
-    required: true,
+        type: Array,
+        required: true,
     },
     description: {
-    type: String,
-    required: true,
+        type: String,
+        required: true,
     },
     rating: {
-    type: Number,
-    default: 0,
+        type: Number,
+        default: 0,
     },
     reviewCount: {
-    type: Number,
-    default: 0,
+        type: Number,
+        default: 0,
     },
     thumbnail: {
-    type: String,
-    required: true,
+        type: String,
+        required: true,
     },
     originalPrice: {
-    type: Number,
-    required: true,
+        type: Number,
+        required: true,
     },
     currentPrice: {
-    type: Number,
-    required: true,
+        type: Number,
+        required: true,
     },
     createdAt: {
-    type: Date,
-    default: Date.now,
+        type: Date,
+        required: true,
     },
     updatedAt: {
         type: Date,
-        default: Date.now,
+        required: true,
+    },
+    category: {
+        type: Array,
+        required: true,
     },
 });
 
