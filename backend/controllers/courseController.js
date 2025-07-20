@@ -17,24 +17,7 @@ export const getCourseById = async (req, res) => {
 };
 
 export const findCourseByTitle = async (req, res) => {
-    const { title } = req.body
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-        ;
+    const { title } = req.body;
     if (!title) {
         return res.status(400).json({ message: 'Title query parameter is required' });
     }
