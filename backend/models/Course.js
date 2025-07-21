@@ -5,6 +5,10 @@ const courseSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    slug_title: {
+        type: String,
+        required: true,
+    },
     instructor: {
         type: Array,
         required: true,

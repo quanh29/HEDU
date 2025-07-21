@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const sectionSchema = new mongoose.Schema({
-    courseId: {
+    course: {
         type: String,
         ref: 'Course',
         required: true,

@@ -1,5 +1,8 @@
 import Course from '../models/Course.js';
+import Section from '../models/Section.js';
+import Lesson from '../models/Lesson.js';
 
+//get course by ID
 export const getCourseById = async (req, res) => {
     try {
         const courseId = req.params.courseId;
@@ -16,15 +19,72 @@ export const getCourseById = async (req, res) => {
     }
 };
 
-export const findCourseByTitle = async (req, res) => {
-    const { title } = req.body;
-    if (!title) {
-        return res.status(400).json({ message: 'Title query parameter is required' });
-    }
+//find course by title, tag, sort (by rating, price, most relevant, newest)
+// limit to 10 results each page
+export const getCourse = async (req, res) => {
+    const { title = '', tag, sort, page = 1 } = req.query;
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
     try {
-        const courses = await Course.find({ title: new RegExp(title, 'i') });
-        if (courses.length === 0) {
-            return res.status(404).json({ message: 'No courses found' });
+        let keywords = title.trim().split('-').filter(Boolean);
+        let query = {};
+
+        // Tìm các khóa học có ít nhất 1 từ trùng trong slug_title
+        if (keywords.length > 0) {
+            query.slug_title = {
+                $regex: keywords.join('|'), // React|Javascript
+                $options: 'i' // không phân biệt hoa thường
+            };
+        }
+
+        if (tag) {
+            query.tags = tag;
+        }
+
+        let courses = await Course.find(query).skip(skip).limit(limit);
+
+        // Tính độ trùng (số từ khớp trong title)
+        courses = courses.map(course => {
+            const titleText = course.title.toLowerCase();
+            let score = 0;
+            for (const word of keywords) {
+                if (titleText.includes(word.toLowerCase())) {
+                    score++;
+                }
+            }
+            return { course, score };
+        });
+
+        // Sắp xếp theo điểm khớp
+        courses.sort((a, b) => b.score - a.score);
+
+        // if (tag) {
+        //     query.tags = tag; // assuming tags is an array
+        // }
+
+        // let courses = await Course.find(query).skip(skip).limit(limit);
+
+        // Sorting logic (default to most relevant)
+        // sorting by price has two options: ascending and descending, default is no sorting
+        if (sort) {
+            switch (sort) {
+                case 'rating':
+                    courses.sort((a, b) => b.rating - a.rating);
+                    break;
+                case 'price_asc':
+                    courses.sort((a, b) => a.currentPrice - b.currentPrice);
+                    break;
+                case 'price_desc':
+                    courses.sort((a, b) => b.currentPrice - a.currentPrice);
+                    break;
+                case 'newest':
+                    courses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    break;
+                default:
+                    // most relevant or no sorting
+                    break;
+            }
         }
         res.status(200).json(courses);
     } catch (error) {
@@ -33,16 +93,36 @@ export const findCourseByTitle = async (req, res) => {
     }
 };
 
-export const addCourse = async (req, res) => {
-    const { title, instructor, rating, reviewCount, thumbnail, description, originalPrice, currentPrice, tags } = req.body;
+// Function to convert title to slug, removing spaces and converting to lowercase, replacing Vietnamese characters
+const convertToSlug = (title) => {
+    return title
+        .toLowerCase()
+        .replace(/ /g, '-') // replace spaces with dashes
+        .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a') // replace Vietnamese characters
+        .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+        .replace(/[ìíịỉĩ]/g, 'i')
+        .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+        .replace(/[ùúụủũưừứựửữ]/g, 'u')
+        .replace(/[ỳýỵỷỹ]/g, 'y')
+        .replace(/[^a-z0-9-]/g, '') // remove any non-alphanumeric characters except dashes
+        .replace(/--+/g, '-') // replace multiple dashes with a single dash
+        .trim('-'); // trim dashes from the start and end
+};
 
-    if (!title || !instructor || !rating || !reviewCount || !thumbnail || !description || !originalPrice || !currentPrice || !tags) {
+
+export const addCourse = async (req, res) => {
+    const { title, instructor, rating, reviewCount, thumbnail, description, originalPrice, currentPrice, tags, sections } = req.body;
+    // sections is an array of objects with title and lessons
+    // lessons is an array of objects with title, content, and contentUrl, info, description
+    // after creating course, create sections and lessons
+    if (!title || !instructor || !rating || !reviewCount || !thumbnail || !description || !originalPrice || !currentPrice || !tags || !sections) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
     try {
         const newCourse = new Course({
             title,
+            slug_title: convertToSlug(title),
             instructor,
             rating,
             reviewCount,
@@ -56,9 +136,124 @@ export const addCourse = async (req, res) => {
         });
 
         await newCourse.save();
+        // Now create sections through sectionController and lessons through lessonController
+        for (const section of sections) {
+            const newSection = await Section.create({
+                course: newCourse._id,
+                title: section.title,
+            });
+
+            for (const lesson of section.lessons) {
+                await Lesson.create({
+                    section: newSection._id,
+                    title: lesson.title,
+                    contentType: lesson.contentType,
+                    contentUrl: lesson.contentUrl,
+                    info: lesson.info,
+                    description: lesson.description,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                });
+            }
+        }
         res.status(201).json(newCourse);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+// Lấy toàn bộ nội dung course (course, sections, lessons) theo courseId
+export const getFullCourseContent = async (req, res) => {
+    const { courseId } = req.params;
+    try {
+        // Lấy course
+        const course = await Course.findById(courseId).lean();
+        if (!course) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Lấy sections thuộc course
+        const sections = await Section.find({ course: courseId }).lean();
+        // bỏ qua các trường course
+        sections.forEach(section => {
+            section.course = undefined; // remove course field to avoid circular reference
+        });
+
+        // Lấy lessons cho từng section
+        const sectionIds = sections.map(sec => sec._id);
+        const lessons = await Lesson.find({ section: { $in: sectionIds } }).lean();
+        // bỏ qua các trường contentUrl, description
+        lessons.forEach(lesson => {
+            lesson.contentUrl = undefined; // remove contentUrl
+            lesson.description = undefined; // remove description
+        });
+
+        // Gắn lessons vào từng section
+        const sectionsWithLessons = sections.map(section => ({
+            ...section,
+            lessons: lessons.filter(lesson => lesson.section.toString() === section._id.toString())
+        }));
+
+        // Trả về course, sections (có lessons)
+        res.status(200).json({
+            course,
+            sections: sectionsWithLessons
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// example of how to create a course
+// {
+//     "title": "React for Beginners",
+//     "instructor": [
+//         "John Doe"
+//     ],
+//     "rating": 4.5,
+//     "reviewCount": 100,
+//     "thumbnail": "https://example.com/thumbnail.jpg",
+//     "description": "Learn React from scratch",
+//     "originalPrice": 100,
+//     "currentPrice": 50,
+//     "tags": [
+//         "react",
+//         "javascript",
+//         "frontend"
+//     ],
+//     "sections": [
+//         {
+//             "title": "Introduction to React",
+//             "lessons": [
+//                 {
+//                     "title": "What is React?",
+//                     "contentType": "video",
+//                     "contentUrl": "https://example.com/lesson1.mp4",
+//                     "info": 1,
+//                     "description": "In this lesson, we will learn what React is and why it is used."
+//                 },
+//                 {
+//                     "title": "Setting up React",
+//                     "contentType": "In this lesson, we will learn how to set up a React",
+//                     "contentUrl": "https://example.com/lesson2.mp4",
+//                     "info": 2,
+//                     "description": "We will set up a React project using Create React App."
+//                 }
+//             ]
+//         },
+//         {
+//             "title": "React Components",
+//             "lessons": [
+//                 {
+//                     "title": "Functional Components",
+//                     "contentType": "Functional components are the simplest way to write React components.",
+//                     "contentUrl": "https://example.com/lesson3.mp4",
+//                     "info": 3,
+//                     "description": "In this lesson, we will learn about functional components and how to"
+//                 }
+//             ]
+//         }
+//     ]
+// }

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const lessonSchema = new mongoose.Schema({
-    sectionId: {
+    section: {
         type: String,
         ref: 'Section',
         required: true,
@@ -10,7 +10,7 @@ const lessonSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    content: {
+    contentType: {
         type: String,
         required: true,
     },
