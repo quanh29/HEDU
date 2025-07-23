@@ -1,3 +1,6 @@
+.searchBtn.notAllowed {
+  cursor: not-allowed;
+}
 @import url('https://fonts.googleapis.com/css2?family=Zen+Tokyo+Zoo&display=swap');
 
 /* Navbar */

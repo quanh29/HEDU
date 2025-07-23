@@ -49,6 +49,33 @@ const courseSchema = new mongoose.Schema({
         type: Array,
         required: true,
     },
+    level: {
+        type: String,
+        enum: ['beginner', 'intermediate', 'expert'],
+        required: true,
+    },
+    language: {
+        type: String,
+        enum: ['vietnamese', 'english', 'chinese', 'spanish', 'french', 'german', 'japanese', 'korean', 'portuguese', 'russian', 'other'],
+        required: true,
+    },
+    hasPractice: {
+        type: Boolean,
+        default: false,
+    },
+    hasCertificate: {
+        type: Boolean,
+        default: false,
+    },
+    requirements: {
+        type: Array,
+        required: true,
+    },
+    objectives: {
+        type: Array,
+        required: true,
+    },
+    
 });
 
 const Course = mongoose.model("Course", courseSchema);

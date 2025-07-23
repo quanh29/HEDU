@@ -30,3 +30,19 @@
   background: #3182ce;
   color: white;
 }
+
+.applyButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #3182ce;
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.applyButton:hover {
+  background: #2c5aa0;
+}

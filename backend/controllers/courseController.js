@@ -19,11 +19,11 @@ export const getCourseById = async (req, res) => {
     }
 };
 
-//find course by title, tag, sort (by rating, price, most relevant, newest)
-// limit to 10 results each page
+//find course by title, tag, sort (by rating, price, most relevant, newest), level, language, price (free, paid, under 500k, from 500k to 1M, above 1M), hasPractice (boolean) by prac, hasCertificate(boolean) by cert
+// limit to 12 results each page
 export const getCourse = async (req, res) => {
-    const { title = '', tag, sort, page = 1 } = req.query;
-    const limit = 10;
+    const { title = '', tag, sort, page = 1, level, language, price, prac, cert } = req.query;
+    const limit = 12;
     const skip = (page - 1) * limit;
 
     try {
@@ -38,8 +38,43 @@ export const getCourse = async (req, res) => {
             };
         }
 
+        if (prac !== undefined) {
+            query.hasPractice = prac === 'true'; // convert string to boolean
+        }
+        if (cert !== undefined) {
+            query.hasCertificate = cert === 'true'; // convert string to boolean
+        }
+
         if (tag) {
-            query.tags = tag;
+            //tag và tags là mảng, tìm các khóa học có tất cả các tag trong mảng tag
+            query.tags = { $all: tag.split(',') }; // ví dụ: tag=react,javascript
+        }
+        if (level && level !== 'all') {
+            query.level = level; // ví dụ: level=beginner
+        }
+        if (language) {
+            query.language = language; // ví dụ: language=vietnamese
+        }
+        if (price) {
+            switch (price) {
+                case 'free':
+                    query.currentPrice = 0; // khóa học miễn phí
+                    break;
+                case 'paid':
+                    query.currentPrice = { $gt: 0 }; // khóa học có phí
+                    break;
+                case 'under-500k':
+                    query.currentPrice = { $lt: 500000 }; // khóa học dưới 500k
+                    break;
+                case '500k-1m':
+                    query.currentPrice = { $gte: 500000, $lte: 1000000 }; // khóa học từ 500k đến 1M
+                    break;
+                case 'over-1m':
+                    query.currentPrice = { $gt: 1000000 }; // khóa học trên 1M
+                    break;
+                default:
+                    break;
+            }
         }
 
         let courses = await Course.find(query).skip(skip).limit(limit);
@@ -66,26 +101,26 @@ export const getCourse = async (req, res) => {
         // let courses = await Course.find(query).skip(skip).limit(limit);
 
         // Sorting logic (default to most relevant)
-        // sorting by price has two options: ascending and descending, default is no sorting
         if (sort) {
             switch (sort) {
                 case 'rating':
-                    courses.sort((a, b) => b.rating - a.rating);
+                    courses.sort((a, b) => b.course.rating - a.course.rating);
                     break;
-                case 'price_asc':
-                    courses.sort((a, b) => a.currentPrice - b.currentPrice);
+                case 'price-asc':
+                    courses.sort((a, b) => a.course.currentPrice - b.course.currentPrice);
                     break;
-                case 'price_desc':
-                    courses.sort((a, b) => b.currentPrice - a.currentPrice);
+                case 'price-desc':
+                    courses.sort((a, b) => b.course.currentPrice - a.course.currentPrice);
                     break;
                 case 'newest':
-                    courses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    courses.sort((a, b) => new Date(b.course.createdAt) - new Date(a.course.createdAt));
                     break;
                 default:
-                    // most relevant or no sorting
+                    // most relevant (already sorted by score above)
                     break;
             }
         }
+
         res.status(200).json(courses);
     } catch (error) {
         console.error(error);
@@ -111,11 +146,11 @@ const convertToSlug = (title) => {
 
 
 export const addCourse = async (req, res) => {
-    const { title, instructor, rating, reviewCount, thumbnail, description, originalPrice, currentPrice, tags, sections } = req.body;
+    const { title, instructor, rating, reviewCount, thumbnail, description, originalPrice, currentPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives } = req.body;
     // sections is an array of objects with title and lessons
     // lessons is an array of objects with title, content, and contentUrl, info, description
     // after creating course, create sections and lessons
-    if (!title || !instructor || !rating || !reviewCount || !thumbnail || !description || !originalPrice || !currentPrice || !tags || !sections) {
+    if (!title || !instructor || !rating || !reviewCount || !thumbnail || !description || !originalPrice || !currentPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -132,7 +167,13 @@ export const addCourse = async (req, res) => {
             currentPrice,
             tags,
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            language,
+            level,
+            hasPractice,
+            hasCertificate,
+            requirements,
+            objectives
         });
 
         await newCourse.save();
@@ -156,7 +197,7 @@ export const addCourse = async (req, res) => {
                 });
             }
         }
-        res.status(201).json(newCourse);
+        res.status(201).json({ success: true });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -221,8 +262,13 @@ export const getFullCourseContent = async (req, res) => {
 //     "tags": [
 //         "react",
 //         "javascript",
-//         "frontend"
+//         "frontend",
+//         "web dev"
 //     ],
+//     "level":"beginner",
+//     "language": "english",
+//     "hasPractice": true,
+//     "hasCertificate": false,
 //     "sections": [
 //         {
 //             "title": "Introduction to React",
