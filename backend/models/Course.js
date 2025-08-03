@@ -9,7 +9,11 @@ const courseSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    instructor: {
+    subtitle: {
+        type: String,
+        required: true,
+    },
+    instructors: {
         type: Array,
         required: true,
     },
@@ -75,7 +79,10 @@ const courseSchema = new mongoose.Schema({
         type: Array,
         required: true,
     },
-    
+    enrollmentCount: {
+        type: Number,
+        default: 0,
+    },
 });
 
 const Course = mongoose.model("Course", courseSchema);

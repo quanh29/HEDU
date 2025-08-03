@@ -1,17 +1,77 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { courseDetailDummy } from './coursepage_dummydata';
 import Carousel from '../components/Carousel/Carousel';
 import { courses as relatedCourses } from '../assets/dummyData';
+import axios from 'axios';
 
 function CoursePage() {
-  // Lấy slug từ URL
+  // Lấy params từ URL - format: courseId-courseTitle
   const { slug } = useParams();
+  const navigate = useNavigate();
 
-  // Sử dụng dữ liệu mẫu từ file riêng
-  const course = courseDetailDummy;
+  // State management
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // ...existing code...
+  // Function để convert title to slug
+  const convertToSlug = (title) => {
+    return title
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+      .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+      .replace(/[ìíịỉĩ]/g, 'i')
+      .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+      .replace(/[ùúụủũưừứựửữ]/g, 'u')
+      .replace(/[ỳýỵỷỹ]/g, 'y')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/--+/g, '-')
+      .trim('-');
+  };
+
+  // Extract courseId từ slug (format: courseId-courseTitle)
+  const courseId = slug ? slug.split('-')[0] : null;
+
+  // Fetch course data từ backend
+  useEffect(() => {
+    const fetchCourse = async () => {
+      if (!courseId) {
+        setError('ID khóa học không hợp lệ');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Gọi API getFullCourseContent trực tiếp với courseId
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`);
+        setCourse(response.data);
+
+        // Tự động update URL với proper slug nếu cần
+        if (response.data.course && response.data.course.title) {
+          const properSlug = `${courseId}-${convertToSlug(response.data.course.title)}`;
+          if (slug !== properSlug) {
+            navigate(`/course/${properSlug}`, { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching course:', err);
+        if (err.response?.status === 404) {
+          setError('Không tìm thấy khóa học');
+        } else {
+          setError('Có lỗi xảy ra khi tải dữ liệu khóa học');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourse();
+  }, [courseId, slug, navigate]);
 
   // Format giá tiền
   const formatPrice = (price) => price.toLocaleString('vi-VN') + 'đ';
@@ -28,13 +88,66 @@ function CoursePage() {
     );
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', color: '#333', marginBottom: '1rem' }}>Đang tải khóa học...</div>
+          <div style={{ fontSize: '1rem', color: '#666' }}>Vui lòng chờ trong giây lát</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', color: '#e74c3c', marginBottom: '1rem' }}>Có lỗi xảy ra</div>
+          <div style={{ fontSize: '1rem', color: '#666', marginBottom: '2rem' }}>{error}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ 
+              padding: '0.75rem 1.5rem', 
+              background: '#333', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '8px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No course found
+  if (!course) {
+    return (
+      <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', color: '#666', marginBottom: '1rem' }}>Không tìm thấy khóa học</div>
+          <a href="/course/search" style={{ color: '#333', textDecoration: 'none', fontWeight: 600 }}>← Quay lại trang tìm kiếm</a>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract course data từ backend response
+  const courseData = course?.course || course;
+  const sections = course?.sections || [];
+
   return (
     <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ marginTop: 70, padding: '2rem 0' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 2rem' }}>
           {/* Breadcrumb */}
           <div style={{ marginBottom: '1rem', color: '#666' }}>
-            <a href="/" style={{ fontWeight: 'bold' }}>Trang chủ</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Lập trình</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Web Development</a> &gt; {course.title}
+            <a href="/" style={{ fontWeight: 'bold' }}>Trang chủ</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Lập trình</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Web Development</a> &gt; {courseData?.title}
           </div>
           
           {/* Main Layout with Sidebar */}
@@ -45,50 +158,65 @@ function CoursePage() {
               <div style={{ marginBottom: '3rem' }}>
                 {/* Course Main Info */}
                 <div style={{ background: 'white', borderRadius: 15, padding: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)' }}>
-                  <div style={{ width: '100%', height: '45rem', background: 'linear-gradient(45deg, #333, #666)', borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '2rem', fontWeight: 'bold', marginBottom: '0rem', backgroundImage: `url(${course.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div style={{ width: '100%', height: '45rem', background: 'linear-gradient(45deg, #333, #666)', borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '2rem', fontWeight: 'bold', marginBottom: '0rem', backgroundImage: `url(${courseData?.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     
                   </div>
-                  <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', color: '#333' }}>{course.title}</h1>
+                  <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', color: '#333' }}>{courseData?.title}</h1>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {/* <span style={{ color: '#FFD700', fontSize: '1.2rem' }}>⭐⭐⭐⭐⭐</span> */}
-                      <span style={{ fontWeight: 600, color: '#333' }}>{course.rating}</span>
+                      <span style={{ fontWeight: 600, color: '#333' }}>{courseData?.rating}</span>
                       <span style={{ color: '#FFD700', fontSize: '1.2rem' }}>⭐</span>
-                      <span style={{ color: '#666' }}>({course.reviewCount.toLocaleString('vi-VN')} đánh giá)</span>
+                      <span style={{ color: '#666' }}>({courseData?.reviewCount?.toLocaleString('vi-VN')} đánh giá)</span>
                     </div>
-                    <div style={{ color: '#666' }}>{course.studentsCount.toLocaleString('vi-VN')} học viên</div>
+                    <div style={{ color: '#666' }}>{courseData?.enrollmentCount?.toLocaleString('vi-VN') || 0} học viên</div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                    {course.tags.map((tag, idx) => (
+                    {courseData?.tags?.map((tag, idx) => (
                       <span key={idx} style={{ background: '#f8f9fa', color: '#333', padding: '0.3rem 0.8rem', borderRadius: 15, fontSize: '0.8rem', fontWeight: 500, border: '1px solid #ddd' }}>{tag}</span>
                     ))}
                   </div>
-                  <p style={{ color: '#555', fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '2rem' }}>{course.description}</p>
+                  <p style={{ color: '#555', fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '2rem' }}>{courseData?.description}</p>
                   <div style={{ marginBottom: '2rem' }}>
-                    <h3 style={{ color: '#333', marginBottom: '0.3rem' }}>Giảng viên</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: 10, border: '1px solid #ddd' }}>
-                      {course.instructor.avatar ? (
-                        <img 
-                          src={course.instructor.avatar} 
-                          alt={course.instructor.name}
-                          style={{ 
-                            width: 60, 
-                            height: 60, 
-                            borderRadius: '50%', 
-                            objectFit: 'cover',
-                            border: '2px solid #ddd'
-                          }} 
-                        />
-                      ) : (
-                        <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(45deg, #333, #666)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                          {course.instructor.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                      )}
-                      <div>
-                        <h4 style={{ color: '#333', marginBottom: '0.3rem' }}>{course.instructor.name}</h4>
-                        <p style={{ color: '#666', fontSize: '0.9rem' }}>{course.instructor.bio}</p>
+                    <h3 style={{ color: '#333', marginBottom: '1rem' }}>Giảng viên:</h3>
+                    {courseData?.instructors && courseData.instructors.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {courseData.instructors.map((instructor, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: 10, border: '1px solid #ddd' }}>
+                            {instructor.avaUrl ? (
+                              <img 
+                                src={instructor.avaUrl} 
+                                alt={instructor.fullName}
+                                style={{ 
+                                  width: 60, 
+                                  height: 60, 
+                                  borderRadius: '50%', 
+                                  objectFit: 'cover',
+                                  border: '2px solid #ddd'
+                                }} 
+                              />
+                            ) : (
+                              <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(45deg, #333, #666)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                {instructor.fullName?.charAt(0).toUpperCase() || 'G'}
+                              </div>
+                            )}
+                            <div>
+                              <h4 style={{ color: '#333', marginBottom: '0.3rem' }}>{instructor.fullName || 'Giảng viên'}</h4>
+                              <p style={{ color: '#666', fontSize: '0.9rem' }}>{instructor.headline || 'Giảng viên chuyên nghiệp'}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: 10, border: '1px solid #ddd' }}>
+                        <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(45deg, #333, #666)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                          G
+                        </div>
+                        <div>
+                          <h4 style={{ color: '#333', marginBottom: '0.3rem' }}>Giảng viên</h4>
+                          <p style={{ color: '#666', fontSize: '0.9rem' }}>Thông tin giảng viên đang được cập nhật...</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -97,11 +225,11 @@ function CoursePage() {
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', marginBottom: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)' }}>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 600, marginBottom: '1.5rem', color: '#333' }}>Những gì bạn sẽ học được</h2>
                 <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {course.objectives.map((obj, idx) => (
+                  {courseData?.objectives?.map((obj, idx) => (
                     <li key={idx} style={{ padding: '0.75rem 0', color: '#555', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', fontSize: '1.1rem', lineHeight: 1.6 }}>
                       <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '1.2rem', marginTop: '0.1rem' }}>✓</span> {obj}
                     </li>
-                  ))}
+                  )) || <li style={{ color: '#666' }}>Thông tin mục tiêu học tập đang được cập nhật...</li>}
                 </ul>
               </div>
 
@@ -109,11 +237,11 @@ function CoursePage() {
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', marginBottom: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)' }}>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 600, marginBottom: '1.5rem', color: '#333' }}>Yêu cầu</h2>
                 <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {course.requirements.map((req, idx) => (
+                  {courseData?.requirements?.map((req, idx) => (
                     <li key={idx} style={{ padding: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontSize: '1rem' }}>📋</span> {req}
                     </li>
-                  ))}
+                  )) || <li style={{ color: '#666' }}>Thông tin yêu cầu đang được cập nhật...</li>}
                 </ul>
               </div>
 
@@ -121,18 +249,11 @@ function CoursePage() {
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', marginBottom: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)' }}>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 600, marginBottom: '1.5rem', color: '#333' }}>Mô tả khóa học</h2>
                 <div style={{ lineHeight: 1.8, color: '#555' }}>
-                  <p style={{ marginBottom: '1.5rem' }}>
-                    <strong>Khóa học Lập trình Web từ cơ bản đến nâng cao</strong> là một hành trình toàn diện giúp bạn trở thành một lập trình viên web chuyên nghiệp. Với hơn 40 giờ video chất lượng cao và 120 bài tập thực hành, bạn sẽ học được tất cả những kỹ năng cần thiết để phát triển ứng dụng web hiện đại.
-                  </p>
-                  <p style={{ marginBottom: '1.5rem' }}>
-                    Khóa học bắt đầu từ những kiến thức cơ bản nhất về HTML và CSS, sau đó tiến dần đến JavaScript, các framework hiện đại như React.js, và backend development với Node.js. Mỗi concept đều được giải thích một cách dễ hiểu với nhiều ví dụ thực tế.
-                  </p>
-                  <p style={{ marginBottom: '1.5rem' }}>
-                    Điểm đặc biệt của khóa học là <strong>15 dự án thực tế</strong> từ đơn giản đến phức tạp, giúp bạn áp dụng kiến thức đã học và xây dựng portfolio ấn tượng. Bạn sẽ tạo ra những ứng dụng như blog cá nhân, e-commerce website, social media app, và nhiều hơn nữa.
-                  </p>
-                  <p>
-                    Sau khi hoàn thành khóa học, bạn sẽ có đủ kiến thức và kỹ năng để ứng tuyển vào các vị trí Junior Frontend Developer, Junior Backend Developer, hoặc Full Stack Developer tại các công ty công nghệ.
-                  </p>
+                  {courseData?.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: courseData.description.replace(/\n/g, '<br/>') }} />
+                  ) : (
+                    <p style={{ color: '#666' }}>Mô tả khóa học đang được cập nhật...</p>
+                  )}
                 </div>
               </div>
 
@@ -140,7 +261,7 @@ function CoursePage() {
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', marginBottom: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)' }}>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 600, marginBottom: '1.5rem', color: '#333' }}>Nội dung khóa học</h2>
                 <div>
-                  {course.curriculum.map((section, idx) => {
+                  {sections?.map((section, idx) => {
                     const isOpen = openSections.includes(idx);
                     return (
                       <div key={idx} style={{ border: '1px solid #eee', borderRadius: 8, marginBottom: '1rem', overflow: 'hidden' }}>
@@ -163,26 +284,26 @@ function CoursePage() {
                         >
                           <span>{section.title}</span>
                           <span style={{ color: '#666', fontSize: '0.9rem', marginLeft: 10 }}>
-                            {section.lessons.length} bài học
+                            {section.lessons?.length || 0} bài học
                             <span style={{ marginLeft: 16, fontSize: '1.2rem' }}>{isOpen ? '▲' : '▼'}</span>
                           </span>
                         </div>
                         {isOpen && (
                           <div style={{ padding: '0 1.5rem', animation: 'fadeIn 0.3s' }}>
-                            {section.lessons.map((lesson, lidx) => (
+                            {section.lessons?.map((lesson, lidx) => (
                               <div key={lidx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <span style={{ color: '#666' }}>📄</span>
-                                  <span>{lesson}</span>
+                                  <span style={{ color: '#666' }}>{lesson.contentType === 'video' ? '🎥' : '📄'}</span>
+                                  <span>{lesson.title}</span>
                                 </div>
-                                <span style={{ color: '#999', fontSize: '0.85rem' }}>10 phút</span>
+                                <span style={{ color: '#999', fontSize: '0.85rem' }}>{lesson.info || 10} phút</span>
                               </div>
-                            ))}
+                            )) || <div style={{ padding: '1rem', color: '#666', textAlign: 'center' }}>Chưa có bài học</div>}
                           </div>
                         )}
                       </div>
                     );
-                  })}
+                  }) || <div style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>Nội dung khóa học đang được cập nhật...</div>}
                 </div>
               </div>
 
@@ -197,13 +318,13 @@ function CoursePage() {
             {/* Right Column - Course Sidebar */}
             <div style={{ position: 'sticky', top: 100, height: 'fit-content' }}>
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
-                {course.originalPrice ? (
+                {courseData?.originalPrice ? (
                   <>
-                    <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '1.1rem', marginBottom: '0.5rem' }}>{formatPrice(course.originalPrice)}</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(course.currentPrice)}</div>
+                    <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '1.1rem', marginBottom: '0.5rem' }}>{formatPrice(courseData.originalPrice)}</div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(courseData.currentPrice)}</div>
                   </>
                 ) : (
-                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(course.currentPrice)}</div>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(courseData?.currentPrice || 0)}</div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                   <button
@@ -256,10 +377,12 @@ function CoursePage() {
                 <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: 10, border: '1px solid #ddd' }}>
                   <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: 'bold' }}>Khóa học bao gồm:</h4>
                   <ul style={{ listStyle: 'none', padding: 0 }}>
-                    <li>40+ giờ video chất lượng cao</li>
-                    <li>120+ bài tập thực hành</li>
-                    <li>15 dự án thực tế</li>
-                    <li>Chứng chỉ hoàn thành</li>
+                    <li>📚 {sections?.length || 0} chương học</li>
+                    <li>🎥 {sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</li>
+                    <li>📝 {courseData?.hasPractice ? 'Bài tập thực hành' : 'Lý thuyết'}</li>
+                    <li>🏆 {courseData?.hasCertificate ? 'Chứng chỉ hoàn thành' : 'Không có chứng chỉ'}</li>
+                    <li>🌐 {courseData?.language === 'vietnamese' ? 'Tiếng Việt' : 'Tiếng Anh'}</li>
+                    <li>📊 Trình độ: {courseData?.level === 'beginner' ? 'Cơ bản' : courseData?.level === 'intermediate' ? 'Trung cấp' : 'Nâng cao'}</li>
                   </ul>
                 </div>
               </div>

@@ -308,7 +308,7 @@ const Card = ({
                 whiteSpace: 'nowrap'
               }}
             >
-              {instructor}
+              {instructor.fullName || instructor}
             </span>
           ))}
         </div>

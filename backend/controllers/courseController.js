@@ -1,6 +1,7 @@
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
 import Lesson from '../models/Lesson.js';
+import User from '../models/User.js';
 
 //get course by ID
 export const getCourseById = async (req, res) => {
@@ -120,7 +121,17 @@ export const getCourse = async (req, res) => {
                     break;
             }
         }
-
+        // lấy thông tin các Instructor dựa trên id trong mảng instructor
+        const instructorIds = courses.map(c => c.course.instructors).flat();
+        const instructors = await User.find({ _id: { $in: instructorIds } }).lean();
+        // Gắn thông tin instructor vào từng course
+        courses = courses.map(c => {
+            const courseData = c.course;
+            courseData.instructors = instructors.filter(instructor => courseData.instructors.includes(instructor._id)).map(instructor => ({
+                fullName: instructor.fullName,
+            }));
+            return courseData;
+        });
         res.status(200).json(courses);
     } catch (error) {
         console.error(error);
@@ -146,11 +157,11 @@ const convertToSlug = (title) => {
 
 
 export const addCourse = async (req, res) => {
-    const { title, instructor, rating, reviewCount, thumbnail, description, originalPrice, currentPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives } = req.body;
+    const { title, instructors, rating, reviewCount, enrollmentCount, thumbnail, description, originalPrice, currentPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle } = req.body;
     // sections is an array of objects with title and lessons
     // lessons is an array of objects with title, content, and contentUrl, info, description
     // after creating course, create sections and lessons
-    if (!title || !instructor || !rating || !reviewCount || !thumbnail || !description || !originalPrice || !currentPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives) {
+    if (!title || !instructors || !thumbnail || !description || !originalPrice || !currentPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives || !subtitle) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -158,7 +169,7 @@ export const addCourse = async (req, res) => {
         const newCourse = new Course({
             title,
             slug_title: convertToSlug(title),
-            instructor,
+            instructors,
             rating,
             reviewCount,
             thumbnail,
@@ -173,7 +184,8 @@ export const addCourse = async (req, res) => {
             hasPractice,
             hasCertificate,
             requirements,
-            objectives
+            objectives,
+            subtitle
         });
 
         await newCourse.save();
@@ -213,6 +225,14 @@ export const getFullCourseContent = async (req, res) => {
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
+        // lấy thông tin các Instructor dựa trên id trong mảng instructor
+        const instructors = await User.find({ _id: { $in: course.instructors } }).lean();
+        course.instructors = instructors.map(instructor => ({
+            _id: instructor._id,
+            fullName: instructor.fullName,
+            avaUrl: instructor.avaUrl, // include avaUrl if available
+            headline: instructor.headline || '', // include headline if available
+        }));
 
         // Lấy sections thuộc course
         const sections = await Section.find({ course: courseId }).lean();
@@ -250,22 +270,33 @@ export const getFullCourseContent = async (req, res) => {
 // example of how to create a course
 // {
 //     "title": "React for Beginners",
-//     "instructor": [
-//         "John Doe"
+//     "subtitle": "Learn React from scratch",
+//     "instructors": [
+//         "userId1",
+//         "userId2"
 //     ],
 //     "rating": 4.5,
 //     "reviewCount": 100,
 //     "thumbnail": "https://example.com/thumbnail.jpg",
-//     "description": "Learn React from scratch",
-//     "originalPrice": 100,
-//     "currentPrice": 50,
+//     "description": "This course will teach you the basics of React, a popular JavaScript library for building user interfaces. You will learn how to create components, manage state, and build interactive web applications. This course is perfect for beginners who want to get started with React. You will learn how to set up a React project, create components, manage state, and build interactive user interfaces. By the end of this course, you will have a solid understanding of React and be able to build your own web applications.",
+//     "originalPrice": 1000000,
+//     "currentPrice": 500000,
+//     "requirements": [
+//         "Basic knowledge of JavaScript",
+//         "Familiarity with HTML and CSS"
+//     ],
+//     "objectives": [
+//         "Understand the basics of React",
+//         "Build interactive user interfaces",
+//         "Learn about components and state management"
+//     ],
 //     "tags": [
 //         "react",
 //         "javascript",
 //         "frontend",
 //         "web dev"
 //     ],
-//     "level":"beginner",
+//     "level": "beginner",
 //     "language": "english",
 //     "hasPractice": true,
 //     "hasCertificate": false,

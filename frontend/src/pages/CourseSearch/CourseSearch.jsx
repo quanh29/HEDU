@@ -280,7 +280,7 @@ const CourseSearch = () => {
                     key={course._id}
                     courseId={course._id}
                     title={course.title}
-                    instructors={course.instructor}
+                    instructors={course.instructors}
                     rating={course.rating}
                     reviewCount={course.reviewCount}
                     originalPrice={course.originalPrice}
