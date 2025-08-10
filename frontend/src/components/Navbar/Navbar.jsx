@@ -232,8 +232,7 @@ const Navbar = () => {
         <ul className={styles.navLinks}>
           <li>
             <Link 
-              to="/teaching" 
-              onClick={(e) => handleSmoothScroll(e, '#teaching')}
+              to="/instructor"
             >
               Giảng dạy
             </Link>
