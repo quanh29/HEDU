@@ -21,9 +21,9 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
-import styles from './ManageCourse.module.css';
+import styles from './CreateUpdateCourse.module.css';
 
-const ManageCourse = () => {
+const CreateUpdateCourse = () => {
   const { user } = useUser();
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -65,23 +65,28 @@ const ManageCourse = () => {
   const fetchCourseData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/${courseId}`);
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/course/${courseId}`);
       const { course, sections: courseSections } = response.data;
       
+      // Derive category/subcategory from tags if available
+      const category = Array.isArray(course.tags) && course.tags.length > 0 ? course.tags[0] : '';
+      const subcategory = Array.isArray(course.tags) && course.tags.length > 1 ? course.tags[1] : '';
+      
       setCourseData({
-  title: course.title || '',
-  subtitle: course.subtitle || '',
-  description: course.description || '',
-  thumbnail: course.thumbnail || '',
-  level: course.level || 'beginner',
-  language: course.language || 'vietnamese',
-  tags: course.tags || [],
-  objectives: course.objectives || [''],
-  requirements: course.requirements || [''],
-  category: course.category || '',
-  subcategory: course.subcategory || '',
-  hasPractice: course.hasPractice || false,
-  hasCertificate: course.hasCertificate || false
+        title: course.title || '',
+        subtitle: course.subtitle || '',
+        description: course.description || '',
+        thumbnail: course.thumbnail || '',
+        level: course.level || 'beginner',
+        language: course.language || 'vietnamese',
+        tags: course.tags || [],
+        objectives: (course.objectives && course.objectives.length) ? course.objectives : [''],
+        requirements: (course.requirements && course.requirements.length) ? course.requirements : [''],
+        category: category,
+        subcategory: subcategory,
+        hasPractice: course.hasPractice || false,
+        hasCertificate: course.hasCertificate || false,
+        originalPrice: course.originalPrice || 0
       });
       
       setSections(courseSections || []);
@@ -265,11 +270,8 @@ const ManageCourse = () => {
       }));
 
       const instructors = user ? [user.id] : [];
-
-      // tags là mảng gồm category và subcategory (nếu có)
       const tags = [courseData.category, courseData.subcategory].filter(Boolean);
 
-      // Đảm bảo status truyền đúng
       const payload = {
         title: courseData.title,
         subtitle: courseData.subtitle,
@@ -285,14 +287,18 @@ const ManageCourse = () => {
         hasPractice: courseData.hasPractice,
         hasCertificate: courseData.hasCertificate,
         sections: normalizedSections,
-        status: status // truyền rõ ràng status
+        status: status
       };
 
       if (isEditMode) {
-        alert('Chức năng cập nhật revision chưa được hỗ trợ!');
+        // Call PUT endpoint to update existing course revision
+        await axios.put(`${import.meta.env.VITE_BASE_URL}/api/course-revision/course/${courseId}`, payload);
+        alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
+        navigate('/instructor');
       } else {
-        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/api/course-revision`, payload);
+        await axios.post(`${import.meta.env.VITE_BASE_URL}/api/course-revision`, payload);
         alert(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
+        navigate('/instructor');
       }
     } catch (error) {
       console.error('Error saving course:', error);
@@ -403,4 +409,4 @@ const ManageCourse = () => {
   );
 };
 
-export default ManageCourse;
+export default CreateUpdateCourse;

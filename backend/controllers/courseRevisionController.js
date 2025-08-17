@@ -45,12 +45,13 @@ export const addCourseRevision = async (req, res) => {
 export const getCourseRevisionsById = async (req, res) => {
     const { courseId } = req.params;
     try {
-        const courseRevisions = await CourseRevision.find({ _id: courseId }).lean();
-        res.status(200).json(courseRevisions);
-
-        if (!courseRevisions) {
+        // Find by id and return a single course revision
+        const courseRevision = await CourseRevision.findById(courseId).lean();
+        if (!courseRevision) {
             return res.status(404).json({ message: 'Course not found' });
         }
+        // Return consistent shape expected by frontend
+        res.status(200).json({ course: courseRevision, sections: courseRevision.sections || [] });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -72,40 +73,31 @@ export const getCourseRevisionsByUserId = async (req, res) => {
     }
 };
 
-//editCourseDraft
-export const editCourseDraft = async (req, res) => {
+//editCourse
+export const editCourse = async (req, res) => {
     const { courseId } = req.params;
-    const { title, instructors, thumbnail, description, originalPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle, status } = req.body;
-
-    // Validate required fields
-    if (!title || !instructors || !thumbnail || !description || !originalPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives || !subtitle || !status) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
+    const updates = req.body;
 
     try {
-        // Update courseRevision
-        const courseRevision = await CourseRevision.findByIdAndUpdate(courseId, {
-            title,
-            instructors,
-            thumbnail,
-            description,
-            originalPrice,
-            tags,
-            sections,
-            language,
-            level,
-            hasPractice,
-            hasCertificate,
-            requirements,
-            objectives,
-            subtitle,
-            status,
-            updatedAt: new Date()
-        }, { new: true });
-
-        if (!courseRevision) {
+        // Find existing revision
+        const existing = await CourseRevision.findById(courseId);
+        if (!existing) {
             return res.status(404).json({ message: 'Course not found' });
         }
+
+        // Merge provided fields with existing values
+        const fields = ['title', 'instructors', 'thumbnail', 'description', 'originalPrice', 'tags', 'sections', 'language', 'level', 'hasPractice', 'hasCertificate', 'requirements', 'objectives', 'subtitle', 'status'];
+        const updatedData = {};
+        fields.forEach(f => {
+            if (updates[f] !== undefined) {
+                updatedData[f] = updates[f];
+            } else {
+                updatedData[f] = existing[f];
+            }
+        });
+        updatedData.updatedAt = new Date();
+
+        const courseRevision = await CourseRevision.findByIdAndUpdate(courseId, updatedData, { new: true });
 
         res.status(200).json({ success: true, courseRevision });
     } catch (error) {

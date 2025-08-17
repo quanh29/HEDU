@@ -355,7 +355,7 @@ const Instructor = () => {
                       <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
                         <Eye size={16} style={{ color: '#6b7280' }} />
                       </button>
-                      <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                      <button onClick={() => navigate(`/update-course/${course.id}`)} style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
                         <Edit3 size={16} style={{ color: '#6b7280' }} />
                       </button>
                       <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
