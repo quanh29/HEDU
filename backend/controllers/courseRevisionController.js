@@ -5,10 +5,10 @@ import CourseRevision from '../models/CourseRevision.js';
 // import User from '../models/User.js';
 
 export const addCourseRevision = async (req, res) => {
-    const { title, instructors, thumbnail, description, originalPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle } = req.body;
+    const { title, instructors, thumbnail, description, originalPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle, status } = req.body;
     // sections is an array of objects with title and lessons
     // lessons is an array of objects with title, content, and contentUrl, info, description
-    if (!title || !instructors || !thumbnail || !description || !originalPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives || !subtitle) {
+    if (!title || !instructors || !thumbnail || !description || !originalPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives || !subtitle || !status) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -29,6 +29,7 @@ export const addCourseRevision = async (req, res) => {
             requirements,
             objectives,
             subtitle,
+            status,
             createdAt: new Date(),
             updatedAt: new Date()
         });
@@ -50,6 +51,63 @@ export const getCourseRevisionsById = async (req, res) => {
         if (!courseRevisions) {
             return res.status(404).json({ message: 'Course not found' });
         }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+//getCourseRevisionsByUserId
+export const getCourseRevisionsByUserId = async (req, res) => {
+    const { instructorId } = req.params;
+    try {
+        const courseRevisions = await CourseRevision.find({ instructors: instructorId }).lean();
+        if (!courseRevisions || courseRevisions.length === 0) {
+            return res.status(404).json({ message: 'No course revisions found for this user' });
+        }
+        res.status(200).json(courseRevisions);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+//editCourseDraft
+export const editCourseDraft = async (req, res) => {
+    const { courseId } = req.params;
+    const { title, instructors, thumbnail, description, originalPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle, status } = req.body;
+
+    // Validate required fields
+    if (!title || !instructors || !thumbnail || !description || !originalPrice || !tags || !sections || !language || !level || hasPractice === undefined || hasCertificate === undefined || !requirements || !objectives || !subtitle || !status) {
+        return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    try {
+        // Update courseRevision
+        const courseRevision = await CourseRevision.findByIdAndUpdate(courseId, {
+            title,
+            instructors,
+            thumbnail,
+            description,
+            originalPrice,
+            tags,
+            sections,
+            language,
+            level,
+            hasPractice,
+            hasCertificate,
+            requirements,
+            objectives,
+            subtitle,
+            status,
+            updatedAt: new Date()
+        }, { new: true });
+
+        if (!courseRevision) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        res.status(200).json({ success: true, courseRevision });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

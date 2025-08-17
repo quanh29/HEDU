@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import BasicInfo from '../../components/BasicInfo/BasicInfo';
 import Curriculum from '../../components/Curriculum/Curriculum';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -23,6 +24,7 @@ import axios from 'axios';
 import styles from './ManageCourse.module.css';
 
 const ManageCourse = () => {
+  const { user } = useUser();
   const { courseId } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!courseId;
@@ -63,7 +65,7 @@ const ManageCourse = () => {
   const fetchCourseData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`);
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/${courseId}`);
       const { course, sections: courseSections } = response.data;
       
       setCourseData({
@@ -230,31 +232,68 @@ const ManageCourse = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Save course
-  const saveCourse = async () => {
+  // Lưu khóa học với status truyền vào
+  const saveCourseWithStatus = async (status) => {
     if (!validateForm()) {
       return;
     }
-    
+
     setSaving(true);
     try {
+      const normalizedSections = sections.map(section => ({
+        title: section.title,
+        lessons: (section.lessons || []).map(lesson => {
+          const baseLesson = {
+            title: lesson.title,
+            contentType: lesson.contentType,
+            info: lesson.info || '',
+            description: lesson.description || ''
+          };
+          if (lesson.contentType === 'video' || lesson.contentType === 'article') {
+            baseLesson.contentUrl = lesson.url || '';
+          }
+          if (lesson.contentType === 'quiz' && lesson.quizQuestions) {
+            baseLesson.questions = lesson.quizQuestions.map(q => ({
+              questionText: q.question,
+              options: (q.answers || []).map(ans => ans.text),
+              correctAnswers: (q.answers || []).map((ans, idx) => ans.isCorrect ? idx : null).filter(idx => idx !== null),
+              explanation: q.explanation || ''
+            }));
+          }
+          return baseLesson;
+        })
+      }));
+
+      const instructors = user ? [user.id] : [];
+
+      // tags là mảng gồm category và subcategory (nếu có)
+      const tags = [courseData.category, courseData.subcategory].filter(Boolean);
+
+      // Đảm bảo status truyền đúng
       const payload = {
-        ...courseData,
-        sections: sections.map(section => ({
-          ...section,
-          lessons: section.lessons || []
-        }))
+        title: courseData.title,
+        subtitle: courseData.subtitle,
+        instructors,
+        thumbnail: courseData.thumbnail,
+        description: courseData.description,
+        originalPrice: courseData.originalPrice,
+        requirements: courseData.requirements,
+        objectives: courseData.objectives,
+        tags,
+        level: courseData.level,
+        language: courseData.language,
+        hasPractice: courseData.hasPractice,
+        hasCertificate: courseData.hasCertificate,
+        sections: normalizedSections,
+        status: status // truyền rõ ràng status
       };
-      
+
       if (isEditMode) {
-        await axios.put(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`, payload);
+        alert('Chức năng cập nhật revision chưa được hỗ trợ!');
       } else {
-        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/api/course`, payload);
-        // Navigate to edit mode with the new course ID
-        navigate(`/manage-course/${response.data.courseId}`, { replace: true });
+        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/api/course-revision`, payload);
+        alert(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
       }
-      
-      alert(isEditMode ? 'Khóa học đã được cập nhật!' : 'Khóa học đã được tạo!');
     } catch (error) {
       console.error('Error saving course:', error);
       alert('Có lỗi xảy ra khi lưu khóa học');
@@ -293,12 +332,21 @@ const ManageCourse = () => {
           
           <div className={styles.headerActions}>
             <button
-              onClick={saveCourse}
+              onClick={() => saveCourseWithStatus('draft')}
               disabled={saving}
               className={styles.saveButton}
             >
               <Save size={16} />
-              {saving ? 'Đang lưu...' : 'Lưu khóa học'}
+              {saving ? 'Đang lưu...' : 'Lưu nháp'}
+            </button>
+            <button
+              onClick={() => saveCourseWithStatus('pending')}
+              disabled={saving}
+              className={styles.saveButton}
+              style={{ marginLeft: 12, background: '#3b82f6', color: 'white' }}
+            >
+              <Upload size={16} />
+              {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
             </button>
           </div>
         </div>

@@ -63,11 +63,11 @@ const courseSchema = new mongoose.Schema({
         type: Array,
         required: true,
     },
-    section:[],
+    sections:[],
     status: {
         type: String,
         enum: ['draft', 'published', 'pending'],
-        default: 'draft'
+        required: true
     }
 });
 

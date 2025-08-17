@@ -81,6 +81,22 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       <option value="article">Tài liệu</option>
                       <option value="quiz">Quiz</option>
                     </select>
+                    {/* URL input for video or article */}
+                    {(lesson.contentType === 'video' || lesson.contentType === 'article') && (
+                      <input
+                        type="url"
+                        value={lesson.url || ''}
+                        onChange={e => updateLesson(
+                          section.id || section._id,
+                          lesson.id || lesson._id,
+                          'url',
+                          e.target.value
+                        )}
+                        placeholder={lesson.contentType === 'video' ? 'Nhập URL video...' : 'Nhập URL tài liệu...'}
+                        className={styles.lessonInput}
+                        style={{ marginTop: 8 }}
+                      />
+                    )}
                     {/* Upload file for video or document with styled box */}
                     {(lesson.contentType === 'video' || lesson.contentType === 'text') && (
                       <div style={{ marginTop: 8, marginBottom: 8 }}>

@@ -35,7 +35,7 @@ const Instructor = () => {
     totalHours: 0
   });
   const [loading, setLoading] = useState(false);
-  const { isSignedIn, isLoaded } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
 
   // Redirect to /auth if not signed in
@@ -47,41 +47,86 @@ const Instructor = () => {
 
   // Fetch data when component mounts
   useEffect(() => {
-    fetchInstructorData();
-  }, []);
+    if (user?.id) {
+      fetchInstructorData();
+    }
+  }, [user]);
+
+  // Refresh data when window gets focus (user comes back from creating course)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.id) {
+        fetchInstructorData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user]);
 
   const fetchInstructorData = async () => {
+    if (!user?.id) return;
+    
     setLoading(true);
     try {
-      // TODO: Replace with actual API endpoints
-      // const coursesRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/instructor/courses`);
-      // const studentsRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/instructor/students`);
-      // const statsRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/instructor/stats`);
+      // Fetch courses từ backend
+      const coursesRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/user/${user.id}`);
+      const courseData = coursesRes.data || [];
       
-      // Mock data for now
-      setCourses([
-        { id: 1, title: 'React for Beginners', students: 150, rating: 4.5, revenue: 15000000, status: 'published' },
-        { id: 2, title: 'Advanced JavaScript', students: 89, rating: 4.8, revenue: 12000000, status: 'draft' },
-        { id: 3, title: 'Node.js Masterclass', students: 234, rating: 4.6, revenue: 25000000, status: 'published' }
-      ]);
+      // Transform data để phù hợp với UI
+      const transformedCourses = courseData.map(course => ({
+        id: course._id,
+        title: course.title,
+        subtitle: course.subtitle,
+        thumbnail: course.thumbnail,
+        description: course.description,
+        originalPrice: course.originalPrice,
+        level: course.level,
+        language: course.language,
+        tags: course.tags,
+        status: course.status, // draft, pending, approved, rejected
+        students: 0, // TODO: Fetch enrollment count
+        rating: 0, // TODO: Fetch rating
+        revenue: 0, // TODO: Calculate revenue
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
+        sections: course.sections
+      }));
       
+      setCourses(transformedCourses);
+      
+      // Calculate stats
+      setStats({
+        totalCourses: transformedCourses.length,
+        totalStudents: transformedCourses.reduce((sum, course) => sum + course.students, 0),
+        totalRevenue: transformedCourses.reduce((sum, course) => sum + course.revenue, 0),
+        totalHours: 0 // TODO: Calculate total hours from sections/lessons
+      });
+      
+      // Mock students data for now (TODO: implement actual student fetching)
       setStudents([
         { id: 1, name: 'Nguyen Van A', email: 'a@example.com', progress: 75, enrolledDate: '2024-01-15' },
         { id: 2, name: 'Tran Thi B', email: 'b@example.com', progress: 45, enrolledDate: '2024-02-20' },
         { id: 3, name: 'Le Van C', email: 'c@example.com', progress: 90, enrolledDate: '2024-01-10' }
       ]);
       
-      setStats({
-        totalCourses: 3,
-        totalStudents: 473,
-        totalRevenue: 52000000,
-        totalHours: 45
-      });
     } catch (error) {
       console.error('Error fetching instructor data:', error);
+      // Fallback to empty data
+      setCourses([]);
+      setStats({
+        totalCourses: 0,
+        totalStudents: 0,
+        totalRevenue: 0,
+        totalHours: 0
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshData = () => {
+    fetchInstructorData();
   };
 
   const formatPrice = (price) => {
@@ -95,7 +140,6 @@ const Instructor = () => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
-  // ...existing code...
   // Dashboard Component
   const Dashboard = () => (
     <div className="space-y-6">
@@ -211,7 +255,7 @@ const Instructor = () => {
             fontSize: '14px',
             fontWeight: '500'
           }}
-          onClick={() => navigate('/manage-course')}
+          onClick={() => navigate('/instructor/create-course')}
         >
           <Plus size={16} />
           Tạo khóa học mới
@@ -289,10 +333,21 @@ const Instructor = () => {
                       borderRadius: '12px',
                       fontSize: '12px',
                       fontWeight: '500',
-                      background: course.status === 'published' ? '#dcfce7' : '#fef3c7',
-                      color: course.status === 'published' ? '#166534' : '#92400e'
+                      background: 
+                        course.status === 'approved' ? '#dcfce7' :
+                        course.status === 'pending' ? '#dbeafe' :
+                        course.status === 'rejected' ? '#fecaca' :
+                        '#fef3c7',
+                      color: 
+                        course.status === 'approved' ? '#166534' :
+                        course.status === 'pending' ? '#1e40af' :
+                        course.status === 'rejected' ? '#dc2626' :
+                        '#92400e'
                     }}>
-                      {course.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
+                      {course.status === 'approved' ? 'Đã duyệt' :
+                       course.status === 'pending' ? 'Chờ duyệt' :
+                       course.status === 'rejected' ? 'Từ chối' :
+                       'Bản nháp'}
                     </span>
                   </td>
                   <td style={{ padding: '16px' }}>

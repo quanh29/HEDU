@@ -39,8 +39,8 @@ function App() {
           <Route path='/quizzes/result' element={<Quizzes/>}/>
           <Route path='/quizzes/result/review' element={<Quizzes/>}/>
           <Route path='/quizzes' element={<Quizzes/>}/>
-          <Route path='/instructor/*' element={<Instructor/>}/>
-          <Route path='/manage-course/*' element={<ManageCourse/>}/>
+          <Route path='/instructor' element={<Instructor/>}/>
+          <Route path='/instructor/create-course' element={<ManageCourse/>}/>
         </Routes>
       </div>
       {!isAdmin && <Footer/>}
