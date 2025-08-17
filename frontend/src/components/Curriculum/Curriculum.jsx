@@ -78,7 +78,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       className={styles.lessonSelect}
                     >
                       <option value="video">Video</option>
-                      <option value="text">Văn bản</option>
+                      <option value="article">Tài liệu</option>
                       <option value="quiz">Quiz</option>
                     </select>
                     {/* Upload file for video or document with styled box */}

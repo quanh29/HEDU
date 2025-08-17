@@ -9,6 +9,7 @@ import courseRouter from './routes/courseRoute.js';
 import sectionRouter from './routes/sectionRoute.js';
 import lessonRouter from './routes/lessonRoute.js';
 import userRouter from './routes/userRoute.js';
+import courseRevisionRouter from './routes/courseRevisionRoute.js';
 
 const app = express();
 const port = 3000;
@@ -31,6 +32,7 @@ app.use("/api/course", courseRouter);
 app.use("/api/section", sectionRouter);
 app.use("/api/lesson", lessonRouter);
 app.use("/api/user", userRouter);
+app.use("/api/course-revision", courseRevisionRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
