@@ -20,9 +20,9 @@ import {
   MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
-import styles from './Instructor.module.css';
 
 import { useUser } from '@clerk/clerk-react';
+import styles from './Instructor.module.css';
 
 const Instructor = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -35,8 +35,10 @@ const Instructor = () => {
     totalHours: 0
   });
   const [loading, setLoading] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState(null);
   const { user, isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
+  const BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Redirect to /auth if not signed in
   useEffect(() => {
@@ -138,6 +140,22 @@ const Instructor = () => {
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const deleteCourse = async (courseId) => {
+    if (!confirm('Bạn có chắc muốn xóa bản nháp này?')) return;
+    try {
+      setLoading(true);
+      await axios.delete(`${BASE_URL}/api/course-revision/course/${courseId}`);
+      setCourses((prev) => prev.filter((c) => c.id !== courseId));
+      alert('Xóa thành công');
+    } catch (err) {
+      console.error(err);
+      alert('Xóa thất bại');
+    } finally {
+      setLoading(false);
+      setMenuOpenId(null);
+    }
   };
 
   // Dashboard Component
@@ -358,9 +376,68 @@ const Instructor = () => {
                       <button onClick={() => navigate(`/update-course/${course.id}`)} style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
                         <Edit3 size={16} style={{ color: '#6b7280' }} />
                       </button>
-                      <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                        <MoreVertical size={16} style={{ color: '#6b7280' }} />
-                      </button>
+
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setMenuOpenId(menuOpenId === course.id ? null : course.id)}
+                          style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        >
+                          <MoreVertical size={16} style={{ color: '#6b7280' }} />
+                        </button>
+
+                        {menuOpenId === course.id && (
+                          <div style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: '100%',
+                            marginTop: '6px',
+                            background: 'white',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            borderRadius: '8px',
+                            padding: '6px',
+                            zIndex: 50,
+                            minWidth: '120px'
+                          }}>
+                            {course.status === 'draft' && (
+                              <button
+                                onClick={() => deleteCourse(course.id)}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  padding: '8px',
+                                  color: '#dc2626',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  textAlign: 'left',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Xóa
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => {
+                                // placeholder for other actions like Hide/Suspend
+                                alert('Chức năng khác');
+                                setMenuOpenId(null);
+                              }}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '8px',
+                                color: '#374151',
+                                background: 'transparent',
+                                border: 'none',
+                                textAlign: 'left',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Ẩn
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

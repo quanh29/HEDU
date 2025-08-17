@@ -106,6 +106,25 @@ export const editCourse = async (req, res) => {
     }
 };
 
+//deleteDraftCourseById
+export const deleteDraftCourseById = async (req, res) => {
+    const { courseId } = req.params;
+    try {
+        const courseRevision = await CourseRevision.findById(courseId);
+        if (!courseRevision) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+        if (courseRevision.status !== 'draft') {
+            return res.status(400).json({ message: 'Only draft courses can be deleted' });
+        }
+        await CourseRevision.findByIdAndDelete(courseId);
+        res.status(204).send();
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 // example of how to create a course
 // {
 //     "title": "React for Beginners",

@@ -1,0 +1,406 @@
+.courseApproval {
+  padding: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+}
+
+.statusFilter {
+  padding: 0.5rem 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: white;
+  color: #495057;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.statusFilter:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+/* Course List */
+.coursesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.courseCard {
+  display: flex;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+}
+
+.courseCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.courseCard.pending {
+  border-left: 4px solid #ffc107;
+}
+
+.courseCard.approved {
+  border-left: 4px solid #28a745;
+}
+
+.courseCard.rejected {
+  border-left: 4px solid #dc3545;
+}
+
+.courseImage {
+  position: relative;
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.courseImage img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.statusBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.statusBadge.pending {
+  background: #ffc107;
+}
+
+.statusBadge.approved {
+  background: #28a745;
+}
+
+.statusBadge.rejected {
+  background: #dc3545;
+}
+
+.courseInfo {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.courseInfo h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.instructor {
+  color: #6c757d;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.courseDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.category,
+.price,
+.duration,
+.lessons {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.category {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.price {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.duration {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.lessons {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.description {
+  color: #495057;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.submitDate {
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.viewBtn,
+.approveBtn,
+.rejectBtn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.viewBtn {
+  background: #6c757d;
+  color: white;
+}
+
+.viewBtn:hover {
+  background: #545b62;
+}
+
+.approveBtn {
+  background: #28a745;
+  color: white;
+}
+
+.approveBtn:hover {
+  background: #218838;
+}
+
+.rejectBtn {
+  background: #dc3545;
+  color: white;
+}
+
+.rejectBtn:hover {
+  background: #c82333;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtn:hover {
+  color: #dc3545;
+}
+
+.modalBody {
+  padding: 1.5rem;
+}
+
+.courseDetailImage {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.courseDetailImage img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.courseDetailInfo h4 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+}
+
+.courseDetailInfo p {
+  margin-bottom: 0.75rem;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.reviewSection {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.reviewSection h5 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.reviewTextarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.reviewTextarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+.reviewActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.reviewNote {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.reviewNote h5 {
+  color: #dc3545;
+  margin-bottom: 0.5rem;
+}
+
+.reviewNote p {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header h2 {
+    font-size: 1.5rem;
+  }
+
+  .courseCard {
+    flex-direction: column;
+  }
+
+  .courseImage {
+    width: 100%;
+  }
+
+  .courseInfo {
+    padding: 1rem;
+  }
+
+  .courseDetails {
+    gap: 0.5rem;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .modalContent {
+    width: 95%;
+    margin: 1rem;
+  }
+
+  .modalHeader,
+  .modalBody {
+    padding: 1rem;
+  }
+
+  .reviewActions {
+    flex-direction: column;
+  }
+}
