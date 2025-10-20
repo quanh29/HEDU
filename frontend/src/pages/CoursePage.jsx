@@ -151,7 +151,7 @@ function CoursePage() {
           </div>
           
           {/* Main Layout with Sidebar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem', marginBottom: '3rem', marginLeft: '-10rem', paddingLeft: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem', marginBottom: '3rem', marginLeft: '-18vw', paddingLeft: '2rem' }}>
             {/* Left Column - Main Content */}
             <div>
               {/* Course Layout */}

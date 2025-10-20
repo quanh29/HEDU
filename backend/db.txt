@@ -1,0 +1,104 @@
+CREATE TABLE Users (
+	user_id				VARCHAR(36) PRIMARY KEY,
+    hashed_password		VARCHAR(255) NOT NULL,
+	email				VARCHAR(255),
+	fName				VARCHAR(255),
+    lName				VARCHAR(255),
+    isMale				BOOLEAN,
+    dob					DATE,
+    headline			VARCHAR(255),
+    bio					TEXT,
+    ava					VARCHAR(255)
+);
+
+CREATE TABLE Courses (
+	course_id			VARCHAR(36) PRIMARY KEY,
+    title				VARCHAR(255) NOT NULL,
+    subTitle			VARCHAR(255) NOT NULL,
+    des					TEXT,
+    rating				DECIMAL(2,1) DEFAULT 0,
+    reviewCount			int(10) DEFAULT 0,
+    originalPrice		DECIMAL(10) NOT NULL,
+    currentPrice		DECIMAL(10) NOT NULL,
+    instructor_id		VARCHAR(36),
+    lv_id				VARCHAR(36),
+    lang_id				VARCHAR(36),
+    has_practice		BOOLEAN,
+    has_certificate		BOOLEAN,
+    pircture_url        VARCHAR(255),
+    FOREIGN KEY(instructor_id) REFERENCES Users(user_id),
+    FOREIGN KEY(lv_id) REFERENCES Levels(lv_id),
+    FOREIGN KEY (lang_id) REFERENCES Languages(lang_id)
+);
+
+CREATE TABLE Categories (
+	category_id			VARCHAR(36) PRIMARY KEY,
+    title				VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE Labeling (
+	category_id			VARCHAR(36),
+    course_id			VARCHAR(36),
+    PRIMARY KEY(category_id, course_id),
+    FOREIGN KEY(category_id) REFERENCES Categories(category_id),
+    FOREIGN KEY(course_id) REFERENCES Courses(course_id)
+);
+
+CREATE TABLE Languages (
+	lang_id				VARCHAR(36) PRIMARY KEY,
+    title				VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE Levels (
+	lv_id				VARCHAR(36) PRIMARY KEY,
+    title				VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE Enrollments (
+	user_id 			VARCHAR(36),
+    course_id			VARCHAR(36),
+    FOREIGN KEY(course_id) REFERENCES Courses(course_id),
+    FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+CREATE TABLE Orders (
+	order_id			VARCHAR(36) PRIMARY KEY,
+    user_id				VARCHAR(36),
+    order_status		VARCHAR(255),
+    amount				DECIMAL,
+    FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+CREATE TABLE OrderDetail (
+	order_id			VARCHAR(36),
+    course_id			VARCHAR(36),
+    PRIMARY KEY(order_id, course_id),
+    FOREIGN KEY(order_id) REFERENCES Orders(order_id),
+    FOREIGN KEY(course_id) REFERENCES Courses(course_id)
+);
+
+CREATE TABLE Carts (
+	cart_id				VARCHAR(36) PRIMARY KEY,
+    user_id				VARCHAR(36) UNIQUE,
+    amount				DECIMAL,
+    FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+CREATE TABLE CartDetail (
+	cart_id				VARCHAR(36),
+    course_id			VARCHAR(36),
+    PRIMARY KEY(cart_id, course_id),
+    FOREIGN KEY(cart_id) REFERENCES Carts(cart_id),
+    FOREIGN KEY(course_id) REFERENCES Courses(course_id)
+);
+
+CREATE TABLE Payments (
+	payment_id			VARCHAR(36) PRIMARY KEY,
+    user_id				VARCHAR(36),
+    order_id			VARCHAR(36),
+    payment_status		VARCHAR(255),
+    method				VARCHAR(255),
+    amount				DECIMAL,
+    FOREIGN KEY(user_id) REFERENCES Users(user_id),
+    FOREIGN KEY(order_id) REFERENCES Orders(order_id)
+);

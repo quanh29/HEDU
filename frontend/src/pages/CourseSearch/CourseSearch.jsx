@@ -263,17 +263,18 @@ const CourseSearch = () => {
           </div>
         )}
 
-        {/* Course Grid */}
+        {/* Course Grid (cần điều chỉnh đoạn này)*/} 
         {!loading && !error && (
           <>
             {currentCourses.length > 0 ? (
               <div style={{ 
                 display: 'flex',
                 flexWrap: 'wrap',
+                width: '66vw',
                 gap: '20px',
                 marginBottom: '40px',
-                marginLeft: '25vw',
-                marginRight: '25vw',
+                marginLeft: '17vw',
+                marginRight: '17vw',
               }}>
                 {currentCourses.map((course) => (
                   <Card
@@ -285,7 +286,7 @@ const CourseSearch = () => {
                     reviewCount={course.reviewCount}
                     originalPrice={course.originalPrice}
                     currentPrice={course.currentPrice}
-                    image={course.thumbnail}
+                    image={course.picture_url}
                   />
                 ))}
               </div>
