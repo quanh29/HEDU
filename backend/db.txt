@@ -25,7 +25,7 @@ CREATE TABLE Courses (
     lang_id				VARCHAR(36),
     has_practice		BOOLEAN,
     has_certificate		BOOLEAN,
-    pircture_url        VARCHAR(255),
+    picture_url			VARCHAR(255),
     FOREIGN KEY(instructor_id) REFERENCES Users(user_id),
     FOREIGN KEY(lv_id) REFERENCES Levels(lv_id),
     FOREIGN KEY (lang_id) REFERENCES Languages(lang_id)
@@ -43,6 +43,21 @@ CREATE TABLE Labeling (
     FOREIGN KEY(category_id) REFERENCES Categories(category_id),
     FOREIGN KEY(course_id) REFERENCES Courses(course_id)
 );
+
+CREATE TABLE headings (
+	heading_id			VARCHAR(36) PRIMARY KEY,
+    title				VARCHAR(255) NOT NULL,
+    sub_title			VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE heading_category(
+	heading_id			VARCHAR(36),
+    category_id			VARCHAR(36),
+    PRIMARY KEY(heading_id, category_id),
+    FOREIGN KEY(heading_id) REFERENCES headings(heading_id),
+    FOREIGN KEY(category_id) REFERENCES categories(category_id)
+);
+
 
 CREATE TABLE Languages (
 	lang_id				VARCHAR(36) PRIMARY KEY,

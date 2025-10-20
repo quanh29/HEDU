@@ -31,6 +31,7 @@ const CourseSearch = () => {
   // Update state when URL parameters change
   useEffect(() => {
     const titleQuery = searchParams.get('title') || '';
+    const categoryQuery = searchParams.get('category') || '';
     const priceQuery = searchParams.get('price') || '';
     const languageQuery = searchParams.get('language') || '';
     const levelQuery = searchParams.get('level') || '';
@@ -42,6 +43,7 @@ const CourseSearch = () => {
     setSearchTerm(titleQuery);
     setFilters(prev => ({
       ...prev,
+      category: categoryQuery,
       price: priceQuery,
       language: languageQuery,
       level: levelQuery,
@@ -62,7 +64,9 @@ const CourseSearch = () => {
     const params = new URLSearchParams();
     
     // Thêm các parameters
+    const categoryParam = searchParams.get('category') || '';
     if (searchTerm) params.append('title', searchTerm);
+    if (categoryParam) params.append('category', categoryParam);
     if (filters.level && filters.level !== '') params.append('level', filters.level);
     if (filters.language && filters.language !== '') params.append('language', filters.language);
     if (filters.price && filters.price !== '') params.append('price', filters.price);
@@ -88,6 +92,7 @@ const CourseSearch = () => {
       
       // Đọc từ URL parameters
       const titleParam = searchParams.get('title') || '';
+      const categoryParam = searchParams.get('category') || '';
       const levelParam = searchParams.get('level') || '';
       const languageParam = searchParams.get('language') || '';
       const priceParam = searchParams.get('price') || '';
@@ -98,6 +103,7 @@ const CourseSearch = () => {
       
       // Thêm các parameters
       if (titleParam) params.append('title', titleParam);
+      if (categoryParam) params.append('category', categoryParam);
       if (levelParam) params.append('level', levelParam);
       if (languageParam) params.append('language', languageParam);
       if (priceParam) params.append('price', priceParam);
@@ -151,7 +157,9 @@ const CourseSearch = () => {
     const params = new URLSearchParams();
     
     // Thêm các parameters hiện tại
+    const categoryParam = searchParams.get('category') || '';
     if (searchTerm) params.append('title', searchTerm);
+    if (categoryParam) params.append('category', categoryParam);
     if (filters.level && filters.level !== '') params.append('level', filters.level);
     if (filters.language && filters.language !== '') params.append('language', filters.language);
     if (filters.price && filters.price !== '') params.append('price', filters.price);

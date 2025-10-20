@@ -22,17 +22,18 @@ export const getCourseById = async (req, res) => {
     }
 };
 
-//find course by title, tag, sort (by rating, price, most relevant, newest), level, language, price (free, paid, under 500k, from 500k to 1M, above 1M), hasPractice (boolean) by prac, hasCertificate(boolean) by cert
+//find course by title, category, tag, sort (by rating, price, most relevant, newest), level, language, price (free, paid, under 500k, from 500k to 1M, above 1M), hasPractice (boolean) by prac, hasCertificate(boolean) by cert
 // limit to 12 results each page
 export const getCourse = async (req, res) => {
-    const { title = '', tag, sort, page = 1, level, language, price, prac, cert } = req.query;
+    const { title = '', category, tag, sort, page = 1, level, language, price, prac, cert } = req.query;
     const limit = 12;
     const offset = (page - 1) * limit;
 
     try {
-        let query = 'SELECT c.*, u.fName, u.lName FROM Courses c JOIN Users u ON c.instructor_id = u.user_id';
+        let query = 'SELECT DISTINCT c.*, u.fName, u.lName FROM Courses c JOIN Users u ON c.instructor_id = u.user_id';
         let whereClauses = [];
         let params = [];
+        let joinLabeling = false;
 
         // Title search
         if (title) {
@@ -42,6 +43,17 @@ export const getCourse = async (req, res) => {
                 whereClauses.push(`(${titleClauses.join(' OR ')})`);
                 params.push(...keywords.map(kw => `%${kw}%`));
             }
+        }
+
+        // Category search (filter by category title)
+        if (category) {
+            if (!joinLabeling) {
+                query += ` JOIN Labeling l ON c.course_id = l.course_id`;
+                joinLabeling = true;
+            }
+            query += ` JOIN Categories cat ON l.category_id = cat.category_id`;
+            whereClauses.push('cat.title = ?');
+            params.push(category);
         }
 
         if (prac !== undefined) {
@@ -56,7 +68,13 @@ export const getCourse = async (req, res) => {
         // Tag search (requires joining with Labeling and Categories)
         if (tag) {
             const tags = tag.split(',');
-            query += ` JOIN Labeling l ON c.course_id = l.course_id JOIN Categories cat ON l.category_id = cat.category_id`;
+            if (!joinLabeling) {
+                query += ` JOIN Labeling l ON c.course_id = l.course_id`;
+                joinLabeling = true;
+            }
+            if (!query.includes('JOIN Categories cat')) {
+                query += ` JOIN Categories cat ON l.category_id = cat.category_id`;
+            }
             whereClauses.push(`cat.title IN (?)`);
             params.push(tags);
         }
