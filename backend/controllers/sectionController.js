@@ -6,11 +6,11 @@ export const addSection = async (req, res) => {
 
     try {
         const newSection = new Section({
-            courseId,
+            course_id: courseId,
             title,
         });
 
-        const savedSection = await newSection.create();
+        const savedSection = await newSection.save();
         res.status(201).json(savedSection);
     } catch (error) {
         res.status(500).json({ message: 'Error creating section', error });
@@ -21,15 +21,11 @@ export const getSectionsByCourseId = async (req, res) => {
     const { courseId } = req.params;
 
     try {
-        const sections = await Section.find({ course: (courseId) }).populate('course');
+        const sections = await Section.find({ course_id: courseId }).lean();
 
         if (!sections || sections.length === 0) {
             return res.status(404).json({ message: 'No sections found for this course' });
         }
-        // remove course field from each section by setting it to undefined
-        sections.forEach(section => {
-            section.course = undefined;
-        });
 
         res.status(200).json({ courseId: courseId, sections });
     } catch (error) {

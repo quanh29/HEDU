@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const sectionSchema = new mongoose.Schema({
-    course: {
+    course_id: {
         type: String,
-        ref: 'Course',
         required: true,
+        ref: 'Course' // Reference to MySQL course_id
     },
     title: {
         type: String,

@@ -26,6 +26,7 @@ CREATE TABLE Courses (
     has_practice		BOOLEAN,
     has_certificate		BOOLEAN,
     picture_url			VARCHAR(255),
+    course_status		ENUM('draft', 'pending', 'approved', 'rejected') NOT NULL DEFAULT 'draft',
     FOREIGN KEY(instructor_id) REFERENCES Users(user_id),
     FOREIGN KEY(lv_id) REFERENCES Levels(lv_id),
     FOREIGN KEY (lang_id) REFERENCES Languages(lang_id)
@@ -69,6 +70,7 @@ CREATE TABLE Levels (
     title				VARCHAR(255) UNIQUE
 );
 
+//chưa thêm
 CREATE TABLE Enrollments (
 	user_id 			VARCHAR(36),
     course_id			VARCHAR(36),
@@ -84,6 +86,7 @@ CREATE TABLE Orders (
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );
 
+//chưa thêm
 CREATE TABLE OrderDetail (
 	order_id			VARCHAR(36),
     course_id			VARCHAR(36),
@@ -99,6 +102,7 @@ CREATE TABLE Carts (
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );
 
+//chưa thêm
 CREATE TABLE CartDetail (
 	cart_id				VARCHAR(36),
     course_id			VARCHAR(36),
