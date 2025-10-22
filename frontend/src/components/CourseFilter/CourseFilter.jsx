@@ -37,7 +37,9 @@ const CourseFilter = ({ filters, onFilterChange, onCheckboxChange, onApplyFilter
         <option value="">Tất cả</option>
         <option value="vietnamese">Tiếng Việt</option>
         <option value="english">Tiếng Anh</option>
-        <option value="chinese">Tiếng Trung</option>
+        <option value="japanese">Tiếng Nhật</option>
+        <option value="french">Tiếng Pháp</option>
+        <option value="spanish">Tiếng Tây Ba Nha</option>
       </select>
       <select 
         value={filters.level}
@@ -48,7 +50,7 @@ const CourseFilter = ({ filters, onFilterChange, onCheckboxChange, onApplyFilter
         <option value="">Tất cả</option>
         <option value="beginner">Người mới bắt đầu</option>
         <option value="intermediate">Trung cấp</option>
-        <option value="expert">Chuyên gia</option>
+        <option value="advanced">Chuyên gia</option>
       </select>
       <button
         onClick={() => onCheckboxChange('hasPractice', !filters.hasPractice)}

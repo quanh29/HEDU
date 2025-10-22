@@ -21,7 +21,7 @@ CREATE TABLE Courses (
     originalPrice		DECIMAL(10) NOT NULL,
     currentPrice		DECIMAL(10) NOT NULL,
     instructor_id		VARCHAR(36),
-    lv_id				VARCHAR(36),
+    lv_id				VARCHAR(36),            (L1, L2, L3)
     lang_id				VARCHAR(36),
     has_practice		BOOLEAN,
     has_certificate		BOOLEAN,
