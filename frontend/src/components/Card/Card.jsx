@@ -25,7 +25,10 @@ const Card = ({
   };
 
   const formatPrice = (price) => {
-    return price?.toLocaleString('vi-VN') + '₫';
+    if (price === null || price === undefined || price === '') return '';
+    const num = Number(price);
+    if (Number.isNaN(num)) return price + '₫';
+    return new Intl.NumberFormat('en-US').format(num) + '₫';
   };
 
   // Hàm tạo slug từ title

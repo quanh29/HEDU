@@ -72,7 +72,12 @@ function CoursePage() {
   }, [courseId, navigate]);
 
   // Format giá tiền
-  const formatPrice = (price) => price.toLocaleString('vi-VN') + 'đ';
+  const formatPrice = (price) => {
+    if (price === null || price === undefined || price === '') return '';
+    const num = Number(price);
+    if (Number.isNaN(num)) return price + '₫';
+    return new Intl.NumberFormat('en-US').format(num) + '₫';
+  };
 
   // State cho dropdown curriculum
   const [openSections, setOpenSections] = React.useState([]);

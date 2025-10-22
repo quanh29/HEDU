@@ -377,6 +377,158 @@ export const getFullCourseContent = async (req, res) => {
     }
 };
 
+// Lấy đầy đủ nội dung course cho học viên đã đăng ký
+// Bao gồm contentUrl của videos, materials và chi tiết quiz questions
+// Route này dành cho trang CourseContent khi học viên đang học
+export const getCourseContentForEnrolledUser = async (req, res) => {
+    const { courseId } = req.params;
+    try {
+        // Lấy course từ MySQL - chỉ lấy khóa học đã duyệt
+        const [courseRows] = await pool.query(`
+            SELECT c.*, 
+                   u.user_id as instructor_user_id, 
+                   u.fName, 
+                   u.lName, 
+                   u.ava as avaUrl, 
+                   u.headline,
+                   lv.title as level_title,
+                   lg.title as language_title
+            FROM Courses c 
+            JOIN Users u ON c.instructor_id = u.user_id 
+            LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
+            LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
+            WHERE c.course_id = ? AND c.course_status = ?`, [courseId, 'approved']);
+
+        if (courseRows.length === 0) {
+            return res.status(404).json({ message: 'Course not found or not approved' });
+        }
+
+        const course = courseRows[0];
+        
+        // Lấy requirements và objectives từ MongoDB
+        const mongoCourse = await Course.findById(courseId).lean();
+        if (mongoCourse) {
+            course.requirements = mongoCourse.requirements;
+            course.objectives = mongoCourse.objectives;
+        }
+
+        // Lấy sections từ MongoDB
+        const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
+        
+        if (!sections || sections.length === 0) {
+            return res.status(200).json({
+                course: {
+                    ...course,
+                    title: course.title,
+                    courseId: course.course_id
+                },
+                sections: []
+            });
+        }
+
+        const sectionIds = sections.map(sec => sec._id.toString());
+        
+        // Lấy videos, materials, quizzes từ MongoDB với đầy đủ thông tin
+        const [videos, materials, quizzes] = await Promise.all([
+            Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
+            Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
+            Quiz.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean()
+        ]);
+
+        // Gom lessons theo section với đầy đủ thông tin
+        const sectionsWithContent = sections.map((section, index) => {
+            const sectionIdStr = section._id.toString();
+            
+            // Lấy videos của section với contentUrl và description
+            const sectionVideos = videos
+                .filter(v => v.section.toString() === sectionIdStr)
+                .map(v => ({
+                    lessonId: v._id.toString(),
+                    type: 'video',
+                    title: v.title,
+                    contentUrl: v.contentUrl,
+                    description: v.description || '',
+                    duration: calculateVideoDuration(v.contentUrl), // Có thể implement sau
+                    order: v.order,
+                    completed: false // Có thể lấy từ progress tracking sau
+                }));
+
+            // Lấy materials của section với contentUrl
+            const sectionMaterials = materials
+                .filter(m => m.section.toString() === sectionIdStr)
+                .map(m => ({
+                    lessonId: m._id.toString(),
+                    type: 'document',
+                    title: m.title,
+                    contentUrl: m.contentUrl,
+                    fileType: getFileType(m.contentUrl), // pdf, doc, etc.
+                    fileSize: '1MB', // Có thể calculate từ file thực tế
+                    fileName: getFileName(m.contentUrl),
+                    order: m.order,
+                    completed: false
+                }));
+
+            // Lấy quizzes của section với questions (nhưng không có correctAnswers và explanation)
+            const sectionQuizzes = quizzes
+                .filter(q => q.section.toString() === sectionIdStr)
+                .map(q => ({
+                    lessonId: q._id.toString(),
+                    type: 'quiz',
+                    title: q.title,
+                    description: q.description || '',
+                    questionCount: q.questions ? q.questions.length : 0,
+                    questions: q.questions ? q.questions.map(quest => ({
+                        questionText: quest.questionText,
+                        options: quest.options,
+                        // Không trả về correctAnswers và explanation để tránh gian lận
+                    })) : [],
+                    order: q.order,
+                    completed: false
+                }));
+
+            // Gộp tất cả lessons và sắp xếp theo order
+            const allLessons = [...sectionVideos, ...sectionMaterials, ...sectionQuizzes]
+                .sort((a, b) => a.order - b.order);
+
+            return {
+                sectionId: section._id.toString(),
+                title: section.title,
+                courseTitle: course.title,
+                order: section.order,
+                lessons: allLessons
+            };
+        });
+
+        res.status(200).json({
+            course: {
+                courseId: course.course_id,
+                title: course.title,
+                description: course.des,
+                thumbnail: course.picture_url
+            },
+            sections: sectionsWithContent
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Helper functions
+function calculateVideoDuration(url) {
+    // Placeholder - implement actual video duration calculation if needed
+    return '10:00';
+}
+
+function getFileType(url) {
+    const extension = url.split('.').pop().toLowerCase();
+    return extension || 'pdf';
+}
+
+function getFileName(url) {
+    return url.split('/').pop() || 'document';
+}
+
 // Lấy tất cả khóa học của instructor (bao gồm tất cả trạng thái)
 export const getInstructorCourses = async (req, res) => {
     const { instructorId } = req.params;
@@ -551,71 +703,3 @@ export const importCourseData = async (req, res) => {
         res.status(500).json({ message: 'Server error during import', error: error.message });
     }
 };
-
-// example of how to create a course
-// {
-//     "title": "React for Beginners",
-//     "subtitle": "Learn React from scratch",
-//     "instructors": [
-//         "userId1",
-//         "userId2"
-//     ],
-//     "rating": 4.5,
-//     "reviewCount": 100,
-//     "thumbnail": "https://example.com/thumbnail.jpg",
-//     "description": "This course will teach you the basics of React, a popular JavaScript library for building user interfaces. You will learn how to create components, manage state, and build interactive web applications. This course is perfect for beginners who want to get started with React. You will learn how to set up a React project, create components, manage state, and build interactive user interfaces. By the end of this course, you will have a solid understanding of React and be able to build your own web applications.",
-//     "originalPrice": 1000000,
-//     "currentPrice": 500000,
-//     "requirements": [
-//         "Basic knowledge of JavaScript",
-//         "Familiarity with HTML and CSS"
-//     ],
-//     "objectives": [
-//         "Understand the basics of React",
-//         "Build interactive user interfaces",
-//         "Learn about components and state management"
-//     ],
-//     "tags": [
-//         "react",
-//         "javascript",
-//         "frontend",
-//         "web dev"
-//     ],
-//     "level": "beginner",
-//     "language": "english",
-//     "hasPractice": true,
-//     "hasCertificate": false,
-//     "sections": [
-//         {
-//             "title": "Introduction to React",
-//             "lessons": [
-//                 {
-//                     "title": "What is React?",
-//                     "contentType": "video",
-//                     "contentUrl": "https://example.com/lesson1.mp4",
-//                     "info": 1,
-//                     "description": "In this lesson, we will learn what React is and why it is used."
-//                 },
-//                 {
-//                     "title": "Setting up React",
-//                     "contentType": "In this lesson, we will learn how to set up a React",
-//                     "contentUrl": "https://example.com/lesson2.mp4",
-//                     "info": 2,
-//                     "description": "We will set up a React project using Create React App."
-//                 }
-//             ]
-//         },
-//         {
-//             "title": "React Components",
-//             "lessons": [
-//                 {
-//                     "title": "Functional Components",
-//                     "contentType": "Functional components are the simplest way to write React components.",
-//                     "contentUrl": "https://example.com/lesson3.mp4",
-//                     "info": 3,
-//                     "description": "In this lesson, we will learn about functional components and how to"
-//                 }
-//             ]
-//         }
-//     ]
-// }

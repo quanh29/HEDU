@@ -4,6 +4,7 @@ import {
     getCourseById, 
     getCourse, 
     getFullCourseContent,
+    getCourseContentForEnrolledUser,
     getInstructorCourses,
     updateCourseStatus,
     getCourseByIdForManagement,
@@ -20,6 +21,12 @@ courseRouter.get("/search", async (req, res) => {
 // Route để lấy full course content (public - không có nội dung nhạy cảm)
 courseRouter.get("/:courseId/full", async (req, res) => {
     getFullCourseContent(req, res);
+});
+
+// Route mới: lấy chi tiết đầy đủ course content cho học viên đã đăng ký
+// Bao gồm contentUrl của videos, materials và chi tiết quiz
+courseRouter.get("/:courseId/content", async (req, res) => {
+    getCourseContentForEnrolledUser(req, res);
 });
 
 // Route cũ để tương thích ngược (gọi cùng hàm)

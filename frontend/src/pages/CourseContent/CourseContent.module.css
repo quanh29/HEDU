@@ -161,3 +161,28 @@
   height: 1rem;
   color: #6b7280;
 }
+
+/* Loading, error, and no data states */
+.loading,
+.error,
+.noData {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 1.125rem;
+}
+
+.loading {
+  color: #6b7280;
+}
+
+.error {
+  color: #dc2626;
+  background-color: #fee2e2;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.noData {
+  color: #6b7280;
+}
+

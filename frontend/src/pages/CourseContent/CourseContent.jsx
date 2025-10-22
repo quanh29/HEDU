@@ -1,38 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import styles from './CourseContent.module.css';
-
-// Dữ liệu mẫu cho sections và lessons
-const sampleSections = [
-	{
-		sectionId: 's1',
-		title: 'Giới thiệu',
-		courseTitle: 'Lập trình Web từ cơ bản đến nâng cao',
-		lessons: [
-			{ lessonId: 'l1', title: 'Chào mừng', type: 'video', duration: '5:00', completed: true },
-			{ lessonId: 'l2', title: 'Tổng quan khóa học', type: 'document', fileType: 'pdf', fileSize: '1MB', fileName: 'overview.pdf', completed: false },
-		]
-	},
-	{
-		sectionId: 's2',
-		title: 'Cơ bản',
-		courseTitle: 'Lập trình Web từ cơ bản đến nâng cao',
-		lessons: [
-			{ lessonId: 'l3', title: 'Bài học 1', type: 'video', duration: '12:30', completed: false },
-			{ lessonId: 'l4', title: 'Quiz kiểm tra', type: 'quiz', questionCount: 10, completed: false },
-		]
-	}
-];
+import axios from 'axios';
 
 function CourseContent() {
-	const { courseId, courseTitle } = useParams();
-	const [expandedSections, setExpandedSections] = useState(() => {
-		// Mở rộng tất cả section mặc định
-		const initial = {};
-		sampleSections.forEach(section => { initial[section.sectionId] = true; });
-		return initial;
-	});
+	const { courseId } = useParams();
+	const [course, setCourse] = useState(null);
+	const [sections, setSections] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+	const [expandedSections, setExpandedSections] = useState({});
+
+	// Fetch dữ liệu khóa học
+	useEffect(() => {
+		const fetchCourseContent = async () => {
+			try {
+				setLoading(true);
+				// const response = await fetch(`http://localhost:3000/api/course/${courseId}/content`);
+				// use env variable for base URL
+				const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/content`);
+				
+				if (response.status !== 200) {
+					throw new Error('Failed to fetch course content');
+				}
+
+				const data = response.data;
+				setCourse(data.course);
+				setSections(data.sections);
+				
+				// Mở rộng tất cả section mặc định
+				const initial = {};
+				data.sections.forEach(section => { 
+					initial[section.sectionId] = true; 
+				});
+				setExpandedSections(initial);
+				
+				setLoading(false);
+			} catch (err) {
+				console.error('Error fetching course content:', err);
+				setError(err.message);
+				setLoading(false);
+			}
+		};
+
+		if (courseId) {
+			fetchCourseContent();
+		}
+	}, [courseId]);
 
 	const toggleSection = (sectionId) => {
 		setExpandedSections(prev => ({
@@ -74,11 +89,40 @@ function CourseContent() {
 		}
 	};
 
+	// Loading state
+	if (loading) {
+		return (
+			<div className={styles.courseContainer}>
+				<div className={styles.loading}>Đang tải nội dung khóa học...</div>
+			</div>
+		);
+	}
+
+	// Error state
+	if (error) {
+		return (
+			<div className={styles.courseContainer}>
+				<div className={styles.error}>Lỗi: {error}</div>
+			</div>
+		);
+	}
+
+	// No data
+	if (!course || !sections) {
+		return (
+			<div className={styles.courseContainer}>
+				<div className={styles.noData}>Không tìm thấy nội dung khóa học</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className={styles.courseContainer}>
-			<h1 className={styles.courseTitle}>Nội dung khóa học: {courseTitle || 'Tên khóa học'} (ID: {courseId})</h1>
+			<h1 className={styles.courseTitle}>
+				Nội dung khóa học: {course.title || 'Tên khóa học'}
+			</h1>
 			<div className={styles.sectionsContainer}>
-				{sampleSections.map((section, idx) => (
+				{sections.map((section, idx) => (
 					<div key={section.sectionId} className={styles.section}>
 						<div 
 							className={styles.sectionHeader}
