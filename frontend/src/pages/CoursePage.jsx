@@ -6,8 +6,8 @@ import { courses as relatedCourses } from '../assets/dummyData';
 import axios from 'axios';
 
 function CoursePage() {
-  // Lấy params từ URL - format: courseId-courseTitle
-  const { slug } = useParams();
+  // Lấy params từ URL - chỉ courseId (no slug)
+  const { courseId: paramCourseId } = useParams();
   const navigate = useNavigate();
 
   // State management
@@ -17,22 +17,22 @@ function CoursePage() {
 
   // Function để convert title to slug
   const convertToSlug = (title) => {
+    if (!title) return '';
+    
     return title
       .toLowerCase()
-      .replace(/ /g, '-')
-      .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
-      .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
-      .replace(/[ìíịỉĩ]/g, 'i')
-      .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
-      .replace(/[ùúụủũưừứựửữ]/g, 'u')
-      .replace(/[ỳýỵỷỹ]/g, 'y')
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/--+/g, '-')
-      .trim('-');
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
   };
 
-  // Extract courseId từ slug (format: courseId-courseTitle)
-  const courseId = slug ? slug.split('-')[0] : null;
+  // courseId directly from route param
+  const courseId = paramCourseId ? decodeURIComponent(paramCourseId) : null;
 
   // Fetch course data từ backend
   useEffect(() => {
@@ -47,17 +47,15 @@ function CoursePage() {
         setLoading(true);
         setError(null);
         
-        // Gọi API getFullCourseContent trực tiếp với courseId
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`);
+        console.log('Fetching course with ID:', courseId);
+        
+        // Gọi API getFullCourseContent với endpoint /full (dữ liệu công khai)
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/full`);
+        
+        console.log('Course data received:', response.data);
         setCourse(response.data);
 
-        // Tự động update URL với proper slug nếu cần
-        if (response.data.course && response.data.course.title) {
-          const properSlug = `${courseId}-${convertToSlug(response.data.course.title)}`;
-          if (slug !== properSlug) {
-            navigate(`/course/${properSlug}`, { replace: true });
-          }
-        }
+        // No slug redirect: URL now uses only courseId
       } catch (err) {
         console.error('Error fetching course:', err);
         if (err.response?.status === 404) {
@@ -71,7 +69,7 @@ function CoursePage() {
     };
 
     fetchCourse();
-  }, [courseId, slug, navigate]);
+  }, [courseId, navigate]);
 
   // Format giá tiền
   const formatPrice = (price) => price.toLocaleString('vi-VN') + 'đ';

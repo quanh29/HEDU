@@ -1,7 +1,11 @@
 import pool from '../config/mysql.js';
 import { v4 as uuidv4 } from 'uuid';
-// Giữ lại Course model cho requirements và objectives
+// MongoDB models
 import Course from '../models/Course.js';
+import Section from '../models/Section.js';
+import Video from '../models/video.js';
+import Material from '../models/Material.js';
+import Quiz from '../models/Quiz.js';
 import User from '../models/User.js';
 
 //get course by ID (chỉ hiển thị khóa học đã được duyệt)
@@ -217,16 +221,26 @@ export const addCourse = async (req, res) => {
     }
 };
 
-// Lấy toàn bộ nội dung course (course, sections, lessons) theo courseId
+// Lấy toàn bộ nội dung course (course, sections, videos, materials, quizzes) theo courseId
 // Chỉ hiển thị khóa học đã được duyệt (approved)
+// Route public: không trả về contentUrl, description nhạy cảm, và đáp án quiz
 export const getFullCourseContent = async (req, res) => {
     const { courseId } = req.params;
     try {
         // Lấy course từ MySQL - chỉ lấy khóa học đã duyệt
         const [courseRows] = await pool.query(`
-            SELECT c.*, u.user_id as instructor_user_id, u.fName, u.lName, u.ava as avaUrl, u.headline 
+            SELECT c.*, 
+                   u.user_id as instructor_user_id, 
+                   u.fName, 
+                   u.lName, 
+                   u.ava as avaUrl, 
+                   u.headline,
+                   lv.title as level_title,
+                   lg.title as language_title
             FROM Courses c 
             JOIN Users u ON c.instructor_id = u.user_id 
+            LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
+            LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
             WHERE c.course_id = ? AND c.course_status = ?`, [courseId, 'approved']);
 
         if (courseRows.length === 0) {
@@ -242,6 +256,14 @@ export const getFullCourseContent = async (req, res) => {
             course.objectives = mongoCourse.objectives;
         }
         
+        // Map field names để phù hợp với frontend
+        course.thumbnail = course.picture_url; // Frontend dùng thumbnail
+        course.description = course.des; // Frontend dùng description
+        course.hasPractice = course.has_practice === 1; // Convert to boolean
+        course.hasCertificate = course.has_certificate === 1; // Convert to boolean
+        course.level = course.level_title; // Dùng title thay vì ID
+        course.language = course.language_title; // Dùng title thay vì ID
+        
         // Định dạng instructor info
         course.instructors = [{
             _id: course.instructor_user_id,
@@ -250,28 +272,108 @@ export const getFullCourseContent = async (req, res) => {
             headline: course.headline || '',
         }];
 
-        // Lấy sections và lessons từ MongoDB
-        const sections = await Section.find({ course_id: courseId }).lean();
-        const sectionIds = sections.map(sec => sec._id);
-        const lessons = await Lesson.find({ section: { $in: sectionIds } }).lean();
+        // Lấy categories từ MySQL
+        const [categories] = await pool.query(`
+            SELECT cat.category_id, cat.title 
+            FROM Labeling l 
+            JOIN Categories cat ON l.category_id = cat.category_id 
+            WHERE l.course_id = ?`, [courseId]);
         
-        lessons.forEach(lesson => {
-            lesson.contentUrl = undefined;
-            lesson.description = undefined;
-        });
+        course.categories = categories;
 
-        const sectionsWithLessons = sections.map(section => ({
-            ...section,
-            lessons: lessons.filter(lesson => lesson.section.toString() === section._id.toString())
-        }));
+        // Lấy sections từ MongoDB
+        const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
+        
+        if (!sections || sections.length === 0) {
+            return res.status(200).json({
+                course,
+                sections: [],
+                stats: {
+                    totalSections: 0,
+                    totalLessons: 0,
+                    totalVideos: 0,
+                    totalMaterials: 0,
+                    totalQuizzes: 0
+                }
+            });
+        }
+
+        const sectionIds = sections.map(sec => sec._id.toString());
+        
+        // Lấy videos, materials, quizzes từ MongoDB
+        const [videos, materials, quizzes] = await Promise.all([
+            Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
+            Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
+            Quiz.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean()
+        ]);
+
+        // Thống kê
+        const stats = {
+            totalSections: sections.length,
+            totalVideos: videos.length,
+            totalMaterials: materials.length,
+            totalQuizzes: quizzes.length,
+            totalLessons: videos.length + materials.length + quizzes.length
+        };
+
+        // Gom lessons theo section (chỉ thông tin công khai)
+        const sectionsWithContent = sections.map(section => {
+            const sectionIdStr = section._id.toString();
+            
+            // Lấy videos của section (PUBLIC - không có contentUrl, description)
+            const sectionVideos = videos
+                .filter(v => v.section.toString() === sectionIdStr)
+                .map(v => ({
+                    _id: v._id,
+                    type: 'video',
+                    title: v.title,
+                    order: v.order
+                }));
+
+            // Lấy materials của section (PUBLIC - không có contentUrl)
+            const sectionMaterials = materials
+                .filter(m => m.section.toString() === sectionIdStr)
+                .map(m => ({
+                    _id: m._id,
+                    type: 'material',
+                    title: m.title,
+                    order: m.order
+                }));
+
+            // Lấy quizzes của section (PUBLIC - không có questions, correctAnswers, explanation)
+            const sectionQuizzes = quizzes
+                .filter(q => q.section.toString() === sectionIdStr)
+                .map(q => ({
+                    _id: q._id,
+                    type: 'quiz',
+                    title: q.title,
+                    description: q.description || '',
+                    questionCount: q.questions ? q.questions.length : 0,
+                    order: q.order
+                }));
+
+            // Gộp tất cả lessons và sắp xếp theo order
+            const allLessons = [...sectionVideos, ...sectionMaterials, ...sectionQuizzes]
+                .sort((a, b) => a.order - b.order);
+
+            return {
+                _id: section._id,
+                course_id: section.course_id,
+                title: section.title,
+                order: section.order,
+                lessonCount: allLessons.length,
+                lessons: allLessons
+            };
+        });
 
         res.status(200).json({
             course,
-            sections: sectionsWithLessons
+            sections: sectionsWithContent,
+            stats
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 

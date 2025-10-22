@@ -1,0 +1,156 @@
+{
+  "courseId": "your-course-uuid-here",
+  "sections": [
+    {
+      "title": "Introduction to the Course",
+      "order": 1,
+      "videos": [
+        {
+          "title": "Welcome Video",
+          "contentUrl": "https://example.com/videos/welcome.mp4",
+          "description": "Introduction to the course and what you'll learn",
+          "order": 1
+        },
+        {
+          "title": "Course Overview",
+          "contentUrl": "https://example.com/videos/overview.mp4",
+          "description": "Overview of all modules and lessons",
+          "order": 2
+        }
+      ],
+      "materials": [
+        {
+          "title": "Course Syllabus",
+          "contentUrl": "https://example.com/materials/syllabus.pdf",
+          "order": 3
+        }
+      ],
+      "quizzes": []
+    },
+    {
+      "title": "Chapter 1: Fundamentals",
+      "order": 2,
+      "videos": [
+        {
+          "title": "Understanding the Basics",
+          "contentUrl": "https://example.com/videos/basics.mp4",
+          "description": "Learn the fundamental concepts",
+          "order": 1
+        }
+      ],
+      "materials": [
+        {
+          "title": "Chapter 1 Slides",
+          "contentUrl": "https://example.com/materials/chapter1-slides.pdf",
+          "order": 2
+        },
+        {
+          "title": "Additional Resources",
+          "contentUrl": "https://example.com/materials/resources.pdf",
+          "order": 3
+        }
+      ],
+      "quizzes": [
+        {
+          "title": "Chapter 1 Quiz",
+          "description": "Test your understanding of fundamental concepts",
+          "order": 4,
+          "questions": [
+            {
+              "questionText": "What is the main concept discussed in this chapter?",
+              "options": [
+                "Option A: Fundamentals",
+                "Option B: Advanced Topics",
+                "Option C: Case Studies",
+                "Option D: Conclusion"
+              ],
+              "correctAnswers": [0],
+              "explanation": "The chapter focuses on fundamental concepts, making Option A the correct answer."
+            },
+            {
+              "questionText": "Which of the following are key principles? (Select all that apply)",
+              "options": [
+                "Principle 1",
+                "Principle 2",
+                "Principle 3",
+                "Principle 4"
+              ],
+              "correctAnswers": [0, 1, 2],
+              "explanation": "Principles 1, 2, and 3 are the key principles discussed in this chapter."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Chapter 2: Advanced Topics",
+      "order": 3,
+      "videos": [
+        {
+          "title": "Advanced Concepts - Part 1",
+          "contentUrl": "https://example.com/videos/advanced-1.mp4",
+          "description": "Deep dive into advanced concepts",
+          "order": 1
+        },
+        {
+          "title": "Advanced Concepts - Part 2",
+          "contentUrl": "https://example.com/videos/advanced-2.mp4",
+          "description": "Continuation of advanced topics",
+          "order": 2
+        }
+      ],
+      "materials": [
+        {
+          "title": "Chapter 2 Workbook",
+          "contentUrl": "https://example.com/materials/chapter2-workbook.pdf",
+          "order": 3
+        }
+      ],
+      "quizzes": [
+        {
+          "title": "Chapter 2 Quiz",
+          "description": "Test your knowledge of advanced topics",
+          "order": 4,
+          "questions": [
+            {
+              "questionText": "What is the correct approach for solving this problem?",
+              "options": [
+                "Method A",
+                "Method B",
+                "Method C",
+                "Method D"
+              ],
+              "correctAnswers": [1],
+              "explanation": "Method B is the recommended approach as it provides the most efficient solution."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Final Project",
+      "order": 4,
+      "videos": [
+        {
+          "title": "Project Overview",
+          "contentUrl": "https://example.com/videos/project-overview.mp4",
+          "description": "Introduction to the final project",
+          "order": 1
+        }
+      ],
+      "materials": [
+        {
+          "title": "Project Requirements",
+          "contentUrl": "https://example.com/materials/project-requirements.pdf",
+          "order": 2
+        },
+        {
+          "title": "Project Template",
+          "contentUrl": "https://example.com/materials/project-template.zip",
+          "order": 3
+        }
+      ],
+      "quizzes": []
+    }
+  ]
+}

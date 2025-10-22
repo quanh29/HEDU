@@ -30,26 +30,30 @@ const Card = ({
 
   // Hàm tạo slug từ title
   const createSlug = (str) => {
+    if (!str) return '';
+    
     return str
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
+      .replace(/đ/g, 'd') // Xử lý chữ đ
+      .replace(/Đ/g, 'd')
       .replace(/[^a-z0-9\s-]/g, '') // Loại bỏ ký tự đặc biệt
       .replace(/\s+/g, '-') // Thay thế khoảng trắng bằng dấu gạch ngang
       .replace(/-+/g, '-') // Loại bỏ dấu gạch ngang liên tiếp
-      .trim('-'); // Loại bỏ dấu gạch ngang ở đầu/cuối
+      .replace(/^-+|-+$/g, ''); // Loại bỏ dấu gạch ngang ở đầu/cuối
   };
 
-  // Xử lý click để chuyển trang
+  // Xử lý click để chuyển trang (chỉ dùng courseId)
   const handleCardClick = (e) => {
     e.preventDefault();
-    
-    if (courseId && title) {
-      const slug = createSlug(title);
-      const url = `/course/${courseId}-${slug}`;
-      
-      // Sử dụng navigate để chuyển trang
+
+    if (courseId) {
+      const url = `/course/${encodeURIComponent(courseId)}`;
+      console.log('Navigating to:', url); // Debug log
       navigate(url);
+    } else {
+      console.warn('Missing courseId:', { courseId, title });
     }
   };
 

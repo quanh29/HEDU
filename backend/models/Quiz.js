@@ -5,6 +5,11 @@ const quizSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         default: () => new mongoose.Types.ObjectId(),
     },
+    section: {
+        type: String,
+        ref: 'Section',
+        required: true,
+    },
     title: {
         type: String,
         required: true,
@@ -25,7 +30,11 @@ const quizSchema = new mongoose.Schema({
                 required: true
             }
         }
-    ]
+    ],
+    order: {
+        type: Number,
+        default: 1,
+    },
 
 });
 

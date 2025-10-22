@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const lessonSchema = new mongoose.Schema({
+const materialSchema = new mongoose.Schema({
     section: {
         type: String,
         ref: 'Section',
@@ -10,16 +10,13 @@ const lessonSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    contentType: {
-        type: String,
-        required: true,
-    },
     contentUrl: {
         type: String,
         required: true,
     },
-    description: {
-        type: String,
+    order: {
+        type: Number,
+        required: true,
     },
     createdAt: {
         type: Date,
@@ -31,6 +28,6 @@ const lessonSchema = new mongoose.Schema({
     },
 });
 
-const Lesson = mongoose.model("Lesson", lessonSchema);
+const Material = mongoose.model("Material", materialSchema);
 
-export default Lesson;
+export default Material;

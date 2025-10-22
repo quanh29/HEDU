@@ -6,17 +6,8 @@ function EnrolledCard({ course, onContinueLearning, getProgressColor }) {
   const navigate = useNavigate();
 
   const handleViewCourse = () => {
-    const slugify = str =>
-      str
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
-      .replace(/[^a-z0-9\s-]/g, '') // Loại bỏ ký tự đặc biệt
-      .replace(/\s+/g, '-') // Thay thế khoảng trắng bằng dấu gạch ngang
-      .replace(/-+/g, '-') // Loại bỏ dấu gạch ngang liên tiếp
-      .trim('-'); // Loại bỏ dấu gạch ngang ở đầu/cuối
-    const courseSlug = `${course.id}-${slugify(course.title)}`;
-    navigate(`/course/${courseSlug}`);
+    // Navigate using only the course id
+    navigate(`/course/${encodeURIComponent(course.id)}`);
   };
 
   return (

@@ -286,8 +286,8 @@ const CourseSearch = () => {
               }}>
                 {currentCourses.map((course) => (
                   <Card
-                    key={course._id}
-                    courseId={course._id}
+                    key={course.course_id || course._id}
+                    courseId={course.course_id || course._id}
                     title={course.title}
                     instructors={course.instructors}
                     rating={course.rating}

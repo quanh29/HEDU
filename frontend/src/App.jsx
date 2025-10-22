@@ -30,13 +30,13 @@ function App() {
         <Routes >
           <Route path='/' element={<Home/>}/>
           <Route path='/course/search*' element={<CourseSearch/>}/>
-          <Route path='/course/:slug' element={<CoursePage/>}/>
+          <Route path='/course/:courseId' element={<CoursePage/>}/>
           <Route path='/auth/*' element={<Authentication/>}/>
           <Route path='/sso-callback' element={<SSOCallback/>}/>
           {/* <Route path='/my-learning/*' element={user ? <MyLearning/> : <Navigate to='/auth/login' replace/>}/> */}
           <Route path='/my-learning/*' element={<MyLearning/>}/>
-          <Route path='/course/:slug/content/' element={<CourseContent/>}/>
-          <Route path='/course/:slug/content/video' element={<VideoSection/>}/>
+          <Route path='/course/:courseId/content/' element={<CourseContent/>}/>
+          <Route path='/course/:courseId/content/video' element={<VideoSection/>}/>
           <Route path='/quizzes/attempt' element={<Quizzes/>}/>
           <Route path='/quizzes/result' element={<Quizzes/>}/>
           <Route path='/quizzes/result/review' element={<Quizzes/>}/>

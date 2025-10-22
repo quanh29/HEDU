@@ -17,6 +17,12 @@ courseRouter.get("/search", async (req, res) => {
     getCourse(req, res);
 });
 
+// Route để lấy full course content (public - không có nội dung nhạy cảm)
+courseRouter.get("/:courseId/full", async (req, res) => {
+    getFullCourseContent(req, res);
+});
+
+// Route cũ để tương thích ngược (gọi cùng hàm)
 courseRouter.get("/:courseId", async (req, res) => {
     getFullCourseContent(req, res);
 });
