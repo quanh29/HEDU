@@ -4,7 +4,6 @@ import { useAuth, useUser } from "@clerk/clerk-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useEffect } from "react";
-import { get } from "mongoose";
 
 axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 

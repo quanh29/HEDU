@@ -16,6 +16,7 @@ import { Navigate } from 'react-router-dom'
 import Instructor from './pages/Instructor/Instructor.jsx'
 import CreateUpdateCourse from './pages/CreateUpdateCourse/CreateUpdateCourse.jsx'
 import Admin from './pages/Admin/Admin.jsx'
+import MuxVideoDemo from './pages/MuxVideoDemo/MuxVideoDemo.jsx'
 
 function App() {
   const isAdmin = useLocation().pathname.startsWith('/admin')
@@ -45,6 +46,7 @@ function App() {
           <Route path='/instructor/create-course' element={<CreateUpdateCourse/>}/>
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           <Route path='/admin' element={<Admin/>}/>
+          <Route path='/mux-demo' element={<MuxVideoDemo/>}/>
         </Routes>
       </div>
       {!isAdmin && <Footer/>}

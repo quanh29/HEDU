@@ -1,0 +1,112 @@
+.playerContainer {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  background-color: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.muxPlayer {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #000;
+}
+
+/* Loading State */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingState p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Error State */
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  padding: 40px;
+  text-align: center;
+}
+
+.errorIcon {
+  font-size: 60px;
+  margin-bottom: 20px;
+}
+
+.errorState h3 {
+  font-size: 24px;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+}
+
+.errorState p {
+  font-size: 16px;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Video Info */
+.videoInfo {
+  padding: 20px;
+  background-color: #1a1a1a;
+  color: white;
+}
+
+.videoTitle {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  color: white;
+}
+
+.videoDescription {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #b3b3b3;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .videoInfo {
+    padding: 15px;
+  }
+
+  .videoTitle {
+    font-size: 20px;
+  }
+
+  .videoDescription {
+    font-size: 13px;
+  }
+}

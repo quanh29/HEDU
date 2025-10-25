@@ -1,4 +1,5 @@
 import Video from "../models/video.js";
+import dotenv from 'dotenv';
 
 // Tạo video mới
 export const addVideo = async (req, res) => {
