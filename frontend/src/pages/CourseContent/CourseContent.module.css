@@ -68,16 +68,19 @@
 .lessonItem {
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
-  cursor: pointer;
   transition: background-color 0.15s ease;
+}
+
+.lessonItem.clickable {
+  cursor: pointer;
+}
+
+.lessonItem.clickable:hover {
+  background-color: #f9fafb;
 }
 
 .lessonItem:last-child {
   border-bottom: none;
-}
-
-.lessonItem:hover {
-  background-color: #f9fafb;
 }
 
 .lessonContent {

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import styles from './CourseContent.module.css';
 import axios from 'axios';
 
 function CourseContent() {
 	const { courseId } = useParams();
+	const navigate = useNavigate();
 	const [course, setCourse] = useState(null);
 	const [sections, setSections] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -54,6 +55,25 @@ function CourseContent() {
 			...prev,
 			[sectionId]: !prev[sectionId]
 		}));
+	};
+
+	// Handle click vào lesson để navigate
+	const handleLessonClick = (lesson) => {
+		console.log('Lesson clicked:', lesson); // Debug log
+		
+		if (lesson.type === 'video' && lesson.lessonId) {
+			// Navigate sang VideoSection với videoId
+			console.log('Navigating to video:', lesson.lessonId); // Debug log
+			navigate(`/course/${courseId}/content/video?videoId=${lesson.lessonId}`);
+		} else if (lesson.type === 'video') {
+			console.warn('Video lesson missing videoId:', lesson);
+		} else if (lesson.type === 'quiz') {
+			// Navigate đến quiz
+			navigate(`/quizzes?quizId=${lesson.quizId}`);
+		} else if (lesson.type === 'document') {
+			// Có thể mở document trong modal hoặc tab mới
+			console.log('Open document:', lesson);
+		}
 	};
 
 	// Hiển thị biểu tượng bài học dựa trên loại
@@ -143,8 +163,14 @@ function CourseContent() {
 							<ul className={styles.lessonsList}>
 								{section.lessons.map((lesson, lidx) => (
 									<li 
-										key={lesson.lessonId || section.sectionId}
-										className={styles.lessonItem}
+										key={lesson.lessonId || `${section.sectionId}-${lidx}`}
+										className={`${styles.lessonItem} ${lesson.type === 'video' ? styles.clickable : ''}`}
+										onClick={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											console.log('Li clicked for lesson:', lesson.title); // Debug
+											handleLessonClick(lesson);
+										}}
 									>
 										<div className={styles.lessonContent}>
 											<div className={styles.iconContainer}>

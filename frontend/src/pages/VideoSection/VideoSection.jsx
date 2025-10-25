@@ -1,24 +1,38 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import VideoPlayer from '../../components/VideoPlayer/VideoPlayer';
+import React, { useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import MuxVideoPlayer from '../../components/MuxVideoPlayer/MuxVideoPlayer';
 import styles from './VideoSection.module.css';
 
 const VideoSection = () => {
-  const { courseId, lessonId } = useParams();
+  const { courseId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const videoId = searchParams.get('videoId'); // Lấy videoId từ query params
 
-  // Dữ liệu mẫu - trong thực tế sẽ fetch từ API dựa trên courseId và lessonId
-  const courseData = {
-    id: courseId,
-    title: 'Lập trình Web từ cơ bản đến nâng cao',
-    instructor: 'Nguyễn Văn A'
+  const [lessonTitle, setLessonTitle] = useState('');
+  const [playbackProgress, setPlaybackProgress] = useState({
+    currentTime: 0,
+    duration: 0,
+    progress: 0
+  });
+
+  // Handle khi video data đã load
+  const handleVideoReady = (data) => {
+    setLessonTitle(data.title || 'Bài học');
   };
 
-  const lessonData = {
-    id: lessonId,
-    title: 'Giới thiệu về HTML và CSS',
-    duration: '15:30',
-    section: 'Chương 1: Cơ bản'
+  // Handle time update từ video player
+  const handleTimeUpdate = (data) => {
+    setPlaybackProgress(data);
+    // Có thể lưu progress vào localStorage hoặc backend
+    // localStorage.setItem(`video_progress_${videoId}`, JSON.stringify(data));
+  };
+
+  // Handle khi video kết thúc
+  const handleVideoEnded = () => {
+    console.log('Video đã kết thúc!');
+    // Có thể đánh dấu hoàn thành bài học
+    // markLessonAsCompleted(videoId);
   };
 
   const handleBackToCourse = () => {
@@ -31,62 +45,69 @@ const VideoSection = () => {
     navigate(`/course/${courseId}`);
   };
 
+  // Format time sang MM:SS
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className={styles.videoSectionContainer}>
-      {/* Navigation Buttons */}
-      {/* <div className={styles.navigationButtons}>
-        <button 
-          onClick={handleBackToCourse}
-          className={styles.backButton}
-        >
-          ← Quay lại danh sách bài học
-        </button>
-        <div className={styles.lessonNavigation}>
-          <button className={styles.prevButton} disabled>
-            ← Bài trước
-          </button>
-          <button className={styles.nextButton}>
-            Bài tiếp theo →
-          </button>
-        </div>
-      </div> */}
-    
       {/* Breadcrumb */}
       <div className={styles.breadcrumb}>
         <button 
           onClick={handleBreadcrumbCourse}
           className={styles.breadcrumbLink}
         >
-          {courseData.title}
+          Khóa học
         </button>
-        <span className={styles.breadcrumbSeparator}>{'>'}</span>
+        <span className={styles.breadcrumbSeparator}>›</span>
+        <button 
+          onClick={handleBackToCourse}
+          className={styles.breadcrumbLink}
+        >
+          Nội dung
+        </button>
+        <span className={styles.breadcrumbSeparator}>›</span>
         <span className={styles.breadcrumbCurrent}>
-          {lessonData.title}
+          {lessonTitle || 'Đang tải...'}
         </span>
       </div>
 
       {/* Video Player */}
       <div className={styles.videoPlayerWrapper}>
-        <VideoPlayer />
+        {videoId ? (
+          <MuxVideoPlayer
+            videoId={videoId}
+            autoPlay={false}
+            onReady={handleVideoReady}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleVideoEnded}
+          />
+        ) : (
+          <div className={styles.noVideo}>
+            <p>Không tìm thấy video. Vui lòng chọn bài học từ danh sách.</p>
+            <button onClick={handleBackToCourse} className={styles.backButton}>
+              Quay lại danh sách
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lesson Description */}
       <div className={styles.lessonDescription}>
-        <h3>Mô tả bài học</h3>
+        <h3>Ghi chú bài học</h3>
         <p>
-          Trong bài học này, chúng ta sẽ tìm hiểu về HTML và CSS - hai ngôn ngữ cơ bản 
-          nhất trong việc xây dựng trang web. Bạn sẽ học cách tạo cấu trúc trang web 
-          với HTML và trang trí giao diện với CSS.
+          Bạn có thể thêm ghi chú cho bài học này để dễ dàng ôn tập sau này.
         </p>
         
-        <h4>Nội dung chính:</h4>
-        <ul>
-          <li>Giới thiệu về HTML</li>
-          <li>Cấu trúc cơ bản của trang HTML</li>
-          <li>Các thẻ HTML phổ biến</li>
-          <li>Giới thiệu về CSS</li>
-          <li>Cách áp dụng CSS vào HTML</li>
-        </ul>
+        {/* Có thể thêm textarea cho notes */}
+        {/* <textarea 
+          className={styles.notesTextarea}
+          placeholder="Thêm ghi chú của bạn..."
+        /> */}
       </div>
     </div>
   );

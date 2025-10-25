@@ -2,11 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import styles from './MuxVideoPlayer.module.css';
 
-const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate }) => {
+const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate, onReady }) => {
   const [playbackData, setPlaybackData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const playerRef = useRef(null);
+  const onReadyRef = useRef(onReady);
+
+  // Update ref when onReady changes
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   // Fetch playback URL từ backend
   useEffect(() => {
@@ -29,6 +35,11 @@ const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate }) =>
         }
 
         setPlaybackData(result.data);
+        
+        // Call onReady callback with playback data using ref
+        if (onReadyRef.current) {
+          onReadyRef.current(result.data);
+        }
       } catch (err) {
         console.error('Error fetching video playback:', err);
         setError(err.message || 'Failed to load video');
@@ -38,7 +49,7 @@ const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate }) =>
     };
 
     fetchPlayback();
-  }, [videoId]);
+  }, [videoId]); // Only depend on videoId
 
   // Handle player events
   const handleTimeUpdate = (e) => {
@@ -108,14 +119,7 @@ const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate }) =>
         onEnded={handleEnded}
         className={styles.muxPlayer}
       />
-      
-      {/* Video Info */}
-      <div className={styles.videoInfo}>
-        <h2 className={styles.videoTitle}>{playbackData.title}</h2>
-        {playbackData.description && (
-          <p className={styles.videoDescription}>{playbackData.description}</p>
-        )}
-      </div>
+
     </div>
   );
 };
