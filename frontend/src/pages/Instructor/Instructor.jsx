@@ -41,11 +41,11 @@ const Instructor = () => {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Redirect to /auth if not signed in
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      navigate('/auth', { replace: true });
-    }
-  }, [isLoaded, isSignedIn, navigate]);
+  // useEffect(() => {
+  //   if (isLoaded && !isSignedIn) {
+  //     navigate('/auth', { replace: true });
+  //   }
+  // }, [isLoaded, isSignedIn, navigate]);
 
   // Fetch data when component mounts
   useEffect(() => {

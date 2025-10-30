@@ -12,7 +12,21 @@ const videoSchema = new mongoose.Schema({
     },
     contentUrl: {
         type: String,
-        required: true,
+        required: false, // Không bắt buộc khi mới tạo (đang upload)
+    },
+    uploadId: {
+        type: String, // MUX upload ID
+    },
+    playbackId: {
+        type: String, // MUX playback ID (dùng để phát video)
+    },
+    status: {
+        type: String,
+        enum: ['uploading', 'processing', 'ready', 'error', 'cancelled'],
+        default: 'uploading'
+    },
+    duration: {
+        type: Number, // Thời lượng video (giây)
     },
     description: {
         type: String,
@@ -21,14 +35,8 @@ const videoSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    createdAt: {
-        type: Date,
-        required: true,
-    },
-    updatedAt: {
-        type: Date,
-        required: true,
-    },
+}, {
+    timestamps: true // Tự động tạo createdAt và updatedAt
 });
 
 const Video = mongoose.model("Video", videoSchema);

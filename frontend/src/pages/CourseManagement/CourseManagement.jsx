@@ -21,7 +21,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
-import styles from './CreateUpdateCourse.module.css';
+import styles from './CourseManagement.module.css';
 
 const CreateUpdateCourse = () => {
   const { user } = useUser();

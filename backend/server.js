@@ -15,6 +15,7 @@ import courseRevisionRouter from './routes/courseRevisionRoute.js';
 import headingRouter from './routes/headingRoute.js';
 import importRouter from './routes/importRoute.js';
 import levelRouter from './routes/levelRoute.js';
+import muxUploadRouter from './routes/muxUploadRoute.js';
 
 const app = express();
 const port = 3000;
@@ -24,7 +25,10 @@ await connectDB();
 // Middleware
 app.use(express.json());
 app.use(cors());
-app.use(clerkMiddleware())
+app.use(clerkMiddleware());
+
+// Serve static files (uploads)
+app.use('/uploads', express.static('uploads'));
 
 
 // API Routes
@@ -43,6 +47,7 @@ app.use("/api/course-revision", courseRevisionRouter);
 app.use("/api/headings", headingRouter);
 app.use("/api/import", importRouter);
 app.use("/api/levels", levelRouter);
+app.use("/api/mux", muxUploadRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

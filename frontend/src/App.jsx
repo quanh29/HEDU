@@ -14,8 +14,9 @@ import SSOCallback from './components/SSOCallback/SSOCallback.jsx'
 import { useAppContext } from './context/AppContext.jsx'
 import { Navigate } from 'react-router-dom'
 import Instructor from './pages/Instructor/Instructor.jsx'
-import CreateUpdateCourse from './pages/CreateUpdateCourse/CreateUpdateCourse.jsx'
+import CreateUpdateCourse from './pages/CourseManagement/CourseManagement.jsx'
 import Admin from './pages/Admin/Admin.jsx'
+import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 
 function App() {
   const isAdmin = useLocation().pathname.startsWith('/admin')
@@ -45,6 +46,7 @@ function App() {
           <Route path='/instructor/create-course' element={<CreateUpdateCourse/>}/>
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           <Route path='/admin' element={<Admin/>}/>
+          <Route path='/upload-demo' element={<UploadDemo/>}/>
         </Routes>
       </div>
       {!isAdmin && <Footer/>}
