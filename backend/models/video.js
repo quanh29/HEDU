@@ -17,6 +17,9 @@ const videoSchema = new mongoose.Schema({
     uploadId: {
         type: String, // MUX upload ID
     },
+    assetId: {
+        type: String, // MUX asset ID
+    },
     playbackId: {
         type: String, // MUX playback ID (dùng để phát video)
     },

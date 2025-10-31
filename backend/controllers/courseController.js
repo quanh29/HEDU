@@ -32,7 +32,14 @@ export const getCourse = async (req, res) => {
 };
 
 export const addCourse = async (req, res) => {
-    const { title, subTitle, originalPrice, currentPrice, instructor_id, requirements, objectives } = req.body;
+    const { title, subTitle, originalPrice, currentPrice, instructor_id, requirements, objectives, sections } = req.body;
+
+    console.log('📥 [addCourse] Received request:', {
+        title,
+        instructor_id,
+        sectionsCount: sections?.length || 0,
+        hasSections: !!sections
+    });
 
     if (!title || !subTitle || !originalPrice || !currentPrice || !instructor_id || !requirements || !objectives) {
         return res.status(400).json({ message: 'Required fields are missing' });
@@ -40,10 +47,11 @@ export const addCourse = async (req, res) => {
 
     try {
         const result = await courseService.createCourseService(req.body);
+        console.log('✅ [addCourse] Course created successfully:', result);
         res.status(201).json({ success: true, ...result });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('❌ [addCourse] Error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 

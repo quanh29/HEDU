@@ -27,7 +27,7 @@ const quizSchema = new mongoose.Schema({
             correctAnswers: [],
             explanation: {
                 type: String,
-                required: true
+                required: false  // Không bắt buộc, có thể thêm sau
             }
         }
     ],

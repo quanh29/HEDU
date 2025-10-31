@@ -242,18 +242,39 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             id: section._id,
             title: section.title || '',
             order: section.order || index + 1,
-            lessons: lessons.map(lesson => ({
-              _id: lesson._id,
-              id: lesson._id,
-              title: lesson.title || '',
-              contentType: lesson.contentType,
-              order: lesson.order || 0,
-              contentUrl: lesson.contentUrl || '',
-              playbackId: lesson.playbackId || '',
-              status: lesson.status || 'ready',
-              description: lesson.description || '',
-              questions: lesson.questions || []
-            }))
+            lessons: lessons.map(lesson => {
+              const baseLesson = {
+                _id: lesson._id,
+                id: lesson._id,
+                title: lesson.title || '',
+                contentType: lesson.contentType,
+                order: lesson.order || 0,
+                contentUrl: lesson.contentUrl || '',
+                playbackId: lesson.playbackId || '',
+                status: lesson.status || 'ready',
+                description: lesson.description || ''
+              };
+
+              // Transform quiz questions từ backend format sang frontend format
+              if (lesson.contentType === 'quiz' && lesson.questions && lesson.questions.length > 0) {
+                baseLesson.quizQuestions = lesson.questions.map(q => ({
+                  question: q.questionText || '',
+                  explanation: q.explanation || '',
+                  answers: (q.options || []).map(option => ({
+                    text: option,
+                    isCorrect: (q.correctAnswers || []).includes(option)
+                  }))
+                }));
+                // Giữ lại questions cho backend
+                baseLesson.questions = lesson.questions;
+              } else if (lesson.contentType === 'quiz') {
+                // Quiz mới chưa có questions
+                baseLesson.quizQuestions = [];
+                baseLesson.questions = [];
+              }
+
+              return baseLesson;
+            })
           };
         });
         
@@ -457,17 +478,43 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         _id: section._id && !section._id.startsWith('temp-') ? section._id : undefined,
         title: section.title,
         order: index + 1,
-        lessons: (section.lessons || []).map((lesson, lessonIndex) => ({
-          _id: lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : undefined,
-          title: lesson.title,
-          contentType: lesson.contentType,
-          order: lessonIndex + 1,
-          contentUrl: lesson.contentUrl || '',
-          playbackId: lesson.playbackId || '',
-          status: lesson.status || 'ready',
-          description: lesson.description || '',
-          questions: lesson.questions || []
-        }))
+        lessons: (section.lessons || []).map((lesson, lessonIndex) => {
+          const baseLesson = {
+            _id: lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : undefined,
+            title: lesson.title,
+            contentType: lesson.contentType,
+            order: lessonIndex + 1,
+            contentUrl: lesson.contentUrl || '',
+            playbackId: lesson.playbackId || '',
+            status: lesson.status || 'ready',
+            description: lesson.description || ''
+          };
+
+          // Transform quiz questions từ frontend format sang backend format
+          if (lesson.contentType === 'quiz' && lesson.quizQuestions) {
+            baseLesson.questions = lesson.quizQuestions.map(q => {
+              // Lấy options và correctAnswers từ answers array
+              const options = (q.answers || []).map(ans => ans.text);
+              const correctAnswers = (q.answers || [])
+                .map((ans, idx) => ans.isCorrect ? ans.text : null)
+                .filter(ans => ans !== null);
+
+              return {
+                questionText: q.question || '',
+                options: options,
+                correctAnswers: correctAnswers,
+                explanation: q.explanation || '' // Có thể để trống nếu chưa có
+              };
+            });
+          } else if (lesson.contentType === 'quiz' && lesson.questions) {
+            // Nếu đã có format đúng từ MongoDB (khi edit)
+            baseLesson.questions = lesson.questions;
+          } else {
+            baseLesson.questions = [];
+          }
+
+          return baseLesson;
+        })
       }));
 
       const payload = {

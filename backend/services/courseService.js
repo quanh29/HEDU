@@ -202,7 +202,8 @@ export const createCourseService = async (courseData) => {
     const { 
         title, subTitle, des, originalPrice, currentPrice, instructor_id, 
         lv_id, lang_id, has_practice, has_certificate, picture_url, 
-        requirements, objectives, categories, course_status = 'draft' 
+        requirements, objectives, categories, course_status = 'draft',
+        sections
     } = courseData;
 
     const connection = await pool.getConnection();
@@ -210,6 +211,13 @@ export const createCourseService = async (courseData) => {
         await connection.beginTransaction();
 
         const course_id = uuidv4();
+        
+        console.log('🆕 [createCourseService] Creating course:', {
+            course_id,
+            title,
+            instructor_id,
+            sectionsCount: sections?.length || 0
+        });
         
         // Lưu vào MySQL
         const courseQuery = `INSERT INTO Courses (course_id, title, subTitle, des, originalPrice, currentPrice, instructor_id, lv_id, lang_id, has_practice, has_certificate, picture_url, course_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -232,10 +240,22 @@ export const createCourseService = async (courseData) => {
             objectives
         });
         await mongoCourse.save();
+        
+        console.log('✅ [createCourseService] MongoDB Course created');
+
+        // Tạo sections và lessons nếu có
+        if (sections && sections.length > 0) {
+            console.log(`📦 [createCourseService] Creating ${sections.length} sections...`);
+            await updateCourseSectionsService(course_id, sections);
+            console.log('✅ [createCourseService] Sections created');
+        } else {
+            console.log('⚠️ [createCourseService] No sections provided');
+        }
 
         return { course_id, status: course_status };
     } catch (error) {
         await connection.rollback();
+        console.error('❌ [createCourseService] Error:', error);
         throw error;
     } finally {
         connection.release();
@@ -736,6 +756,8 @@ export const updateCourseService = async (courseId, courseData) => {
  * Service: Update course sections and lessons
  */
 export const updateCourseSectionsService = async (courseId, sections) => {
+    console.log(`📦 [updateCourseSectionsService] Processing ${sections.length} sections for course ${courseId}`);
+    
     // Lấy danh sách section IDs hiện có
     const existingSections = await Section.find({ course_id: courseId }).lean();
     const existingSectionIds = existingSections.map(s => s._id.toString());
@@ -743,22 +765,37 @@ export const updateCourseSectionsService = async (courseId, sections) => {
         .filter(s => s._id && !s._id.startsWith('temp-'))
         .map(s => s._id.toString());
 
+    console.log('🔍 [updateCourseSectionsService] Existing sections:', existingSectionIds.length);
+    console.log('🔍 [updateCourseSectionsService] New section IDs:', newSectionIds);
+
     // Xóa sections không còn trong danh sách mới
     const sectionsToDelete = existingSectionIds.filter(id => !newSectionIds.includes(id));
-    for (const sectionId of sectionsToDelete) {
-        await Section.findByIdAndDelete(sectionId);
-        // Xóa tất cả lessons của section này
-        await Video.deleteMany({ section: sectionId });
-        await Material.deleteMany({ section: sectionId });
-        await Quiz.deleteMany({ section: sectionId });
+    if (sectionsToDelete.length > 0) {
+        console.log(`🗑️ [updateCourseSectionsService] Deleting ${sectionsToDelete.length} sections`);
+        for (const sectionId of sectionsToDelete) {
+            await Section.findByIdAndDelete(sectionId);
+            // Xóa tất cả lessons của section này
+            await Video.deleteMany({ section: sectionId });
+            await Material.deleteMany({ section: sectionId });
+            await Quiz.deleteMany({ section: sectionId });
+        }
     }
 
     // Cập nhật hoặc tạo mới sections
-    for (const section of sections) {
+    for (const [index, section] of sections.entries()) {
+        console.log(`\n📝 [updateCourseSectionsService] Processing section ${index + 1}/${sections.length}:`, {
+            title: section.title,
+            _id: section._id,
+            hasId: !!section._id,
+            startsWithTemp: section._id?.startsWith('temp-'),
+            lessonsCount: section.lessons?.length || 0
+        });
+        
         let sectionId;
         
         if (section._id && !section._id.startsWith('temp-')) {
             // Cập nhật section hiện có
+            console.log(`✏️ [updateCourseSectionsService] Updating existing section: ${section._id}`);
             await Section.findByIdAndUpdate(section._id, {
                 title: section.title,
                 order: section.order || 1
@@ -766,6 +803,7 @@ export const updateCourseSectionsService = async (courseId, sections) => {
             sectionId = section._id;
         } else {
             // Tạo section mới
+            console.log('➕ [updateCourseSectionsService] Creating new section:', section.title);
             const newSection = new Section({
                 course_id: courseId,
                 title: section.title,
@@ -773,19 +811,27 @@ export const updateCourseSectionsService = async (courseId, sections) => {
             });
             const savedSection = await newSection.save();
             sectionId = savedSection._id.toString();
+            console.log('✅ [updateCourseSectionsService] Section created with ID:', sectionId);
         }
 
         // Cập nhật lessons của section
         if (section.lessons && section.lessons.length > 0) {
+            console.log(`📚 [updateCourseSectionsService] Processing ${section.lessons.length} lessons for section ${sectionId}`);
             await updateSectionLessonsService(sectionId, section.lessons);
+        } else {
+            console.log(`⚠️ [updateCourseSectionsService] No lessons for section ${sectionId}`);
         }
     }
+    
+    console.log('✅ [updateCourseSectionsService] All sections processed');
 };
 
 /**
  * Service: Update lessons trong một section
  */
 export const updateSectionLessonsService = async (sectionId, lessons) => {
+    console.log(`📚 [updateSectionLessonsService] Processing ${lessons.length} lessons for section ${sectionId}`);
+    
     // Lấy danh sách lesson IDs hiện có
     const [existingVideos, existingMaterials, existingQuizzes] = await Promise.all([
         Video.find({ section: sectionId }).lean(),
@@ -802,10 +848,18 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
     const newQuizIds = [];
 
     // Xử lý từng lesson
-    for (const lesson of lessons) {
+    for (const [index, lesson] of lessons.entries()) {
+        console.log(`\n  📝 [updateSectionLessonsService] Processing lesson ${index + 1}:`, {
+            title: lesson.title,
+            contentType: lesson.contentType,
+            _id: lesson._id,
+            hasContent: !!(lesson.contentUrl || lesson.playbackId || (lesson.questions && lesson.questions.length > 0))
+        });
+        
         if (lesson.contentType === 'video') {
             if (lesson._id && !lesson._id.startsWith('temp-')) {
                 // Cập nhật video hiện có
+                console.log('  ✏️ [updateSectionLessonsService] Updating existing video:', lesson._id);
                 await Video.findByIdAndUpdate(lesson._id, {
                     title: lesson.title,
                     description: lesson.description || '',
@@ -815,11 +869,12 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                     status: lesson.status || 'uploading'
                 });
                 newVideoIds.push(lesson._id);
-            } else if (lesson.contentUrl || lesson.playbackId) {
-                // Tạo video mới (chỉ khi có contentUrl hoặc playbackId)
+            } else {
+                // Tạo video mới - BẤT KỂ có contentUrl hay không
+                console.log('  ➕ [updateSectionLessonsService] Creating new video:', lesson.title);
                 const newVideo = new Video({
                     section: sectionId,
-                    title: lesson.title,
+                    title: lesson.title || 'Untitled Video',
                     description: lesson.description || '',
                     order: lesson.order || 1,
                     contentUrl: lesson.contentUrl || '',
@@ -827,11 +882,13 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                     status: lesson.status || 'uploading'
                 });
                 const savedVideo = await newVideo.save();
+                console.log('  ✅ [updateSectionLessonsService] Video created with ID:', savedVideo._id);
                 newVideoIds.push(savedVideo._id.toString());
             }
         } else if (lesson.contentType === 'material') {
             if (lesson._id && !lesson._id.startsWith('temp-')) {
                 // Cập nhật material hiện có
+                console.log('  ✏️ [updateSectionLessonsService] Updating existing material:', lesson._id);
                 await Material.findByIdAndUpdate(lesson._id, {
                     title: lesson.title,
                     order: lesson.order || 1,
@@ -839,19 +896,24 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                 });
                 newMaterialIds.push(lesson._id);
             } else if (lesson.contentUrl) {
-                // Tạo material mới (chỉ khi có contentUrl)
+                // Tạo material mới (VẪN chỉ khi có contentUrl vì material bắt buộc phải có file)
+                console.log('  ➕ [updateSectionLessonsService] Creating new material:', lesson.title);
                 const newMaterial = new Material({
                     section: sectionId,
-                    title: lesson.title,
+                    title: lesson.title || 'Untitled Material',
                     order: lesson.order || 1,
                     contentUrl: lesson.contentUrl
                 });
                 const savedMaterial = await newMaterial.save();
+                console.log('  ✅ [updateSectionLessonsService] Material created with ID:', savedMaterial._id);
                 newMaterialIds.push(savedMaterial._id.toString());
+            } else {
+                console.log('  ⚠️ [updateSectionLessonsService] Skipping material without contentUrl:', lesson.title);
             }
         } else if (lesson.contentType === 'quiz') {
             if (lesson._id && !lesson._id.startsWith('temp-')) {
                 // Cập nhật quiz hiện có
+                console.log('  ✏️ [updateSectionLessonsService] Updating existing quiz:', lesson._id);
                 await Quiz.findByIdAndUpdate(lesson._id, {
                     title: lesson.title,
                     description: lesson.description || '',
@@ -859,16 +921,18 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                     questions: lesson.questions || []
                 });
                 newQuizIds.push(lesson._id);
-            } else if (lesson.questions && lesson.questions.length > 0) {
-                // Tạo quiz mới (chỉ khi có questions)
+            } else {
+                // Tạo quiz mới - BẤT KỂ có questions hay không
+                console.log('  ➕ [updateSectionLessonsService] Creating new quiz:', lesson.title);
                 const newQuiz = new Quiz({
                     section: sectionId,
-                    title: lesson.title,
+                    title: lesson.title || 'Untitled Quiz',
                     description: lesson.description || '',
                     order: lesson.order || 1,
                     questions: lesson.questions || []
                 });
                 const savedQuiz = await newQuiz.save();
+                console.log('  ✅ [updateSectionLessonsService] Quiz created with ID:', savedQuiz._id);
                 newQuizIds.push(savedQuiz._id.toString());
             }
         }
@@ -879,11 +943,26 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
     const materialsToDelete = existingMaterialIds.filter(id => !newMaterialIds.includes(id));
     const quizzesToDelete = existingQuizIds.filter(id => !newQuizIds.includes(id));
 
-    await Promise.all([
-        ...videosToDelete.map(id => Video.findByIdAndDelete(id)),
-        ...materialsToDelete.map(id => Material.findByIdAndDelete(id)),
-        ...quizzesToDelete.map(id => Quiz.findByIdAndDelete(id))
-    ]);
+    if (videosToDelete.length > 0 || materialsToDelete.length > 0 || quizzesToDelete.length > 0) {
+        console.log('🗑️ [updateSectionLessonsService] Deleting removed lessons:', {
+            videos: videosToDelete.length,
+            materials: materialsToDelete.length,
+            quizzes: quizzesToDelete.length
+        });
+        
+        await Promise.all([
+            ...videosToDelete.map(id => Video.findByIdAndDelete(id)),
+            ...materialsToDelete.map(id => Material.findByIdAndDelete(id)),
+            ...quizzesToDelete.map(id => Quiz.findByIdAndDelete(id))
+        ]);
+    }
+    
+    console.log('✅ [updateSectionLessonsService] Summary:', {
+        totalProcessed: lessons.length,
+        videosCreated: newVideoIds.length - existingVideoIds.filter(id => newVideoIds.includes(id)).length,
+        materialsCreated: newMaterialIds.length - existingMaterialIds.filter(id => newMaterialIds.includes(id)).length,
+        quizzesCreated: newQuizIds.length - existingQuizIds.filter(id => newQuizIds.includes(id)).length
+    });
 };
 
 /**
