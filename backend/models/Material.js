@@ -18,14 +18,8 @@ const materialSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    createdAt: {
-        type: Date,
-        required: true,
-    },
-    updatedAt: {
-        type: Date,
-        required: true,
-    },
+}, {
+    timestamps: true  // Automatically manage createdAt and updatedAt
 });
 
 const Material = mongoose.model("Material", materialSchema);
