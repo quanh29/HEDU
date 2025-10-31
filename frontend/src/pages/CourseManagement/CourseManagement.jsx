@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import BasicInfo from '../../components/BasicInfo/BasicInfo';
 import Curriculum from '../../components/Curriculum/Curriculum';
+import LessonStatistics from '../../components/LessonStatistics/LessonStatistics';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Save,
@@ -22,6 +23,11 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import styles from './CourseManagement.module.css';
+import { 
+  mapSectionData, 
+  transformSectionForSave,
+  getLessonStatistics
+} from '../../utils/courseDataMapper';
 
 const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const { user } = useUser();
@@ -53,19 +59,67 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Headings and categories state
+  const [headings, setHeadings] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
   // Form validation
   const [errors, setErrors] = useState({});
 
-  // Fetch course data if editing
+  // Fetch headings and categories on mount
+  useEffect(() => {
+    fetchHeadingsAndCategories();
+  }, []);
+
+  // Fetch course data if editing (after headings are loaded)
   useEffect(() => {
     console.log('CourseId from params:', courseId);
     console.log('IsEditMode:', isEditMode);
     console.log('IsViewMode:', isViewMode);
     
-    if (isEditMode && courseId) {
+    // Wait for headings to be loaded before fetching course data
+    if (isEditMode && courseId && headings.length > 0) {
       fetchCourseData();
     }
-  }, [courseId, isEditMode]);
+  }, [courseId, isEditMode, headings]);
+
+  const fetchHeadingsAndCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/api/headings`;
+      console.log('📚 [fetchHeadingsAndCategories] Fetching from:', url);
+      
+      const response = await axios.get(url);
+      const headingsData = response.data;
+      
+      console.log('📚 [fetchHeadingsAndCategories] Received headings:', headingsData);
+      setHeadings(headingsData);
+      
+      // Flatten all categories for easy access
+      const allCats = [];
+      headingsData.forEach(heading => {
+        if (heading.categories && heading.categories.length > 0) {
+          heading.categories.forEach(cat => {
+            allCats.push({
+              ...cat,
+              heading_id: heading.heading_id,
+              heading_title: heading.title
+            });
+          });
+        }
+      });
+      
+      console.log('📚 [fetchHeadingsAndCategories] All categories:', allCats);
+      setAllCategories(allCats);
+      
+    } catch (error) {
+      console.error('❌ [fetchHeadingsAndCategories] Error:', error);
+      console.error('Error details:', error.response?.data);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const fetchCourseData = async () => {
     if (!courseId) {
@@ -92,14 +146,58 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       
       console.log('Course Info:', courseInfo);
       console.log('Sections Data:', sectionsData);
+      console.log('Sections Data type:', typeof sectionsData);
+      console.log('Is Array?:', Array.isArray(sectionsData));
+      console.log('Sections length:', sectionsData?.length || 0);
+      
+      // Debug: Log structure of first section if exists
+      if (sectionsData && sectionsData.length > 0) {
+        console.log('First section structure:', {
+          _id: sectionsData[0]._id,
+          title: sectionsData[0].title,
+          keys: Object.keys(sectionsData[0]),
+          videos: sectionsData[0].videos,
+          materials: sectionsData[0].materials,
+          quizzes: sectionsData[0].quizzes
+        });
+      }
       
       // Lấy categories/tags từ MySQL hoặc MongoDB
       const tags = courseInfo.categories 
         ? courseInfo.categories.map(cat => cat.title) 
         : (courseInfo.tags || []);
       
-      const category = tags.length > 0 ? tags[0] : '';
-      const subcategory = tags.length > 1 ? tags[1] : '';
+      // Map category to heading_id and subcategory to category_id
+      // Assume first tag is category, second is subcategory (if exists)
+      let categoryId = '';
+      let subcategoryId = '';
+      
+      if (courseInfo.categories && courseInfo.categories.length > 0) {
+        // Try to find matching heading and category from fetched headings
+        const firstCatTitle = courseInfo.categories[0].title;
+        const matchingHeading = headings.find(h => 
+          h.categories.some(c => c.title === firstCatTitle)
+        );
+        
+        if (matchingHeading) {
+          categoryId = matchingHeading.heading_id;
+          const matchingCat = matchingHeading.categories.find(c => c.title === firstCatTitle);
+          if (matchingCat) {
+            subcategoryId = matchingCat.category_id;
+          }
+        }
+      } else if (tags.length > 0) {
+        // Fallback: try to match by tag names
+        categoryId = tags[0] || '';
+        subcategoryId = tags[1] || '';
+      }
+      
+      console.log('📚 [fetchCourseData] Mapped categories:', {
+        categoryId,
+        subcategoryId,
+        originalCategories: courseInfo.categories,
+        originalTags: tags
+      });
       
       setCourseData({
         title: courseInfo.title || '',
@@ -111,8 +209,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         tags: tags,
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
-        category: category,
-        subcategory: subcategory,
+        category: categoryId,
+        subcategory: subcategoryId,
         hasPractice: courseInfo.has_practice === 1 || courseInfo.hasPractice || false,
         hasCertificate: courseInfo.has_certificate === 1 || courseInfo.hasCertificate || false,
         originalPrice: courseInfo.originalPrice || courseInfo.original_price || 0
@@ -125,79 +223,26 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       });
       
       // Transform sections data - sections có videos, materials, quizzes
-      const transformedSections = sectionsData.map(section => {
-        console.log('Processing section:', section.title, section);
-        
-        // Gộp tất cả lessons từ videos, materials, quizzes
-        const lessons = [];
-        
-        // Add videos
-        if (section.videos && section.videos.length > 0) {
-          section.videos.forEach(video => {
-            lessons.push({
-              id: video._id,
-              _id: video._id,
-              title: video.title,
-              contentType: 'video',
-              url: video.contentUrl || '',
-              info: video.description || '',
-              description: video.description || '',
-              order: video.order || 0
-            });
-          });
-        }
-        
-        // Add materials
-        if (section.materials && section.materials.length > 0) {
-          section.materials.forEach(material => {
-            lessons.push({
-              id: material._id,
-              _id: material._id,
-              title: material.title,
-              contentType: 'article',
-              url: material.contentUrl || '',
-              info: '',
-              description: '',
-              order: material.order || 0
-            });
-          });
-        }
-        
-        // Add quizzes
-        if (section.quizzes && section.quizzes.length > 0) {
-          section.quizzes.forEach(quiz => {
-            lessons.push({
-              id: quiz._id,
-              _id: quiz._id,
-              title: quiz.title,
-              contentType: 'quiz',
-              info: '',
-              quizQuestions: (quiz.questions || []).map(q => ({
-                question: q.questionText,
-                answers: q.options.map((opt, idx) => ({
-                  text: opt,
-                  isCorrect: q.correctAnswers.includes(idx)
-                })),
-                explanation: q.explanation || ''
-              })),
-              order: quiz.order || 0
-            });
-          });
-        }
-        
-        // Sort lessons by order
-        lessons.sort((a, b) => a.order - b.order);
-        
-        return {
-          id: section._id,
-          _id: section._id,
-          title: section.title,
-          lessons: lessons
-        };
-      });
+      console.log('🚀 [fetchCourseData] Starting section transformation...');
       
-      console.log('Transformed sections:', transformedSections);
-      setSections(transformedSections);
+      if (!sectionsData || sectionsData.length === 0) {
+        console.warn('⚠️ [fetchCourseData] No sections data found!');
+        setSections([]);
+      } else {
+        console.log(`📦 [fetchCourseData] Transforming ${sectionsData.length} sections...`);
+        const transformedSections = sectionsData.map((section, index) => {
+          console.log(`\n🔄 [fetchCourseData] Transforming section ${index + 1}/${sectionsData.length}`);
+          return mapSectionData(section);
+        });
+        
+        console.log('✅ [fetchCourseData] Transformed sections:', transformedSections);
+        
+        // Log statistics
+        const stats = getLessonStatistics(transformedSections);
+        console.log('📊 [fetchCourseData] Course statistics:', stats);
+        
+        setSections(transformedSections);
+      }
       
     } catch (error) {
       console.error('Error fetching course data:', error);
@@ -356,32 +401,39 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
     setSaving(true);
     try {
-      const normalizedSections = sections.map(section => ({
-        title: section.title,
-        lessons: (section.lessons || []).map(lesson => {
-          const baseLesson = {
-            title: lesson.title,
-            contentType: lesson.contentType,
-            info: lesson.info || '',
-            description: lesson.description || ''
-          };
-          if (lesson.contentType === 'video' || lesson.contentType === 'article') {
-            baseLesson.contentUrl = lesson.url || '';
-          }
-          if (lesson.contentType === 'quiz' && lesson.quizQuestions) {
-            baseLesson.questions = lesson.quizQuestions.map(q => ({
-              questionText: q.question,
-              options: (q.answers || []).map(ans => ans.text),
-              correctAnswers: (q.answers || []).map((ans, idx) => ans.isCorrect ? idx : null).filter(idx => idx !== null),
-              explanation: q.explanation || ''
-            }));
-          }
-          return baseLesson;
-        })
-      }));
+      // Use the helper function to transform sections
+      const normalizedSections = sections.map((section, index) => 
+        transformSectionForSave(section, index)
+      );
 
       const instructors = user ? [user.id] : [];
-      const tags = [courseData.category, courseData.subcategory].filter(Boolean);
+      
+      // Build tags array from heading and category titles
+      const tags = [];
+      if (courseData.category) {
+        const selectedHeading = headings.find(h => h.heading_id === courseData.category);
+        if (selectedHeading) {
+          tags.push(selectedHeading.title);
+        }
+      }
+      if (courseData.subcategory) {
+        const selectedCategory = allCategories.find(c => c.category_id === courseData.subcategory);
+        if (selectedCategory) {
+          tags.push(selectedCategory.title);
+        }
+      }
+      
+      console.log('💾 [saveCourseWithStatus] Built tags from categories:', {
+        category: courseData.category,
+        subcategory: courseData.subcategory,
+        tags
+      });
+
+      console.log('Saving course with normalized sections:', normalizedSections);
+      
+      // Calculate course statistics
+      const stats = getLessonStatistics(sections);
+      console.log('Course will be saved with statistics:', stats);
 
       const payload = {
         title: courseData.title,
@@ -501,23 +553,31 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             handleArrayFieldChange={handleArrayFieldChange}
             addArrayField={addArrayField}
             removeArrayField={removeArrayField}
+            headings={headings}
+            allCategories={allCategories}
+            loadingCategories={loadingCategories}
             readOnly={isViewMode}
           />
         )}
 
         {/* Curriculum Tab */}
         {activeTab === 'curriculum' && (
-          <Curriculum
-            sections={sections}
-            errors={errors}
-            addSection={addSection}
-            updateSection={updateSection}
-            removeSection={removeSection}
-            addLesson={addLesson}
-            updateLesson={updateLesson}
-            removeLesson={removeLesson}
-            readOnly={isViewMode}
-          />
+          <>
+            {/* Lesson Statistics */}
+            {sections.length > 0 && <LessonStatistics sections={sections} />}
+            
+            <Curriculum
+              sections={sections}
+              errors={errors}
+              addSection={addSection}
+              updateSection={updateSection}
+              removeSection={removeSection}
+              addLesson={addLesson}
+              updateLesson={updateLesson}
+              removeLesson={removeLesson}
+              readOnly={isViewMode}
+            />
+          </>
         )}
       </div>
     </div>

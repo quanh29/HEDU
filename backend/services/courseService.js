@@ -316,9 +316,9 @@ export const getFullCourseContentService = async (courseId) => {
         };
     }
 
-    const sectionIds = sections.map(sec => sec._id.toString());
+    const sectionIds = sections.map(sec => sec._id);
     
-    // Lấy content
+    // Lấy content cho từng section
     const [videos, materials, quizzes] = await Promise.all([
         Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
         Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
@@ -333,49 +333,81 @@ export const getFullCourseContentService = async (courseId) => {
         totalLessons: videos.length + materials.length + quizzes.length
     };
 
-    // Gom lessons theo section (public - không có sensitive data)
+    // Gom content theo từng section và populate đầy đủ
     const sectionsWithContent = sections.map(section => {
         const sectionIdStr = section._id.toString();
         
+        // Filter và map videos cho section này
         const sectionVideos = videos
             .filter(v => v.section.toString() === sectionIdStr)
-            .map(v => ({
-                _id: v._id,
-                type: 'video',
-                title: v.title,
-                order: v.order
-            }));
+            .map(v => {
+                return {
+                    _id: v._id,
+                    title: v.title,
+                    description: v.description || '',
+                    order: v.order || 0,
+                    duration: v.duration || 0,
+                    status: v.status || 'processing',
+                    // Không trả contentUrl cho public route
+                    createdAt: v.createdAt,
+                    updatedAt: v.updatedAt
+                };
+            });
 
+        // Filter và map materials cho section này
         const sectionMaterials = materials
             .filter(m => m.section.toString() === sectionIdStr)
-            .map(m => ({
-                _id: m._id,
-                type: 'material',
-                title: m.title,
-                order: m.order
-            }));
+            .map(m => {
+                return {
+                    _id: m._id,
+                    title: m.title,
+                    description: m.description || '',
+                    order: m.order || 0,
+                    fileType: m.fileType || '',
+                    fileSize: m.fileSize || 0,
+                    fileName: m.fileName || '',
+                    // Không trả contentUrl cho public route
+                    createdAt: m.createdAt,
+                    updatedAt: m.updatedAt
+                };
+            });
 
+        // Filter và map quizzes cho section này
         const sectionQuizzes = quizzes
             .filter(q => q.section.toString() === sectionIdStr)
-            .map(q => ({
-                _id: q._id,
-                type: 'quiz',
-                title: q.title,
-                description: q.description || '',
-                questionCount: q.questions ? q.questions.length : 0,
-                order: q.order
-            }));
-
-        const allLessons = [...sectionVideos, ...sectionMaterials, ...sectionQuizzes]
-            .sort((a, b) => a.order - b.order);
+            .map(q => {
+                return {
+                    _id: q._id,
+                    title: q.title,
+                    description: q.description || '',
+                    order: q.order || 0,
+                    passingScore: q.passingScore || 70,
+                    timeLimit: q.timeLimit || null,
+                    // Map questions nhưng không trả correctAnswers cho public
+                    questions: (q.questions || []).map(question => ({
+                        _id: question._id,
+                        questionText: question.questionText,
+                        questionType: question.questionType || 'single-choice',
+                        options: question.options || [],
+                        points: question.points || 1
+                        // correctAnswers và explanation removed for public
+                    })),
+                    createdAt: q.createdAt,
+                    updatedAt: q.updatedAt
+                };
+            });
 
         return {
             _id: section._id,
             course_id: section.course_id,
             title: section.title,
-            order: section.order,
-            lessonCount: allLessons.length,
-            lessons: allLessons
+            description: section.description || '',
+            order: section.order || 0,
+            videos: sectionVideos,
+            materials: sectionMaterials,
+            quizzes: sectionQuizzes,
+            createdAt: section.createdAt,
+            updatedAt: section.updatedAt
         };
     });
 

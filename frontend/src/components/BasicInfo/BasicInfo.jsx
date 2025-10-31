@@ -1,7 +1,26 @@
 import React from 'react';
 import styles from './BasicInfo.module.css';
 
-const BasicInfo = ({ courseData, errors, handleInputChange, handleArrayFieldChange, addArrayField, removeArrayField }) => {
+const BasicInfo = ({ 
+  courseData, 
+  errors, 
+  handleInputChange, 
+  handleArrayFieldChange, 
+  addArrayField, 
+  removeArrayField,
+  headings = [],
+  allCategories = [],
+  loadingCategories = false
+}) => {
+  // Get categories for selected heading
+  const getSubcategoriesForHeading = (headingId) => {
+    if (!headingId) return [];
+    return allCategories.filter(cat => cat.heading_id === headingId);
+  };
+
+  const selectedHeading = headings.find(h => h.heading_id === courseData.category);
+  const subcategories = selectedHeading ? getSubcategoriesForHeading(selectedHeading.heading_id) : [];
+
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>Thông tin cơ bản</h2>
@@ -111,16 +130,28 @@ const BasicInfo = ({ courseData, errors, handleInputChange, handleArrayFieldChan
             <label className={styles.label}>Danh mục khóa học *</label>
             <select
               value={courseData.category}
-              onChange={e => handleInputChange('category', e.target.value)}
+              onChange={e => {
+                handleInputChange('category', e.target.value);
+                // Reset subcategory when category changes
+                handleInputChange('subcategory', '');
+              }}
               className={styles.select}
+              disabled={loadingCategories}
             >
-              <option value="">Chọn danh mục</option>
-              <option value="programming">Lập trình</option>
-              <option value="design">Thiết kế</option>
-              <option value="marketing">Marketing</option>
-              <option value="business">Kinh doanh</option>
-              <option value="other">Khác</option>
+              <option value="">
+                {loadingCategories ? 'Đang tải...' : 'Chọn danh mục'}
+              </option>
+              {headings.map(heading => (
+                <option key={heading.heading_id} value={heading.heading_id}>
+                  {heading.title}
+                </option>
+              ))}
             </select>
+            {loadingCategories && (
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                Đang tải danh mục...
+              </p>
+            )}
           </div>
           <div>
             <label className={styles.label}>Danh mục con</label>
@@ -128,27 +159,20 @@ const BasicInfo = ({ courseData, errors, handleInputChange, handleArrayFieldChan
               value={courseData.subcategory}
               onChange={e => handleInputChange('subcategory', e.target.value)}
               className={styles.select}
+              disabled={!courseData.category || loadingCategories}
             >
-              <option value="" >Chọn danh mục con</option>
-              {courseData.category === 'programming' && <>
-                <option value="frontend">Frontend</option>
-                <option value="backend">Backend</option>
-                <option value="mobile">Mobile</option>
-                <option value="data-science">Khoa học dữ liệu</option>
-              </>}
-              {courseData.category === 'design' && <>
-                <option value="graphic">Thiết kế đồ họa</option>
-                <option value="uiux">UI/UX</option>
-              </>}
-              {courseData.category === 'marketing' && <>
-                <option value="digital">Digital Marketing</option>
-                <option value="content">Content Marketing</option>
-              </>}
-              {courseData.category === 'business' && <>
-                <option value="startup">Khởi nghiệp</option>
-                <option value="management">Quản trị</option>
-              </>}
+              <option value="">Chọn danh mục con</option>
+              {subcategories.map(cat => (
+                <option key={cat.category_id} value={cat.category_id}>
+                  {cat.title}
+                </option>
+              ))}
             </select>
+            {courseData.category && subcategories.length === 0 && !loadingCategories && (
+              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                Không có danh mục con
+              </p>
+            )}
           </div>
         </div>
         {/* Features */}
