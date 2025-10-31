@@ -170,3 +170,47 @@ export const importCourseData = async (req, res) => {
         res.status(500).json({ message: 'Server error during import', error: error.message });
     }
 };
+
+// Update course (MySQL + MongoDB)
+export const updateCourse = async (req, res) => {
+    const { courseId } = req.params;
+
+    try {
+        const result = await courseService.updateCourseService(courseId, req.body);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Delete course (MySQL + MongoDB)
+export const deleteCourse = async (req, res) => {
+    const { courseId } = req.params;
+
+    try {
+        const result = await courseService.deleteCourseService(courseId);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Get full course data for management (bao gồm sections và lessons)
+export const getFullCourseDataForManagement = async (req, res) => {
+    const { courseId } = req.params;
+
+    try {
+        const course = await courseService.getFullCourseDataForManagementService(courseId);
+        
+        if (!course) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+        
+        res.status(200).json(course);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};

@@ -10,7 +10,9 @@ const BasicInfo = ({
   removeArrayField,
   headings = [],
   allCategories = [],
-  loadingCategories = false
+  loadingCategories = false,
+  levels = [],
+  languages = []
 }) => {
   // Get categories for selected heading
   const getSubcategoriesForHeading = (headingId) => {
@@ -107,9 +109,22 @@ const BasicInfo = ({
               onChange={(e) => handleInputChange('level', e.target.value)}
               className={styles.select}
             >
-              <option value="beginner">Cơ bản</option>
-              <option value="intermediate">Trung cấp</option>
-              <option value="advanced">Nâng cao</option>
+              <option value="">Chọn trình độ</option>
+              {levels.length > 0 ? (
+                levels.map(level => (
+                  <option key={level.lv_id} value={level.title}>
+                    {level.title === 'beginner' ? 'Cơ bản' : 
+                     level.title === 'intermediate' ? 'Trung cấp' : 
+                     level.title === 'advanced' ? 'Nâng cao' : level.title}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="beginner">Cơ bản</option>
+                  <option value="intermediate">Trung cấp</option>
+                  <option value="advanced">Nâng cao</option>
+                </>
+              )}
             </select>
           </div>
           <div>
@@ -119,8 +134,20 @@ const BasicInfo = ({
               onChange={(e) => handleInputChange('language', e.target.value)}
               className={styles.select}
             >
-              <option value="vietnamese">Tiếng Việt</option>
-              <option value="english">English</option>
+              <option value="">Chọn ngôn ngữ</option>
+              {languages.length > 0 ? (
+                languages.map(lang => (
+                  <option key={lang.lang_id} value={lang.title}>
+                    {lang.title === 'vietnamese' ? 'Tiếng Việt' : 
+                     lang.title === 'english' ? 'English' : lang.title}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="vietnamese">Tiếng Việt</option>
+                  <option value="english">English</option>
+                </>
+              )}
             </select>
           </div>
         </div>

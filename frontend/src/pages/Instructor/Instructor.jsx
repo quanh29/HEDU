@@ -156,12 +156,13 @@ const Instructor = () => {
     try {
       setLoading(true);
       await axios.delete(`${BASE_URL}/api/course/${courseId}`);
-      setCourses((prev) => prev.filter((c) => c.id !== courseId));
-      alert('Xóa thành công!');
+      // Refresh data sau khi xóa
+      await fetchInstructorData();
+      alert('Xóa khóa học thành công!');
       setMenuOpenId(null);
     } catch (err) {
       console.error('Error deleting course:', err);
-      alert('Xóa thất bại. Vui lòng thử lại.');
+      alert('Xóa thất bại. Vui lòng thử lại: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }

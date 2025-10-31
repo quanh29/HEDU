@@ -64,12 +64,17 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const [allCategories, setAllCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
+  // Levels and languages state
+  const [levels, setLevels] = useState([]);
+  const [languages, setLanguages] = useState([]);
+
   // Form validation
   const [errors, setErrors] = useState({});
 
   // Fetch headings and categories on mount
   useEffect(() => {
     fetchHeadingsAndCategories();
+    fetchLevelsAndLanguages();
   }, []);
 
   // Fetch course data if editing (after headings are loaded)
@@ -121,6 +126,24 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     }
   };
 
+  const fetchLevelsAndLanguages = async () => {
+    try {
+      const [levelsRes, languagesRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_BASE_URL}/api/levels`),
+        axios.get(`${import.meta.env.VITE_BASE_URL}/api/languages`)
+      ]);
+      
+      console.log('📊 [fetchLevelsAndLanguages] Levels:', levelsRes.data);
+      console.log('🌍 [fetchLevelsAndLanguages] Languages:', languagesRes.data);
+      
+      setLevels(levelsRes.data);
+      setLanguages(languagesRes.data);
+    } catch (error) {
+      console.error('❌ [fetchLevelsAndLanguages] Error:', error);
+      console.error('Error details:', error.response?.data);
+    }
+  };
+
   const fetchCourseData = async () => {
     if (!courseId) {
       console.error('CourseId is undefined!');
@@ -132,43 +155,20 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     setLoading(true);
     console.log('Fetching course data for ID:', courseId);
     try {
-      // Sử dụng API đúng để fetch course data
-      const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/full`;
+      // Sử dụng API mới để fetch full course data cho management (bao gồm sections và lessons)
+      const url = `${import.meta.env.VITE_BASE_URL}/api/course/manage/${courseId}/full`;
       console.log('Fetching from URL:', url);
       const response = await axios.get(url);
-      const data = response.data;
+      const courseInfo = response.data;
       
-      console.log('Full API Response:', data);
+      console.log('Full API Response:', courseInfo);
       
-      // Data có thể có cấu trúc { course, sections } hoặc trực tiếp course data
-      const courseInfo = data.course || data;
-      const sectionsData = data.sections || [];
-      
-      console.log('Course Info:', courseInfo);
-      console.log('Sections Data:', sectionsData);
-      console.log('Sections Data type:', typeof sectionsData);
-      console.log('Is Array?:', Array.isArray(sectionsData));
-      console.log('Sections length:', sectionsData?.length || 0);
-      
-      // Debug: Log structure of first section if exists
-      if (sectionsData && sectionsData.length > 0) {
-        console.log('First section structure:', {
-          _id: sectionsData[0]._id,
-          title: sectionsData[0].title,
-          keys: Object.keys(sectionsData[0]),
-          videos: sectionsData[0].videos,
-          materials: sectionsData[0].materials,
-          quizzes: sectionsData[0].quizzes
-        });
-      }
-      
-      // Lấy categories/tags từ MySQL hoặc MongoDB
+      // Lấy categories từ MySQL
       const tags = courseInfo.categories 
         ? courseInfo.categories.map(cat => cat.title) 
-        : (courseInfo.tags || []);
+        : [];
       
       // Map category to heading_id and subcategory to category_id
-      // Assume first tag is category, second is subcategory (if exists)
       let categoryId = '';
       let subcategoryId = '';
       
@@ -186,10 +186,6 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             subcategoryId = matchingCat.category_id;
           }
         }
-      } else if (tags.length > 0) {
-        // Fallback: try to match by tag names
-        categoryId = tags[0] || '';
-        subcategoryId = tags[1] || '';
       }
       
       console.log('📚 [fetchCourseData] Mapped categories:', {
@@ -199,21 +195,23 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         originalTags: tags
       });
       
+      // Set course basic info
       setCourseData({
         title: courseInfo.title || '',
-        subtitle: courseInfo.subTitle || courseInfo.subtitle || '',
-        description: courseInfo.des || courseInfo.description || '',
-        thumbnail: courseInfo.picture_url || courseInfo.thumbnail || '',
-        level: courseInfo.level_title || courseInfo.level || 'beginner',
-        language: courseInfo.language_title || courseInfo.language || 'vietnamese',
+        subtitle: courseInfo.subTitle || '',
+        description: courseInfo.des || '',
+        thumbnail: courseInfo.picture_url || '',
+        level: courseInfo.level_title || 'beginner',
+        language: courseInfo.language_title || 'vietnamese',
         tags: tags,
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
         category: categoryId,
         subcategory: subcategoryId,
-        hasPractice: courseInfo.has_practice === 1 || courseInfo.hasPractice || false,
-        hasCertificate: courseInfo.has_certificate === 1 || courseInfo.hasCertificate || false,
-        originalPrice: courseInfo.originalPrice || courseInfo.original_price || 0
+        hasPractice: courseInfo.has_practice === 1 || false,
+        hasCertificate: courseInfo.has_certificate === 1 || false,
+        originalPrice: courseInfo.originalPrice || 0,
+        currentPrice: courseInfo.currentPrice || 0
       });
       
       console.log('Set courseData:', {
@@ -222,17 +220,41 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         requirements: courseInfo.requirements
       });
       
-      // Transform sections data - sections có videos, materials, quizzes
+      // Transform sections data từ MongoDB
       console.log('🚀 [fetchCourseData] Starting section transformation...');
+      
+      const sectionsData = courseInfo.sections || [];
       
       if (!sectionsData || sectionsData.length === 0) {
         console.warn('⚠️ [fetchCourseData] No sections data found!');
         setSections([]);
       } else {
         console.log(`📦 [fetchCourseData] Transforming ${sectionsData.length} sections...`);
+        
         const transformedSections = sectionsData.map((section, index) => {
           console.log(`\n🔄 [fetchCourseData] Transforming section ${index + 1}/${sectionsData.length}`);
-          return mapSectionData(section);
+          
+          // Gom tất cả lessons từ section
+          const lessons = section.lessons || [];
+          
+          return {
+            _id: section._id,
+            id: section._id,
+            title: section.title || '',
+            order: section.order || index + 1,
+            lessons: lessons.map(lesson => ({
+              _id: lesson._id,
+              id: lesson._id,
+              title: lesson.title || '',
+              contentType: lesson.contentType,
+              order: lesson.order || 0,
+              contentUrl: lesson.contentUrl || '',
+              playbackId: lesson.playbackId || '',
+              status: lesson.status || 'ready',
+              description: lesson.description || '',
+              questions: lesson.questions || []
+            }))
+          };
         });
         
         console.log('✅ [fetchCourseData] Transformed sections:', transformedSections);
@@ -401,71 +423,94 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
     setSaving(true);
     try {
-      // Use the helper function to transform sections
-      const normalizedSections = sections.map((section, index) => 
-        transformSectionForSave(section, index)
-      );
-
-      const instructors = user ? [user.id] : [];
+      // Hardcoded instructorId - tạm thời như trong Instructor.jsx
+      const instructorId = '98f7f734-aaa8-11f0-8462-581122e62853';
       
-      // Build tags array from heading and category titles
-      const tags = [];
-      if (courseData.category) {
-        const selectedHeading = headings.find(h => h.heading_id === courseData.category);
-        if (selectedHeading) {
-          tags.push(selectedHeading.title);
-        }
-      }
-      if (courseData.subcategory) {
-        const selectedCategory = allCategories.find(c => c.category_id === courseData.subcategory);
-        if (selectedCategory) {
-          tags.push(selectedCategory.title);
-        }
-      }
+      // Map level và language từ title sang ID
+      const selectedLevel = levels.find(lv => lv.title.toLowerCase() === courseData.level.toLowerCase());
+      const selectedLanguage = languages.find(lang => lang.title.toLowerCase() === courseData.language.toLowerCase());
       
-      console.log('💾 [saveCourseWithStatus] Built tags from categories:', {
-        category: courseData.category,
-        subcategory: courseData.subcategory,
-        tags
+      const lv_id = selectedLevel ? selectedLevel.lv_id : 'L1'; // Fallback to L1
+      const lang_id = selectedLanguage ? selectedLanguage.lang_id : languages[0]?.lang_id; // Fallback to first language
+      
+      console.log('🗺️ [saveCourseWithStatus] Mapped IDs:', {
+        level: courseData.level,
+        lv_id,
+        selectedLevel,
+        language: courseData.language,
+        lang_id,
+        selectedLanguage
+      });
+      
+      // Lấy category_id từ subcategory đã chọn
+      const categories = courseData.subcategory ? [courseData.subcategory] : [];
+      
+      console.log('💾 [saveCourseWithStatus] Preparing course data:', {
+        isEditMode,
+        courseId,
+        status,
+        categories
       });
 
-      console.log('Saving course with normalized sections:', normalizedSections);
-      
-      // Calculate course statistics
-      const stats = getLessonStatistics(sections);
-      console.log('Course will be saved with statistics:', stats);
+      // Chuẩn bị sections để lưu
+      const sectionsForSave = sections.map((section, index) => ({
+        _id: section._id && !section._id.startsWith('temp-') ? section._id : undefined,
+        title: section.title,
+        order: index + 1,
+        lessons: (section.lessons || []).map((lesson, lessonIndex) => ({
+          _id: lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : undefined,
+          title: lesson.title,
+          contentType: lesson.contentType,
+          order: lessonIndex + 1,
+          contentUrl: lesson.contentUrl || '',
+          playbackId: lesson.playbackId || '',
+          status: lesson.status || 'ready',
+          description: lesson.description || '',
+          questions: lesson.questions || []
+        }))
+      }));
 
       const payload = {
         title: courseData.title,
-        subtitle: courseData.subtitle,
-        instructors,
-        thumbnail: courseData.thumbnail,
-        description: courseData.description,
-        originalPrice: courseData.originalPrice,
-        requirements: courseData.requirements,
-        objectives: courseData.objectives,
-        tags,
-        level: courseData.level,
-        language: courseData.language,
-        hasPractice: courseData.hasPractice,
-        hasCertificate: courseData.hasCertificate,
-        sections: normalizedSections,
-        status: status
+        subTitle: courseData.subtitle,
+        des: courseData.description,
+        originalPrice: courseData.originalPrice || 0,
+        currentPrice: courseData.currentPrice || courseData.originalPrice || 0,
+        instructor_id: instructorId,
+        lv_id: lv_id,
+        lang_id: lang_id,
+        has_practice: courseData.hasPractice,
+        has_certificate: courseData.hasCertificate,
+        picture_url: courseData.thumbnail,
+        requirements: courseData.requirements.filter(r => r.trim()),
+        objectives: courseData.objectives.filter(o => o.trim()),
+        categories: categories,
+        course_status: status,
+        sections: sectionsForSave
       };
 
+      console.log('💾 [saveCourseWithStatus] Payload:', payload);
+
       if (isEditMode) {
-        // Call PUT endpoint to update existing course revision
-        await axios.put(`${import.meta.env.VITE_BASE_URL}/api/course-revision/course/${courseId}`, payload);
+        // Update existing course
+        const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`;
+        console.log('📝 [saveCourseWithStatus] Updating course:', url);
+        await axios.put(url, payload);
         alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
         navigate('/instructor');
       } else {
-        await axios.post(`${import.meta.env.VITE_BASE_URL}/api/course-revision`, payload);
+        // Create new course
+        const url = `${import.meta.env.VITE_BASE_URL}/api/course`;
+        console.log('➕ [saveCourseWithStatus] Creating new course:', url);
+        const response = await axios.post(url, payload);
+        console.log('✅ [saveCourseWithStatus] Course created:', response.data);
         alert(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
         navigate('/instructor');
       }
     } catch (error) {
-      console.error('Error saving course:', error);
-      alert('Có lỗi xảy ra khi lưu khóa học');
+      console.error('❌ [saveCourseWithStatus] Error saving course:', error);
+      console.error('Error details:', error.response?.data);
+      alert('Có lỗi xảy ra khi lưu khóa học: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
@@ -556,6 +601,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             headings={headings}
             allCategories={allCategories}
             loadingCategories={loadingCategories}
+            levels={levels}
+            languages={languages}
             readOnly={isViewMode}
           />
         )}
