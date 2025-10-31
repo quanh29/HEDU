@@ -23,11 +23,12 @@ import {
 import axios from 'axios';
 import styles from './CourseManagement.module.css';
 
-const CreateUpdateCourse = () => {
+const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const { user } = useUser();
   const { courseId } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!courseId;
+  const isViewMode = mode === 'view';
   
   // Course basic info state
   const [courseData, setCourseData] = useState({
@@ -57,41 +58,151 @@ const CreateUpdateCourse = () => {
 
   // Fetch course data if editing
   useEffect(() => {
-    if (isEditMode) {
+    console.log('CourseId from params:', courseId);
+    console.log('IsEditMode:', isEditMode);
+    console.log('IsViewMode:', isViewMode);
+    
+    if (isEditMode && courseId) {
       fetchCourseData();
     }
   }, [courseId, isEditMode]);
 
   const fetchCourseData = async () => {
+    if (!courseId) {
+      console.error('CourseId is undefined!');
+      alert('Không tìm thấy ID khóa học');
+      navigate('/instructor');
+      return;
+    }
+    
     setLoading(true);
+    console.log('Fetching course data for ID:', courseId);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/course/${courseId}`);
-      const { course, sections: courseSections } = response.data;
+      // Sử dụng API đúng để fetch course data
+      const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/full`;
+      console.log('Fetching from URL:', url);
+      const response = await axios.get(url);
+      const data = response.data;
       
-      // Derive category/subcategory from tags if available
-      const category = Array.isArray(course.tags) && course.tags.length > 0 ? course.tags[0] : '';
-      const subcategory = Array.isArray(course.tags) && course.tags.length > 1 ? course.tags[1] : '';
+      console.log('Full API Response:', data);
+      
+      // Data có thể có cấu trúc { course, sections } hoặc trực tiếp course data
+      const courseInfo = data.course || data;
+      const sectionsData = data.sections || [];
+      
+      console.log('Course Info:', courseInfo);
+      console.log('Sections Data:', sectionsData);
+      
+      // Lấy categories/tags từ MySQL hoặc MongoDB
+      const tags = courseInfo.categories 
+        ? courseInfo.categories.map(cat => cat.title) 
+        : (courseInfo.tags || []);
+      
+      const category = tags.length > 0 ? tags[0] : '';
+      const subcategory = tags.length > 1 ? tags[1] : '';
       
       setCourseData({
-        title: course.title || '',
-        subtitle: course.subtitle || '',
-        description: course.description || '',
-        thumbnail: course.thumbnail || '',
-        level: course.level || 'beginner',
-        language: course.language || 'vietnamese',
-        tags: course.tags || [],
-        objectives: (course.objectives && course.objectives.length) ? course.objectives : [''],
-        requirements: (course.requirements && course.requirements.length) ? course.requirements : [''],
+        title: courseInfo.title || '',
+        subtitle: courseInfo.subTitle || courseInfo.subtitle || '',
+        description: courseInfo.des || courseInfo.description || '',
+        thumbnail: courseInfo.picture_url || courseInfo.thumbnail || '',
+        level: courseInfo.level_title || courseInfo.level || 'beginner',
+        language: courseInfo.language_title || courseInfo.language || 'vietnamese',
+        tags: tags,
+        objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
+        requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
         category: category,
         subcategory: subcategory,
-        hasPractice: course.hasPractice || false,
-        hasCertificate: course.hasCertificate || false,
-        originalPrice: course.originalPrice || 0
+        hasPractice: courseInfo.has_practice === 1 || courseInfo.hasPractice || false,
+        hasCertificate: courseInfo.has_certificate === 1 || courseInfo.hasCertificate || false,
+        originalPrice: courseInfo.originalPrice || courseInfo.original_price || 0
       });
       
-      setSections(courseSections || []);
+      console.log('Set courseData:', {
+        title: courseInfo.title,
+        objectives: courseInfo.objectives,
+        requirements: courseInfo.requirements
+      });
+      
+      // Transform sections data - sections có videos, materials, quizzes
+      const transformedSections = sectionsData.map(section => {
+        console.log('Processing section:', section.title, section);
+        
+        // Gộp tất cả lessons từ videos, materials, quizzes
+        const lessons = [];
+        
+        // Add videos
+        if (section.videos && section.videos.length > 0) {
+          section.videos.forEach(video => {
+            lessons.push({
+              id: video._id,
+              _id: video._id,
+              title: video.title,
+              contentType: 'video',
+              url: video.contentUrl || '',
+              info: video.description || '',
+              description: video.description || '',
+              order: video.order || 0
+            });
+          });
+        }
+        
+        // Add materials
+        if (section.materials && section.materials.length > 0) {
+          section.materials.forEach(material => {
+            lessons.push({
+              id: material._id,
+              _id: material._id,
+              title: material.title,
+              contentType: 'article',
+              url: material.contentUrl || '',
+              info: '',
+              description: '',
+              order: material.order || 0
+            });
+          });
+        }
+        
+        // Add quizzes
+        if (section.quizzes && section.quizzes.length > 0) {
+          section.quizzes.forEach(quiz => {
+            lessons.push({
+              id: quiz._id,
+              _id: quiz._id,
+              title: quiz.title,
+              contentType: 'quiz',
+              info: '',
+              quizQuestions: (quiz.questions || []).map(q => ({
+                question: q.questionText,
+                answers: q.options.map((opt, idx) => ({
+                  text: opt,
+                  isCorrect: q.correctAnswers.includes(idx)
+                })),
+                explanation: q.explanation || ''
+              })),
+              order: quiz.order || 0
+            });
+          });
+        }
+        
+        // Sort lessons by order
+        lessons.sort((a, b) => a.order - b.order);
+        
+        return {
+          id: section._id,
+          _id: section._id,
+          title: section.title,
+          lessons: lessons
+        };
+      });
+      
+      console.log('Transformed sections:', transformedSections);
+      setSections(transformedSections);
+      
     } catch (error) {
       console.error('Error fetching course data:', error);
+      console.error('Error details:', error.response?.data);
+      alert('Không thể tải dữ liệu khóa học: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -332,29 +443,31 @@ const CreateUpdateCourse = () => {
               Quay lại
             </button>
             <h1 className={styles.title}>
-              {isEditMode ? 'Chỉnh sửa khóa học' : 'Tạo khóa học mới'}
+              {isViewMode ? 'Xem khóa học' : (isEditMode ? 'Chỉnh sửa khóa học' : 'Tạo khóa học mới')}
             </h1>
           </div>
           
-          <div className={styles.headerActions}>
-            <button
-              onClick={() => saveCourseWithStatus('draft')}
-              disabled={saving}
-              className={styles.saveButton}
-            >
-              <Save size={16} />
-              {saving ? 'Đang lưu...' : 'Lưu nháp'}
-            </button>
-            <button
-              onClick={() => saveCourseWithStatus('pending')}
-              disabled={saving}
-              className={styles.saveButton}
-              style={{ marginLeft: 12, background: '#3b82f6', color: 'white' }}
-            >
-              <Upload size={16} />
-              {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
-            </button>
-          </div>
+          {!isViewMode && (
+            <div className={styles.headerActions}>
+              <button
+                onClick={() => saveCourseWithStatus('draft')}
+                disabled={saving}
+                className={styles.saveButton}
+              >
+                <Save size={16} />
+                {saving ? 'Đang lưu...' : 'Lưu nháp'}
+              </button>
+              <button
+                onClick={() => saveCourseWithStatus('pending')}
+                disabled={saving}
+                className={styles.saveButton}
+                style={{ marginLeft: 12, background: '#3b82f6', color: 'white' }}
+              >
+                <Upload size={16} />
+                {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -388,6 +501,7 @@ const CreateUpdateCourse = () => {
             handleArrayFieldChange={handleArrayFieldChange}
             addArrayField={addArrayField}
             removeArrayField={removeArrayField}
+            readOnly={isViewMode}
           />
         )}
 
@@ -402,6 +516,7 @@ const CreateUpdateCourse = () => {
             addLesson={addLesson}
             updateLesson={updateLesson}
             removeLesson={removeLesson}
+            readOnly={isViewMode}
           />
         )}
       </div>

@@ -28,6 +28,8 @@ const Instructor = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null); // Chi tiết khóa học đang xem
+  const [courseContent, setCourseContent] = useState(null); // Nội dung chi tiết của khóa học
   const [stats, setStats] = useState({
     totalCourses: 0,
     totalStudents: 0,
@@ -49,51 +51,58 @@ const Instructor = () => {
 
   // Fetch data when component mounts
   useEffect(() => {
-    if (user?.id) {
-      fetchInstructorData();
-    }
-  }, [user]);
+    // Tạm thời bỏ check user?.id để test với user_id cố định
+    fetchInstructorData();
+  }, []);
 
   // Refresh data when window gets focus (user comes back from creating course)
   useEffect(() => {
     const handleFocus = () => {
-      if (user?.id) {
-        fetchInstructorData();
-      }
+      fetchInstructorData();
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
+  }, []);
 
   const fetchInstructorData = async () => {
-    if (!user?.id) return;
+    // Tạm thời dùng user_id cố định để test
+    const instructorId = '98f7f734-aaa8-11f0-8462-581122e62853';
     
     setLoading(true);
     try {
-      // Fetch courses từ backend
-      const coursesRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course-revision/user/${user.id}`);
+      // Fetch courses từ backend - sử dụng route instructor
+      const coursesRes = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/instructor/${instructorId}`);
       const courseData = coursesRes.data || [];
       
+      console.log('Fetched courses from API:', courseData);
+      console.log('First course _id:', courseData[0]?._id);
+      
       // Transform data để phù hợp với UI
-      const transformedCourses = courseData.map(course => ({
-        id: course._id,
-        title: course.title,
-        subtitle: course.subtitle,
-        thumbnail: course.thumbnail,
-        description: course.description,
-        originalPrice: course.originalPrice,
-        level: course.level,
-        language: course.language,
-        tags: course.tags,
-        status: course.status, // draft, pending, approved, rejected
-        students: 0, // TODO: Fetch enrollment count
-        rating: 0, // TODO: Fetch rating
-        revenue: 0, // TODO: Calculate revenue
-        createdAt: course.createdAt,
-        updatedAt: course.updatedAt,
-        sections: course.sections
-      }));
+      const transformedCourses = courseData.map(course => {
+        console.log('Mapping course:', course.course_id || course._id, course.title);
+        return {
+          id: course.course_id || course._id, // Hỗ trợ cả MySQL (course_id) và MongoDB (_id)
+          title: course.title,
+          subtitle: course.subtitle,
+          thumbnail: course.thumbnail,
+          description: course.description,
+          originalPrice: course.originalPrice || course.original_price, // MySQL uses original_price
+          level: course.level,
+          language: course.language,
+          tags: course.tags,
+          status: course.status || course.course_status, // MySQL uses course_status
+          students: course.enrollmentCount || 0,
+          rating: course.averageRating || 0,
+          revenue: (course.enrollmentCount || 0) * (course.originalPrice || course.original_price || 0),
+          createdAt: course.createdAt || course.created_at,
+          updatedAt: course.updatedAt || course.updated_at,
+          sections: course.sections
+        };
+      });
+      
+      console.log('Transformed courses:', transformedCourses);
+      console.log('First transformed course id:', transformedCourses[0]?.id);
       
       setCourses(transformedCourses);
       
@@ -143,19 +152,39 @@ const Instructor = () => {
   };
 
   const deleteCourse = async (courseId) => {
-    if (!confirm('Bạn có chắc muốn xóa bản nháp này?')) return;
+    if (!confirm('Bạn có chắc muốn xóa khóa học này? Hành động này không thể hoàn tác.')) return;
     try {
       setLoading(true);
-      await axios.delete(`${BASE_URL}/api/course-revision/course/${courseId}`);
+      await axios.delete(`${BASE_URL}/api/course/${courseId}`);
       setCourses((prev) => prev.filter((c) => c.id !== courseId));
-      alert('Xóa thành công');
+      alert('Xóa thành công!');
+      setMenuOpenId(null);
     } catch (err) {
-      console.error(err);
-      alert('Xóa thất bại');
+      console.error('Error deleting course:', err);
+      alert('Xóa thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
-      setMenuOpenId(null);
     }
+  };
+
+  // View course details - navigate to view mode
+  const viewCourse = (courseId) => {
+    console.log('Viewing course with ID:', courseId);
+    if (!courseId) {
+      alert('Không tìm thấy ID khóa học');
+      return;
+    }
+    navigate(`/instructor/view-course/${courseId}`);
+  };
+
+  // Edit course - navigate to edit mode
+  const editCourse = (courseId) => {
+    console.log('Editing course with ID:', courseId);
+    if (!courseId) {
+      alert('Không tìm thấy ID khóa học');
+      return;
+    }
+    navigate(`/instructor/update-course/${courseId}`);
   };
 
   // Dashboard Component
@@ -370,10 +399,18 @@ const Instructor = () => {
                   </td>
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                      <button 
+                        onClick={() => viewCourse(course.id)}
+                        style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        title="Xem chi tiết"
+                      >
                         <Eye size={16} style={{ color: '#6b7280' }} />
                       </button>
-                      <button onClick={() => navigate(`/update-course/${course.id}`)} style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                      <button 
+                        onClick={() => editCourse(course.id)}
+                        style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        title="Chỉnh sửa"
+                      >
                         <Edit3 size={16} style={{ color: '#6b7280' }} />
                       </button>
 
@@ -381,6 +418,7 @@ const Instructor = () => {
                         <button
                           onClick={() => setMenuOpenId(menuOpenId === course.id ? null : course.id)}
                           style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                          title="Thêm"
                         >
                           <MoreVertical size={16} style={{ color: '#6b7280' }} />
                         </button>
@@ -398,6 +436,26 @@ const Instructor = () => {
                             zIndex: 50,
                             minWidth: '120px'
                           }}>
+                            <button
+                              onClick={() => {
+                                alert('Chức năng ẩn khóa học');
+                                setMenuOpenId(null);
+                              }}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '8px',
+                                color: '#374151',
+                                background: 'transparent',
+                                border: 'none',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                              }}
+                            >
+                              Ẩn khóa học
+                            </button>
+                            
                             {course.status === 'draft' && (
                               <button
                                 onClick={() => deleteCourse(course.id)}
@@ -409,32 +467,16 @@ const Instructor = () => {
                                   background: 'transparent',
                                   border: 'none',
                                   textAlign: 'left',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  borderTop: '1px solid #e5e7eb',
+                                  marginTop: '4px',
+                                  paddingTop: '8px'
                                 }}
                               >
                                 Xóa
                               </button>
                             )}
-
-                            <button
-                              onClick={() => {
-                                // placeholder for other actions like Hide/Suspend
-                                alert('Chức năng khác');
-                                setMenuOpenId(null);
-                              }}
-                              style={{
-                                display: 'block',
-                                width: '100%',
-                                padding: '8px',
-                                color: '#374151',
-                                background: 'transparent',
-                                border: 'none',
-                                textAlign: 'left',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Ẩn
-                            </button>
                           </div>
                         )}
                       </div>
@@ -567,6 +609,146 @@ const Instructor = () => {
     </div>
   );
 
+  // Course Detail Component - Hiển thị chi tiết nội dung khóa học
+  const CourseDetail = () => {
+    if (!courseContent || !selectedCourse) return null;
+
+    return (
+      <div className="space-y-6">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+          <button
+            onClick={() => {
+              setActiveTab('courses');
+              setCourseContent(null);
+              setSelectedCourse(null);
+            }}
+            style={{
+              padding: '8px 16px',
+              background: '#f3f4f6',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            ← Quay lại
+          </button>
+          <h2 style={{ fontSize: '24px', fontWeight: '600' }}>{selectedCourse.title}</h2>
+        </div>
+
+        {/* Course Info */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>Thông tin khóa học</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>Trạng thái: </span>
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>{selectedCourse.status}</span>
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>Học viên: </span>
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>{selectedCourse.students}</span>
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>Đánh giá: </span>
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>⭐ {selectedCourse.rating}</span>
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>Giá: </span>
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>{formatPrice(selectedCourse.originalPrice)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Course Content */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
+            Nội dung khóa học ({courseContent.sections?.length || 0} sections)
+          </h3>
+          
+          {courseContent.sections && courseContent.sections.map((section, sectionIndex) => (
+            <div key={section._id} style={{ marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+                {sectionIndex + 1}. {section.title}
+              </h4>
+              
+              {/* Videos */}
+              {section.videos && section.videos.length > 0 && (
+                <div style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                  <h5 style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>
+                    📹 Videos ({section.videos.length})
+                  </h5>
+                  {section.videos.map((video, videoIndex) => (
+                    <div key={video._id} style={{ padding: '8px 0', fontSize: '14px', color: '#374151' }}>
+                      {sectionIndex + 1}.{videoIndex + 1} {video.title}
+                      {video.duration && <span style={{ color: '#6b7280', marginLeft: '8px' }}>({Math.round(video.duration / 60)} phút)</span>}
+                      {video.status && <span style={{ 
+                        marginLeft: '8px', 
+                        padding: '2px 8px', 
+                        borderRadius: '4px', 
+                        fontSize: '12px',
+                        background: video.status === 'ready' ? '#dcfce7' : '#fef3c7',
+                        color: video.status === 'ready' ? '#166534' : '#92400e'
+                      }}>
+                        {video.status}
+                      </span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Materials */}
+              {section.materials && section.materials.length > 0 && (
+                <div style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                  <h5 style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>
+                    📄 Materials ({section.materials.length})
+                  </h5>
+                  {section.materials.map((material, materialIndex) => (
+                    <div key={material._id} style={{ padding: '8px 0', fontSize: '14px', color: '#374151' }}>
+                      {sectionIndex + 1}.{materialIndex + 1} {material.title}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Quizzes */}
+              {section.quizzes && section.quizzes.length > 0 && (
+                <div style={{ marginLeft: '20px' }}>
+                  <h5 style={{ fontSize: '14px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>
+                    📝 Quizzes ({section.quizzes.length})
+                  </h5>
+                  {section.quizzes.map((quiz, quizIndex) => (
+                    <div key={quiz._id} style={{ padding: '8px 0', fontSize: '14px', color: '#374151' }}>
+                      {sectionIndex + 1}.{quizIndex + 1} {quiz.title}
+                      {quiz.questions && <span style={{ color: '#6b7280', marginLeft: '8px' }}>({quiz.questions.length} câu hỏi)</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {(!courseContent.sections || courseContent.sections.length === 0) && (
+            <p style={{ fontSize: '14px', color: '#6b7280', textAlign: 'center', padding: '20px' }}>
+              Chưa có nội dung nào trong khóa học này
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.instructorContainer}>
       {/* Header */}
@@ -620,6 +802,7 @@ const Instructor = () => {
                 {activeTab === 'dashboard' && <Dashboard />}
                 {activeTab === 'courses' && <CourseManagement />}
                 {activeTab === 'students' && <StudentManagement />}
+                {activeTab === 'courseDetail' && <CourseDetail />}
               </>
             )}
           </div>

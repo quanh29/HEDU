@@ -44,6 +44,8 @@ function App() {
           <Route path='/quizzes' element={<Quizzes/>}/>
           <Route path='/instructor' element={<Instructor/>}/>
           <Route path='/instructor/create-course' element={<CreateUpdateCourse/>}/>
+          <Route path='/instructor/view-course/:courseId' element={<CreateUpdateCourse mode="view"/>}/>
+          <Route path='/instructor/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           <Route path='/admin' element={<Admin/>}/>
           <Route path='/upload-demo' element={<UploadDemo/>}/>
