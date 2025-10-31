@@ -54,22 +54,24 @@ app.listen(port, () => {
 });
 
 // Ngrok setup (in development only)
-// when running in production, remove ngrok code, levelrouter.js, levelController.js
-import http from 'http';
+// when running in production, remove ngrok code
 import ngrok from '@ngrok/ngrok';
 
-// Create webserver
-http.createServer((req, res) => {
-	res.writeHead(200, { 'Content-Type': 'text/html' });
-	res.end('Congrats you have created an ngrok web server');
-}).listen(8080, () => console.log('Node.js web server at 8080 is running...'));
-
-// Get your endpoint online
-ngrok.connect({ 
-	addr: 8080, 
-	authtoken: process.env.NGROK_AUTH_TOKEN 
-})
-	.then(listener => console.log(`Ingress established at: ${listener.url()}`));
+// Setup ngrok tunnel for MUX webhooks
+if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
+	ngrok.connect({ 
+		addr: 3000, 
+		authtoken: process.env.NGROK_AUTH_TOKEN 
+	})
+	.then(listener => {
+		console.log('\n🌐 Ngrok tunnel established!');
+		console.log(`📡 Public URL: ${listener.url()}`);
+		console.log(`🔗 Webhook URL for MUX: ${listener.url()}/api/mux/webhook`);
+	})
+	.catch(err => {
+		console.error('❌ Failed to establish ngrok tunnel:', err);
+	});
+}
 
 export default app;
 
