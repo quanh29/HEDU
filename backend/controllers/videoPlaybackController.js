@@ -47,7 +47,7 @@ export const getVideoPlayback = async (req, res) => {
 
         // Lấy playback ID từ contentUrl
         // contentUrl có thể có format: "mux://playbackId" hoặc chỉ là playbackId
-        let playbackId = video.contentUrl;
+        let playbackId = video.playbackId;
         if (playbackId.startsWith('mux://')) {
             playbackId = playbackId.replace('mux://', '');
         } else if (playbackId.includes('mux.com')) {
@@ -142,7 +142,7 @@ export const getVideoThumbnail = async (req, res) => {
         }
 
         // Extract playback ID
-        let playbackId = video.contentUrl;
+        let playbackId = video.playbackId;
         if (playbackId.startsWith('mux://')) {
             playbackId = playbackId.replace('mux://', '');
         } else if (playbackId.includes('mux.com')) {

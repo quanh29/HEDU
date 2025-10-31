@@ -10,10 +10,6 @@ const videoSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    contentUrl: {
-        type: String,
-        required: false, // Không bắt buộc khi mới tạo (đang upload)
-    },
     uploadId: {
         type: String, // MUX upload ID
     },

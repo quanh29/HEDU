@@ -6,8 +6,12 @@ import styles from './MuxUploader.module.css';
 const MuxUploader = ({ 
     lessonTitle, 
     sectionId, 
+    onUploadStart,
     onUploadComplete,
-    onUploadError 
+    onUploadError,
+    onProgress,
+    onStatusChange,
+    inline = false
 }) => {
     const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, processing, success, error
     const [progress, setProgress] = useState(0);
@@ -16,6 +20,20 @@ const MuxUploader = ({
     const fileInputRef = useRef(null);
     const uploadRef = useRef(null);
 
+    const updateStatus = (status) => {
+        setUploadStatus(status);
+        if (onStatusChange) {
+            onStatusChange(status);
+        }
+    };
+
+    const updateProgress = (prog) => {
+        setProgress(prog);
+        if (onProgress) {
+            onProgress(prog);
+        }
+    };
+
     const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -23,13 +41,17 @@ const MuxUploader = ({
         // Validate file type
         if (!file.type.startsWith('video/')) {
             setErrorMessage('Vui lòng chọn file video');
-            setUploadStatus('error');
+            updateStatus('error');
             return;
         }
 
         try {
-            setUploadStatus('uploading');
-            setProgress(0);
+            if (onUploadStart) {
+                onUploadStart();
+            }
+            
+            updateStatus('uploading');
+            updateProgress(0);
             setErrorMessage('');
 
             // Bước 1: Lấy upload URL từ backend
@@ -39,8 +61,8 @@ const MuxUploader = ({
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    lessonTitle,
-                    sectionId
+                    lessonTitle: lessonTitle || '', // Backend sẽ tự tạo title tạm thời nếu trống
+                    sectionId: sectionId || 'temp-section' // Handle temporary sectionId
                 })
             });
 
@@ -48,7 +70,7 @@ const MuxUploader = ({
                 throw new Error('Failed to create upload URL');
             }
 
-            const { uploadUrl, uploadId, videoId: createdVideoId } = await response.json();
+            const { uploadUrl, uploadId, videoId: createdVideoId, assetId } = await response.json();
             setVideoId(createdVideoId);
 
             // Bước 2: Upload file lên MUX sử dụng UpChunk
@@ -62,22 +84,31 @@ const MuxUploader = ({
 
             // Track upload progress
             upload.on('progress', (progressEvent) => {
-                setProgress(Math.round(progressEvent.detail));
+                const prog = Math.round(progressEvent.detail);
+                updateProgress(prog);
             });
 
             // Upload success
             upload.on('success', () => {
-                console.log('Upload complete!');
-                setUploadStatus('processing');
+                console.log('✅ Upload complete!');
+                console.log('📹 Video ID:', createdVideoId);
+                console.log('🎬 Asset ID:', assetId);
+                updateStatus('processing');
                 
                 // Poll for video status
-                pollVideoStatus(createdVideoId);
+                if (createdVideoId) {
+                    pollVideoStatus(createdVideoId, assetId);
+                } else {
+                    console.error('❌ No videoId available for polling');
+                    updateStatus('error');
+                    setErrorMessage('Video ID not found');
+                }
             });
 
             // Upload error
             upload.on('error', (error) => {
                 console.error('Upload error:', error);
-                setUploadStatus('error');
+                updateStatus('error');
                 setErrorMessage(error.detail || 'Upload failed');
                 
                 if (onUploadError) {
@@ -87,7 +118,7 @@ const MuxUploader = ({
 
         } catch (error) {
             console.error('Error starting upload:', error);
-            setUploadStatus('error');
+            updateStatus('error');
             setErrorMessage(error.message);
             
             if (onUploadError) {
@@ -97,12 +128,15 @@ const MuxUploader = ({
     };
 
     // Poll video status để biết khi nào video đã encode xong
-    const pollVideoStatus = async (videoId) => {
-        const maxAttempts = 60; // Poll trong 5 phút
+    const pollVideoStatus = async (videoId, assetId) => {
+        const maxAttempts = 120; // Poll trong 10 phút (120 * 5s)
         let attempts = 0;
+
+        console.log(`🔄 Starting to poll video status for: ${videoId}`);
 
         const poll = setInterval(async () => {
             attempts++;
+            console.log(`📊 Poll attempt ${attempts}/${maxAttempts} for video ${videoId}`);
 
             try {
                 const response = await fetch(
@@ -110,37 +144,50 @@ const MuxUploader = ({
                 );
                 
                 if (!response.ok) {
+                    console.error(`❌ Status check failed: ${response.status}`);
                     throw new Error('Failed to check status');
                 }
 
-                const { status, assetId, playbackId } = await response.json();
+                const data = await response.json();
+                const { status, assetId: returnedAssetId, playbackId } = data;
+                
+                console.log(`📹 Video status: ${status}`, data);
 
                 if (status === 'ready') {
                     clearInterval(poll);
-                    setUploadStatus('success');
+                    console.log('✅ Video is ready!');
+                    updateStatus('success');
                     
                     if (onUploadComplete) {
                         onUploadComplete({
                             videoId,
-                            assetId,
-                            playbackId
+                            assetId: returnedAssetId || assetId,
+                            playbackId,
+                            contentUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : '',
+                            status: 'ready'
                         });
                     }
                 } else if (status === 'error') {
                     clearInterval(poll);
-                    setUploadStatus('error');
+                    console.error('❌ Video processing failed');
+                    updateStatus('error');
                     setErrorMessage('Video processing failed');
                     
                     if (onUploadError) {
                         onUploadError(new Error('Processing failed'));
                     }
+                } else if (status === 'processing') {
+                    console.log('⏳ Still processing...');
+                } else if (status === 'uploading') {
+                    console.log('📤 Still uploading...');
                 }
 
-                // Timeout sau 5 phút
+                // Timeout sau 10 phút
                 if (attempts >= maxAttempts) {
                     clearInterval(poll);
-                    setUploadStatus('error');
-                    setErrorMessage('Processing timeout');
+                    console.error('⏰ Polling timeout');
+                    updateStatus('error');
+                    setErrorMessage('Processing timeout - video may still be processing');
                 }
             } catch (error) {
                 console.error('Error polling status:', error);
@@ -152,13 +199,58 @@ const MuxUploader = ({
         if (uploadRef.current) {
             uploadRef.current.abort();
         }
-        setUploadStatus('idle');
-        setProgress(0);
+        updateStatus('idle');
+        updateProgress(0);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
     };
 
+    // Inline mode - simple file input button
+    if (inline && uploadStatus === 'idle') {
+        return (
+            <div style={{ width: '100%' }}>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                    id={`video-upload-${sectionId}`}
+                />
+                <label 
+                    htmlFor={`video-upload-${sectionId}`}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        border: '2px dashed #3b82f6',
+                        borderRadius: 8,
+                        padding: '12px 16px',
+                        background: '#eff6ff',
+                        color: '#3b82f6',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#eff6ff'}
+                >
+                    <Upload size={16} />
+                    Upload video lên MUX
+                </label>
+            </div>
+        );
+    }
+
+    // Inline mode - uploading/processing states are handled by parent
+    if (inline && uploadStatus !== 'idle') {
+        return null;
+    }
+
+    // Full modal mode
     return (
         <div className={styles.uploader}>
             {uploadStatus === 'idle' && (

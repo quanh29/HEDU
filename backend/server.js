@@ -24,9 +24,14 @@ const port = 3000;
 await connectDB();
 
 // Middleware
-app.use(express.json());
 app.use(cors());
 app.use(clerkMiddleware());
+
+// Webhook route TRƯỚC express.json() để xử lý raw body
+app.use('/api/mux/webhook', express.raw({ type: 'application/json' }));
+
+// Sau đó mới parse JSON cho các routes khác
+app.use(express.json());
 
 // Serve static files (uploads)
 app.use('/uploads', express.static('uploads'));

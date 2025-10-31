@@ -1,8 +1,64 @@
-import React from 'react';
-import { Plus, Trash2, GripVertical, PlayCircle, FileText, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload } from 'lucide-react';
+import MuxUploader from '../MuxUploader/MuxUploader';
 import styles from './Curriculum.module.css';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
+  const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
+  
+  const handleVideoUploadComplete = (sectionId, lessonId, data) => {
+    console.log('✅ Video upload complete in Curriculum:', data);
+    console.log('📝 Section ID:', sectionId);
+    console.log('📝 Lesson ID:', lessonId);
+    console.log('📹 Playback ID:', data.playbackId);
+    console.log('🎬 Asset ID:', data.assetId);
+    
+    // Update lesson with video data
+    updateLesson(sectionId, lessonId, 'contentUrl', data.contentUrl || '');
+    updateLesson(sectionId, lessonId, 'playbackId', data.playbackId || '');
+    updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+    updateLesson(sectionId, lessonId, 'status', 'ready'); // Set to ready explicitly
+    updateLesson(sectionId, lessonId, 'uploadProgress', undefined);
+    updateLesson(sectionId, lessonId, 'uploadStatus', 'success'); // Set to success
+    
+    console.log('✅ Lesson updated with video data');
+    
+    // Remove from uploading list
+    setUploadingLessons(prev => {
+      const updated = { ...prev };
+      delete updated[lessonId];
+      console.log('📋 Updated uploading lessons:', updated);
+      return updated;
+    });
+  };
+
+  const handleVideoUploadError = (sectionId, lessonId, error) => {
+    console.error('❌ Video upload error:', error);
+    updateLesson(sectionId, lessonId, 'uploadStatus', 'error');
+    updateLesson(sectionId, lessonId, 'uploadError', error.message);
+    
+    // Remove from uploading list
+    setUploadingLessons(prev => {
+      const updated = { ...prev };
+      delete updated[lessonId];
+      return updated;
+    });
+  };
+
+  const handleVideoUploadProgress = (sectionId, lessonId, progress) => {
+    updateLesson(sectionId, lessonId, 'uploadProgress', progress);
+  };
+
+  const handleVideoUploadStatusChange = (sectionId, lessonId, status) => {
+    updateLesson(sectionId, lessonId, 'uploadStatus', status);
+  };
+
+  const startUpload = (sectionId, lessonId) => {
+    setUploadingLessons(prev => ({ ...prev, [lessonId]: true }));
+    updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
+    updateLesson(sectionId, lessonId, 'uploadProgress', 0);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -81,8 +137,8 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       <option value="article">Tài liệu</option>
                       <option value="quiz">Quiz</option>
                     </select>
-                    {/* URL input for video or article */}
-                    {(lesson.contentType === 'video' || lesson.contentType === 'article') && (
+                    {/* URL input for article only */}
+                    {lesson.contentType === 'article' && (
                       <input
                         type="url"
                         value={lesson.url || ''}
@@ -92,13 +148,122 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                           'url',
                           e.target.value
                         )}
-                        placeholder={lesson.contentType === 'video' ? 'Nhập URL video...' : 'Nhập URL tài liệu...'}
+                        placeholder="Nhập URL tài liệu..."
                         className={styles.lessonInput}
                         style={{ marginTop: 8 }}
                       />
                     )}
-                    {/* Upload file for video or document with styled box */}
-                    {(lesson.contentType === 'video' || lesson.contentType === 'text') && (
+                    {/* MuxUploader for video upload */}
+                    {lesson.contentType === 'video' && (
+                      <div style={{ marginTop: 12, marginBottom: 12 }}>
+                        {/* Upload button hoặc inline uploader - chỉ hiện khi chưa có playbackId và chưa ready */}
+                        {!uploadingLessons[lesson.id || lesson._id] && !lesson.playbackId && lesson.status !== 'ready' && (
+                          <MuxUploader
+                            lessonTitle={lesson.title}
+                            sectionId={section._id || section.id}
+                            onUploadStart={() => startUpload(section.id || section._id, lesson.id || lesson._id)}
+                            onUploadComplete={(data) => handleVideoUploadComplete(
+                              section.id || section._id,
+                              lesson.id || lesson._id,
+                              data
+                            )}
+                            onUploadError={(error) => handleVideoUploadError(
+                              section.id || section._id,
+                              lesson.id || lesson._id,
+                              error
+                            )}
+                            onProgress={(progress) => handleVideoUploadProgress(
+                              section.id || section._id,
+                              lesson.id || lesson._id,
+                              progress
+                            )}
+                            onStatusChange={(status) => handleVideoUploadStatusChange(
+                              section.id || section._id,
+                              lesson.id || lesson._id,
+                              status
+                            )}
+                            inline={true}
+                          />
+                        )}
+                        
+                        {/* Show upload status if uploading */}
+                        {uploadingLessons[lesson.id || lesson._id] && (
+                          <div style={{
+                            border: '2px solid #3b82f6',
+                            borderRadius: 8,
+                            padding: '12px 16px',
+                            background: '#eff6ff'
+                          }}>
+                            <div style={{ fontSize: 14, color: '#1e40af', marginBottom: 8, fontWeight: 500 }}>
+                              {lesson.uploadStatus === 'uploading' && `Đang upload... ${lesson.uploadProgress || 0}%`}
+                              {lesson.uploadStatus === 'processing' && 'Đang xử lý video...'}
+                              {lesson.uploadStatus === 'success' && '✅ Hoàn tất!'}
+                              {lesson.uploadStatus === 'error' && '❌ Lỗi upload'}
+                            </div>
+                            {lesson.uploadStatus === 'uploading' && (
+                              <div style={{
+                                width: '100%',
+                                height: 6,
+                                background: '#dbeafe',
+                                borderRadius: 3,
+                                overflow: 'hidden'
+                              }}>
+                                <div style={{
+                                  width: `${lesson.uploadProgress || 0}%`,
+                                  height: '100%',
+                                  background: '#3b82f6',
+                                  transition: 'width 0.3s ease'
+                                }} />
+                              </div>
+                            )}
+                            {lesson.uploadStatus === 'error' && (
+                              <div style={{ fontSize: 13, color: '#dc2626', marginTop: 4 }}>
+                                {lesson.uploadError || 'Upload failed'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Show processing message even when not in uploadingLessons */}
+                        {!uploadingLessons[lesson.id || lesson._id] && 
+                         lesson.status === 'processing' && 
+                         !lesson.playbackId && (
+                          <div style={{
+                            border: '2px solid #f59e0b',
+                            borderRadius: 8,
+                            padding: '12px 16px',
+                            background: '#fffbeb'
+                          }}>
+                            <div style={{ fontSize: 14, color: '#92400e', marginBottom: 4, fontWeight: 500 }}>
+                              ⏳ Đang xử lý video...
+                            </div>
+                            <div style={{ fontSize: 12, color: '#78350f' }}>
+                              Video đang được mã hóa bởi MUX. Vui lòng đợi...
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Display video info if uploaded */}
+                        {(lesson.playbackId || lesson.status === 'ready') && (
+                          <div style={{
+                            marginTop: 8,
+                            padding: 12,
+                            background: '#ecfdf5',
+                            border: '2px solid #10b981',
+                            borderRadius: 8,
+                            fontSize: 13,
+                            color: '#065f46'
+                          }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>✓ Video đã upload thành công</div>
+                            {lesson.playbackId && <div><strong>Playback ID:</strong> {lesson.playbackId}</div>}
+                            <div><strong>Status:</strong> {lesson.status || 'ready'}</div>
+                            {lesson.assetId && <div><strong>Asset ID:</strong> {lesson.assetId}</div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Upload file for document with styled box */}
+                    {lesson.contentType === 'text' && (
                       <div style={{ marginTop: 8, marginBottom: 8 }}>
                         <label
                           htmlFor={`file-upload-${section.id || section._id}-${lesson.id || lesson._id}`}
@@ -114,11 +279,11 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                             fontSize: 14,
                           }}
                         >
-                          {lesson.file ? `Đã chọn: ${lesson.file.name}` : `Chọn tệp để tải lên (${lesson.contentType === 'video' ? 'video' : 'tài liệu'})`}
+                          {lesson.file ? `Đã chọn: ${lesson.file.name}` : 'Chọn tệp tài liệu để tải lên'}
                           <input
                             id={`file-upload-${section.id || section._id}-${lesson.id || lesson._id}`}
                             type="file"
-                            accept={lesson.contentType === 'video' ? 'video/*' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.xls,.xlsx,.csv,.zip,.rar,.jpg,.jpeg,.png,.gif'}
+                            accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.xls,.xlsx,.csv,.zip,.rar,.jpg,.jpeg,.png,.gif"
                             style={{ display: 'none' }}
                             onChange={e => {
                               const file = e.target.files[0];
@@ -139,7 +304,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       onClick={() => removeLesson(section.id || section._id, lesson.id || lesson._id)}
                       className={styles.removeLessonBtn}
                     >
-                      <X size={14} />
+                      
                     </button>
                   </div>
                   {/* Quiz form for quiz lessons - now below the lesson row */}

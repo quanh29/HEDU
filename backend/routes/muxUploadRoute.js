@@ -2,7 +2,8 @@ import express from 'express';
 import { 
     createDirectUpload, 
     handleMuxWebhook,
-    getUploadStatus
+    getUploadStatus,
+    listAllVideos
 } from '../controllers/muxUploadController.js';
 
 const muxUploadRouter = express.Router();
@@ -11,14 +12,19 @@ const muxUploadRouter = express.Router();
 muxUploadRouter.post('/create-upload', createDirectUpload);
 
 // Webhook từ MUX (không cần auth middleware)
+// Raw body đã được xử lý ở server.js, không cần thêm middleware
 muxUploadRouter.post('/webhook', (req, res, next) => {
     console.log('🔔 Webhook received at:', new Date().toISOString());
     console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Body (raw):', req.body);
+    console.log('Body type:', typeof req.body);
+    console.log('Body length:', req.body?.length || 0);
     next();
-}, express.raw({ type: 'application/json' }), handleMuxWebhook);
+}, handleMuxWebhook);
 
 // Lấy trạng thái upload
 muxUploadRouter.get('/status/:videoId', getUploadStatus);
+
+// Debug: List all videos
+muxUploadRouter.get('/debug/list-videos', listAllVideos);
 
 export default muxUploadRouter;
