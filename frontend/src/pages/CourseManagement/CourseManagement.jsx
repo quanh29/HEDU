@@ -481,6 +481,10 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         lessons: (section.lessons || []).map((lesson, lessonIndex) => {
           const baseLesson = {
             _id: lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : undefined,
+            // Attach videoId so backend can link to existing Video documents.
+            // Prefer explicit lesson.videoId (set by uploader), otherwise fall back to lesson._id
+            // which often is the existing video document _id when editing.
+            videoId: lesson.videoId || lesson._id || undefined,
             title: lesson.title,
             contentType: lesson.contentType,
             order: lessonIndex + 1,

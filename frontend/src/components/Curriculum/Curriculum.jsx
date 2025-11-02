@@ -17,6 +17,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     updateLesson(sectionId, lessonId, 'contentUrl', data.contentUrl || '');
     updateLesson(sectionId, lessonId, 'playbackId', data.playbackId || '');
     updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+    updateLesson(sectionId, lessonId, 'videoId', data.videoId || '');
+    updateLesson(sectionId, lessonId, 'uploadId', data.uploadId || '');
+    updateLesson(sectionId, lessonId, 'duration', data.duration || 0);
     updateLesson(sectionId, lessonId, 'status', 'ready'); // Set to ready explicitly
     updateLesson(sectionId, lessonId, 'uploadProgress', undefined);
     updateLesson(sectionId, lessonId, 'uploadStatus', 'success'); // Set to success
@@ -57,6 +60,54 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     setUploadingLessons(prev => ({ ...prev, [lessonId]: true }));
     updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
     updateLesson(sectionId, lessonId, 'uploadProgress', 0);
+  };
+
+  const handleCancelUpload = (sectionId, lessonId) => {
+    // Reset upload state
+    setUploadingLessons(prev => {
+      const updated = { ...prev };
+      delete updated[lessonId];
+      return updated;
+    });
+    updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
+    updateLesson(sectionId, lessonId, 'uploadProgress', 0);
+    updateLesson(sectionId, lessonId, 'uploadError', undefined);
+  };
+
+  const handleDeleteVideo = async (sectionId, lessonId, videoId) => {
+    if (!videoId) {
+      console.error('No videoId to delete');
+      return;
+    }
+
+    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa video này không?');
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/api/videos/${videoId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete video');
+      }
+
+      // Clear video data from lesson
+      updateLesson(sectionId, lessonId, 'contentUrl', '');
+      updateLesson(sectionId, lessonId, 'playbackId', '');
+      updateLesson(sectionId, lessonId, 'assetId', '');
+      updateLesson(sectionId, lessonId, 'videoId', '');
+      updateLesson(sectionId, lessonId, 'uploadId', '');
+      updateLesson(sectionId, lessonId, 'duration', 0);
+      updateLesson(sectionId, lessonId, 'status', '');
+      updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
+
+      console.log('✅ Video deleted successfully');
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      alert('Có lỗi khi xóa video. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -201,20 +252,41 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                               {lesson.uploadStatus === 'error' && '❌ Lỗi upload'}
                             </div>
                             {lesson.uploadStatus === 'uploading' && (
-                              <div style={{
-                                width: '100%',
-                                height: 6,
-                                background: '#dbeafe',
-                                borderRadius: 3,
-                                overflow: 'hidden'
-                              }}>
+                              <>
                                 <div style={{
-                                  width: `${lesson.uploadProgress || 0}%`,
-                                  height: '100%',
-                                  background: '#3b82f6',
-                                  transition: 'width 0.3s ease'
-                                }} />
-                              </div>
+                                  width: '100%',
+                                  height: 6,
+                                  background: '#dbeafe',
+                                  borderRadius: 3,
+                                  overflow: 'hidden',
+                                  marginBottom: 8
+                                }}>
+                                  <div style={{
+                                    width: `${lesson.uploadProgress || 0}%`,
+                                    height: '100%',
+                                    background: '#3b82f6',
+                                    transition: 'width 0.3s ease'
+                                  }} />
+                                </div>
+                                <button
+                                  onClick={() => handleCancelUpload(
+                                    section.id || section._id,
+                                    lesson.id || lesson._id
+                                  )}
+                                  style={{
+                                    padding: '6px 12px',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    cursor: 'pointer',
+                                    fontSize: 13,
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  Hủy upload
+                                </button>
+                              </>
                             )}
                             {lesson.uploadStatus === 'error' && (
                               <div style={{ fontSize: 13, color: '#dc2626', marginTop: 4 }}>
@@ -258,6 +330,30 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                             {lesson.playbackId && <div><strong>Playback ID:</strong> {lesson.playbackId}</div>}
                             <div><strong>Status:</strong> {lesson.status || 'ready'}</div>
                             {lesson.assetId && <div><strong>Asset ID:</strong> {lesson.assetId}</div>}
+                            <button
+                              onClick={() => handleDeleteVideo(
+                                section.id || section._id,
+                                lesson.id || lesson._id,
+                                lesson.videoId
+                              )}
+                              style={{
+                                marginTop: 8,
+                                padding: '6px 12px',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Xóa video
+                            </button>
                           </div>
                         )}
                       </div>

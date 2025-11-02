@@ -1,5 +1,6 @@
 import pool from '../config/mysql.js';
 import { v4 as uuidv4 } from 'uuid';
+import Mux from '@mux/mux-node';
 // MongoDB models
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
@@ -22,6 +23,44 @@ function getFileType(url) {
 
 function getFileName(url) {
     return url.split('/').pop() || 'document';
+}
+
+/**
+ * Helper: Xóa videos và MUX assets
+ */
+async function deleteVideosWithMuxAssets(videoIds) {
+    try {
+        // Lấy thông tin videos trước khi xóa
+        const videos = await Video.find({ _id: { $in: videoIds } }).lean();
+        
+        // Initialize MUX client
+        const { video: muxVideo } = new Mux({
+            tokenId: process.env.MUX_TOKEN_ID,
+            tokenSecret: process.env.MUX_SECRET_KEY
+        });
+
+        // Xóa MUX assets
+        const deletePromises = videos.map(async (video) => {
+            if (video.assetId) {
+                try {
+                    await muxVideo.assets.delete(video.assetId);
+                    console.log(`✅ Deleted MUX asset: ${video.assetId} for video: ${video.title}`);
+                } catch (muxError) {
+                    console.error(`❌ Error deleting MUX asset ${video.assetId}:`, muxError.message);
+                    // Continue even if MUX deletion fails
+                }
+            }
+        });
+
+        await Promise.all(deletePromises);
+
+        // Xóa videos từ MongoDB
+        await Video.deleteMany({ _id: { $in: videoIds } });
+        console.log(`✅ Deleted ${videoIds.length} videos from MongoDB`);
+    } catch (error) {
+        console.error('Error in deleteVideosWithMuxAssets:', error);
+        throw error;
+    }
 }
 
 /**
@@ -857,34 +896,60 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
         });
         
         if (lesson.contentType === 'video') {
-            if (lesson._id && !lesson._id.startsWith('temp-')) {
-                // Cập nhật video hiện có
-                console.log('  ✏️ [updateSectionLessonsService] Updating existing video:', lesson._id);
-                await Video.findByIdAndUpdate(lesson._id, {
-                    title: lesson.title,
-                    description: lesson.description || '',
-                    order: lesson.order || 1,
-                    contentUrl: lesson.contentUrl || '',
-                    playbackId: lesson.playbackId || '',
-                    status: lesson.status || 'uploading'
-                });
-                newVideoIds.push(lesson._id);
-            } else {
-                // Tạo video mới - BẤT KỂ có contentUrl hay không
-                console.log('  ➕ [updateSectionLessonsService] Creating new video:', lesson.title);
-                const newVideo = new Video({
-                    section: sectionId,
-                    title: lesson.title || 'Untitled Video',
-                    description: lesson.description || '',
-                    order: lesson.order || 1,
-                    contentUrl: lesson.contentUrl || '',
-                    playbackId: lesson.playbackId || '',
-                    status: lesson.status || 'uploading'
-                });
-                const savedVideo = await newVideo.save();
-                console.log('  ✅ [updateSectionLessonsService] Video created with ID:', savedVideo._id);
-                newVideoIds.push(savedVideo._id.toString());
+            let videoId = null;
+            
+            // Case 1: link video đã tạo với section bằng videoId
+            if (lesson.videoId) {
+                console.log('  🔗 [updateSectionLessonsService] Linking existing video to section:', lesson.videoId);
+                const existingVideo = await Video.findById(lesson.videoId);
+                
+                if (existingVideo) {
+                    // Cập nhật video với section và thông tin mới
+                    await Video.findByIdAndUpdate(lesson.videoId, {
+                        section: sectionId,
+                        title: lesson.title || existingVideo.title,
+                        description: lesson.description || existingVideo.description || '',
+                        order: lesson.order || 1,
+                        contentUrl: lesson.contentUrl || existingVideo.contentUrl || '',
+                        playbackId: lesson.playbackId || existingVideo.playbackId || '',
+                        assetId: lesson.assetId || existingVideo.assetId || '',
+                        uploadId: lesson.uploadId || existingVideo.uploadId || '',
+                        status: lesson.status || existingVideo.status || 'uploading',
+                        duration: lesson.duration || existingVideo.duration || 0
+                    });
+                    videoId = lesson.videoId;
+                    console.log('  ✅ [updateSectionLessonsService] Video linked successfully');
+                } else {
+                    console.log('  ⚠️ [updateSectionLessonsService] Video not found, creating new');
+                }
             }
+            // Case 2: Lesson mới có playbackId → tìm video theo playbackId và link
+            else if (lesson.playbackId) {
+                console.log('  🔍 [updateSectionLessonsService] Searching video by playbackId:', lesson.playbackId);
+                const existingVideo = await Video.findOne({ playbackId: lesson.playbackId });
+                
+                if (existingVideo) {
+                    console.log('  🔗 [updateSectionLessonsService] Found video, linking to section:', existingVideo._id);
+                    // Cập nhật video với section và thông tin mới
+                    await Video.findByIdAndUpdate(existingVideo._id, {
+                        section: sectionId,
+                        title: lesson.title || existingVideo.title,
+                        description: lesson.description || existingVideo.description || '',
+                        order: lesson.order || 1,
+                        contentUrl: lesson.contentUrl || existingVideo.contentUrl || '',
+                        assetId: lesson.assetId || existingVideo.assetId || '',
+                        uploadId: lesson.uploadId || existingVideo.uploadId || '',
+                        status: lesson.status || existingVideo.status || 'uploading',
+                        duration: lesson.duration || existingVideo.duration || 0
+                    });
+                    videoId = existingVideo._id.toString();
+                    console.log('  ✅ [updateSectionLessonsService] Video linked successfully');
+                } else {
+                    console.log('  ⚠️ [updateSectionLessonsService] Video not found by playbackId, creating new');
+                }
+            }
+            
+            newVideoIds.push(videoId);
         } else if (lesson.contentType === 'material') {
             if (lesson._id && !lesson._id.startsWith('temp-')) {
                 // Cập nhật material hiện có
@@ -950,8 +1015,12 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
             quizzes: quizzesToDelete.length
         });
         
+        // Xóa videos và MUX assets
+        if (videosToDelete.length > 0) {
+            await deleteVideosWithMuxAssets(videosToDelete);
+        }
+        
         await Promise.all([
-            ...videosToDelete.map(id => Video.findByIdAndDelete(id)),
             ...materialsToDelete.map(id => Material.findByIdAndDelete(id)),
             ...quizzesToDelete.map(id => Quiz.findByIdAndDelete(id))
         ]);
@@ -986,9 +1055,17 @@ export const deleteCourseService = async (courseId) => {
         const sections = await Section.find({ course_id: courseId }).lean();
         const sectionIds = sections.map(s => s._id);
 
-        // Xóa tất cả lessons của các sections
+        // Lấy tất cả videos để xóa MUX assets
+        const videos = await Video.find({ section: { $in: sectionIds } }).lean();
+        const videoIds = videos.map(v => v._id);
+
+        // Xóa videos và MUX assets
+        if (videoIds.length > 0) {
+            await deleteVideosWithMuxAssets(videoIds);
+        }
+
+        // Xóa materials và quizzes
         await Promise.all([
-            Video.deleteMany({ section: { $in: sectionIds } }),
             Material.deleteMany({ section: { $in: sectionIds } }),
             Quiz.deleteMany({ section: { $in: sectionIds } })
         ]);
@@ -1065,12 +1142,15 @@ export const getFullCourseDataForManagementService = async (courseId) => {
                 .filter(v => v.section.toString() === sectionIdStr)
                 .map(v => ({
                     _id: v._id,
+                    videoId: v._id,  // Thêm videoId để frontend có thể track
                     contentType: 'video',
                     title: v.title,
                     description: v.description,
                     order: v.order,
                     contentUrl: v.contentUrl,
                     playbackId: v.playbackId,
+                    assetId: v.assetId,
+                    uploadId: v.uploadId,
                     status: v.status,
                     duration: v.duration
                 }));
