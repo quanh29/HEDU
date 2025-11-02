@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload } from 'lucide-react';
 import MuxUploader from '../MuxUploader/MuxUploader';
 import styles from './Curriculum.module.css';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
   const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
+  const cancelFunctionsRef = useRef({}); // Store cancel functions for each lesson: { lessonId: cancelFunction }
+  const cancellingRef = useRef({}); // Track which lessons are currently being cancelled
   
   const handleVideoUploadComplete = (sectionId, lessonId, data) => {
     console.log('✅ Video upload complete in Curriculum:', data);
@@ -46,6 +48,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       delete updated[lessonId];
       return updated;
     });
+    
+    // Remove cancel function reference
+    delete cancelFunctionsRef.current[lessonId];
   };
 
   const handleVideoUploadProgress = (sectionId, lessonId, progress) => {
@@ -62,16 +67,64 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     updateLesson(sectionId, lessonId, 'uploadProgress', 0);
   };
 
-  const handleCancelUpload = (sectionId, lessonId) => {
-    // Reset upload state
-    setUploadingLessons(prev => {
-      const updated = { ...prev };
-      delete updated[lessonId];
-      return updated;
-    });
-    updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
-    updateLesson(sectionId, lessonId, 'uploadProgress', 0);
-    updateLesson(sectionId, lessonId, 'uploadError', undefined);
+  const handleCancelUpload = async (sectionId, lessonId) => {
+    // Prevent multiple simultaneous cancel calls for the same lesson
+    if (cancellingRef.current[lessonId]) {
+      console.log('⚠️ Cancel already in progress for lesson:', lessonId);
+      return;
+    }
+    
+    cancellingRef.current[lessonId] = true;
+    console.log('🛑 Cancel upload requested for lesson:', lessonId);
+    
+    try {
+      // Call the actual cancel function from MuxUploader if it exists
+      const cancelFn = cancelFunctionsRef.current[lessonId];
+      if (cancelFn) {
+        console.log('🛑 Calling MuxUploader cancel function...');
+        await cancelFn();
+        
+        // Remove the cancel function reference
+        delete cancelFunctionsRef.current[lessonId];
+      } else {
+        console.warn('⚠️ No cancel function registered for lesson:', lessonId);
+      }
+      
+      // Reset upload state
+      setUploadingLessons(prev => {
+        const updated = { ...prev };
+        delete updated[lessonId];
+        return updated;
+      });
+      
+      // Clear all upload-related fields
+      updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
+      updateLesson(sectionId, lessonId, 'uploadProgress', 0);
+      updateLesson(sectionId, lessonId, 'uploadError', undefined);
+      updateLesson(sectionId, lessonId, 'contentUrl', '');
+      updateLesson(sectionId, lessonId, 'playbackId', '');
+      updateLesson(sectionId, lessonId, 'assetId', '');
+      updateLesson(sectionId, lessonId, 'videoId', '');
+      updateLesson(sectionId, lessonId, 'uploadId', '');
+      updateLesson(sectionId, lessonId, 'duration', 0);
+      updateLesson(sectionId, lessonId, 'status', '');
+      
+      console.log('✅ Upload state cleared');
+    } finally {
+      // Reset cancelling flag
+      delete cancellingRef.current[lessonId];
+    }
+  };
+
+  const handleCancelRegistered = (lessonId, cancelFn) => {
+    // Only register if not already registered
+    if (cancelFunctionsRef.current[lessonId]) {
+      console.log('⚠️ Cancel function already registered for lesson:', lessonId, '- skipping');
+      return;
+    }
+    
+    console.log('📝 Registering cancel function for lesson:', lessonId);
+    cancelFunctionsRef.current[lessonId] = cancelFn;
   };
 
   const handleDeleteVideo = async (sectionId, lessonId, videoId) => {
@@ -85,7 +138,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/videos/${videoId}`,
+        `${import.meta.env.VITE_BASE_URL}/api/video/${videoId}`,
         { method: 'DELETE' }
       );
 
@@ -232,6 +285,14 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                               section.id || section._id,
                               lesson.id || lesson._id,
                               status
+                            )}
+                            onCancel={() => handleCancelUpload(
+                              section.id || section._id,
+                              lesson.id || lesson._id
+                            )}
+                            onCancelRegistered={(cancelFn) => handleCancelRegistered(
+                              lesson.id || lesson._id,
+                              cancelFn
                             )}
                             inline={true}
                           />

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import * as UpChunk from '@mux/upchunk';
 import { Upload, CheckCircle, XCircle, Loader } from 'lucide-react';
 import styles from './MuxUploader.module.css';
@@ -11,6 +11,8 @@ const MuxUploader = ({
     onUploadError,
     onProgress,
     onStatusChange,
+    onCancel,
+    onCancelRegistered, // New: callback to register cancel function
     inline = false
 }) => {
     const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, processing, success, error
@@ -19,6 +21,8 @@ const MuxUploader = ({
     const [videoId, setVideoId] = useState(null);
     const fileInputRef = useRef(null);
     const uploadRef = useRef(null);
+    const pollIntervalRef = useRef(null);
+    const isCancellingRef = useRef(false); // Prevent multiple cancel calls
 
     const updateStatus = (status) => {
         setUploadStatus(status);
@@ -54,6 +58,11 @@ const MuxUploader = ({
             updateProgress(0);
             setErrorMessage('');
 
+            // Register cancel function with parent component
+            if (onCancelRegistered) {
+                onCancelRegistered(handleCancel);
+            }
+
             // Bước 1: Lấy upload URL từ backend
             const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/mux/create-upload`, {
                 method: 'POST',
@@ -73,6 +82,13 @@ const MuxUploader = ({
             const { uploadUrl, uploadId, videoId: createdVideoId, assetId } = await response.json();
             setVideoId(createdVideoId);
 
+            // Store uploadId for potential cancellation
+            uploadRef.current = {
+                uploadId,
+                videoId: createdVideoId,
+                upload: null
+            };
+
             // Bước 2: Upload file lên MUX sử dụng UpChunk
             const upload = UpChunk.createUpload({
                 endpoint: uploadUrl,
@@ -80,7 +96,7 @@ const MuxUploader = ({
                 chunkSize: 30720, // 30MB chunks
             });
 
-            uploadRef.current = upload;
+            uploadRef.current.upload = upload;
 
             // Track upload progress
             upload.on('progress', (progressEvent) => {
@@ -134,7 +150,7 @@ const MuxUploader = ({
 
         console.log(`🔄 Starting to poll video status for: ${videoId}`);
 
-        const poll = setInterval(async () => {
+        pollIntervalRef.current = setInterval(async () => {
             attempts++;
             console.log(`📊 Poll attempt ${attempts}/${maxAttempts} for video ${videoId}`);
 
@@ -154,7 +170,8 @@ const MuxUploader = ({
                 console.log(`📹 Video status: ${status}`, data);
 
                 if (status === 'ready') {
-                    clearInterval(poll);
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
                     console.log('✅ Video is ready!');
                     updateStatus('success');
                     
@@ -168,7 +185,8 @@ const MuxUploader = ({
                         });
                     }
                 } else if (status === 'error') {
-                    clearInterval(poll);
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
                     console.error('❌ Video processing failed');
                     updateStatus('error');
                     setErrorMessage('Video processing failed');
@@ -184,7 +202,8 @@ const MuxUploader = ({
 
                 // Timeout sau 10 phút
                 if (attempts >= maxAttempts) {
-                    clearInterval(poll);
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
                     console.error('⏰ Polling timeout');
                     updateStatus('error');
                     setErrorMessage('Processing timeout - video may still be processing');
@@ -195,16 +214,98 @@ const MuxUploader = ({
         }, 5000); // Poll mỗi 5 giây
     };
 
-    const handleCancel = () => {
-        if (uploadRef.current) {
-            uploadRef.current.abort();
+    const handleCancel = useCallback(async () => {
+        // Prevent multiple simultaneous cancel calls
+        if (isCancellingRef.current) {
+            console.log('⚠️ Cancel already in progress, ignoring duplicate call');
+            return;
         }
-        updateStatus('idle');
-        updateProgress(0);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+        
+        isCancellingRef.current = true;
+        console.log('🛑 Cancelling upload...');
+        
+        try {
+            // Stop polling if it's running
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+                console.log('✅ Polling stopped');
+            }
+            
+            // Abort upload if in progress
+            if (uploadRef.current?.upload) {
+                try {
+                    uploadRef.current.upload.abort();
+                    console.log('✅ Upload aborted');
+                } catch (error) {
+                    console.error('Error aborting upload:', error);
+                }
+            }
+            
+            // Call backend to cancel upload and delete video
+            // Use uploadId if available (during upload), otherwise use videoId
+            const uploadId = uploadRef.current?.uploadId;
+            const currentVideoId = videoId;
+            
+            if (uploadId) {
+                try {
+                    console.log(`🗑️ Calling API to cancel upload: ${uploadId}`);
+                    const response = await fetch(
+                        `${import.meta.env.VITE_BASE_URL}/api/mux/cancel-upload/${uploadId}`,
+                        { method: 'DELETE' }
+                    );
+                    
+                    if (response.ok) {
+                        console.log('✅ Upload cancelled via API');
+                    } else {
+                        console.error('❌ Failed to cancel upload via API');
+                    }
+                } catch (error) {
+                    console.error('Error calling cancel API:', error);
+                }
+            } else if (currentVideoId) {
+                // Fallback: delete video by videoId
+                try {
+                    console.log(`🗑️ Calling API to delete video: ${currentVideoId}`);
+                    const response = await fetch(
+                        `${import.meta.env.VITE_BASE_URL}/api/videos/${currentVideoId}`,
+                        { method: 'DELETE' }
+                    );
+                    
+                    if (response.ok) {
+                        console.log('✅ Video deleted via API');
+                    } else {
+                        console.error('❌ Failed to delete video via API');
+                    }
+                } catch (error) {
+                    console.error('Error deleting video:', error);
+                }
+            }
+            
+            // Reset state
+            updateStatus('idle');
+            updateProgress(0);
+            setVideoId(null);
+            setErrorMessage('');
+            uploadRef.current = null;
+            
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            
+            // Notify parent component
+            if (onCancel) {
+                onCancel();
+            }
+            
+            console.log('✅ Upload cancelled successfully');
+        } finally {
+            // Reset cancelling flag after a short delay to prevent rapid re-clicks
+            setTimeout(() => {
+                isCancellingRef.current = false;
+            }, 500);
         }
-    };
+    }, [videoId, onCancel]);
 
     // Inline mode - simple file input button
     if (inline && uploadStatus === 'idle') {

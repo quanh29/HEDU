@@ -233,16 +233,23 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         
         const transformedSections = sectionsData.map((section, index) => {
           console.log(`\n🔄 [fetchCourseData] Transforming section ${index + 1}/${sectionsData.length}`);
+          console.log('Section data:', section);
           
           // Gom tất cả lessons từ section
           const lessons = section.lessons || [];
+          console.log(`📚 Section "${section.title}" has ${lessons.length} lessons`);
           
           return {
             _id: section._id,
             id: section._id,
             title: section.title || '',
             order: section.order || index + 1,
-            lessons: lessons.map(lesson => {
+            lessons: lessons.map((lesson, lessonIndex) => {
+              console.log(`  📝 Lesson ${lessonIndex + 1}: ${lesson.title}`);
+              console.log('    - contentType:', lesson.contentType);
+              console.log('    - videoId from backend:', lesson.videoId);
+              console.log('    - _id:', lesson._id);
+              
               const baseLesson = {
                 _id: lesson._id,
                 id: lesson._id,
@@ -251,9 +258,15 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
                 order: lesson.order || 0,
                 contentUrl: lesson.contentUrl || '',
                 playbackId: lesson.playbackId || '',
+                videoId: lesson.videoId || lesson._id || '', // Add videoId for delete functionality
+                assetId: lesson.assetId || '',
+                uploadId: lesson.uploadId || '',
+                duration: lesson.duration || 0,
                 status: lesson.status || 'ready',
                 description: lesson.description || ''
               };
+              
+              console.log('    ✅ Mapped videoId:', baseLesson.videoId);
 
               // Transform quiz questions từ backend format sang frontend format
               if (lesson.contentType === 'quiz' && lesson.questions && lesson.questions.length > 0) {

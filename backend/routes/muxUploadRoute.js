@@ -3,7 +3,8 @@ import {
     createDirectUpload, 
     handleMuxWebhook,
     getUploadStatus,
-    listAllVideos
+    listAllVideos,
+    cancelUpload
 } from '../controllers/muxUploadController.js';
 
 const muxUploadRouter = express.Router();
@@ -23,6 +24,9 @@ muxUploadRouter.post('/webhook', (req, res, next) => {
 
 // Lấy trạng thái upload
 muxUploadRouter.get('/status/:videoId', getUploadStatus);
+
+// Cancel upload
+muxUploadRouter.delete('/cancel-upload/:uploadId', cancelUpload);
 
 // Debug: List all videos
 muxUploadRouter.get('/debug/list-videos', listAllVideos);

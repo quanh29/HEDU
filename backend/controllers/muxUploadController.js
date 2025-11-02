@@ -504,3 +504,62 @@ export const listAllVideos = async (req, res) => {
         });
     }
 };
+
+/**
+ * Cancel upload - delete upload from MUX
+ */
+export const cancelUpload = async (req, res) => {
+    const { uploadId } = req.params;
+
+    try {
+        logger.info(`🛑 Cancelling upload: ${uploadId}`);
+        
+        // Find video by uploadId
+        const videoDoc = await Video.findOne({ uploadId });
+        
+        if (!videoDoc) {
+            logger.warning(`Video not found for uploadId: ${uploadId}`);
+            return res.status(404).json({ message: 'Video not found' });
+        }
+
+        logger.info(`   Video ID: ${videoDoc._id}`);
+        logger.info(`   Title: ${videoDoc.title}`);
+        logger.info(`   Status: ${videoDoc.status}`);
+        logger.info(`   Asset ID: ${videoDoc.assetId || '(none)'}`);
+
+        // Cancel upload in MUX if still in uploading state
+        try {
+            await video.uploads.cancel(uploadId);
+            logger.success(`✅ MUX upload cancelled: ${uploadId}`);
+        } catch (muxError) {
+            logger.warning(`⚠️ Could not cancel MUX upload: ${muxError.message}`);
+            // Continue with deletion even if cancel fails
+        }
+
+        // Delete the asset if it was created
+        if (videoDoc.assetId && videoDoc.assetId !== '') {
+            try {
+                await video.assets.delete(videoDoc.assetId);
+                logger.success(`✅ MUX asset deleted: ${videoDoc.assetId}`);
+            } catch (muxError) {
+                logger.warning(`⚠️ Could not delete MUX asset: ${muxError.message}`);
+            }
+        }
+
+        // Delete video document from database
+        await Video.findByIdAndDelete(videoDoc._id);
+        logger.success(`✅ Video document deleted: ${videoDoc._id}`);
+
+        res.status(200).json({ 
+            message: 'Upload cancelled successfully',
+            videoId: videoDoc._id
+        });
+    } catch (error) {
+        logger.error(`Error cancelling upload: ${error.message}`);
+        logger.error(`Stack: ${error.stack}`);
+        res.status(500).json({ 
+            message: 'Failed to cancel upload', 
+            error: error.message 
+        });
+    }
+};
