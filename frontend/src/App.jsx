@@ -42,10 +42,18 @@ function App() {
           <Route path='/quizzes/result' element={<Quizzes/>}/>
           <Route path='/quizzes/result/review' element={<Quizzes/>}/>
           <Route path='/quizzes' element={<Quizzes/>}/>
-          <Route path='/instructor' element={<Instructor/>}/>
+          
+          {/* Instructor Routes */}
+          <Route path='/instructor' element={<Instructor/>}>
+            <Route index element={<Navigate to="/instructor/dashboard" replace />} />
+            <Route path='dashboard' element={<Instructor activeTab="dashboard" />}/>
+            <Route path='courses' element={<Instructor activeTab="courses" />}/>
+            <Route path='students' element={<Instructor activeTab="students" />}/>
+          </Route>
           <Route path='/instructor/create-course' element={<CreateUpdateCourse/>}/>
           <Route path='/instructor/view-course/:courseId' element={<CreateUpdateCourse mode="view"/>}/>
           <Route path='/instructor/update-course/:courseId' element={<CreateUpdateCourse/>}/>
+          
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           <Route path='/admin' element={<Admin/>}/>
           <Route path='/upload-demo' element={<UploadDemo/>}/>

@@ -22,10 +22,21 @@ import {
 import axios from 'axios';
 
 import { useUser } from '@clerk/clerk-react';
+import { useLocation, Outlet } from 'react-router-dom';
 import styles from './Instructor.module.css';
 
-const Instructor = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+const Instructor = ({ activeTab: propActiveTab }) => {
+  const location = useLocation();
+  
+  // Determine active tab from route or prop
+  const getActiveTabFromPath = () => {
+    if (propActiveTab) return propActiveTab;
+    if (location.pathname.includes('/instructor/courses')) return 'courses';
+    if (location.pathname.includes('/instructor/dashboard')) return 'dashboard';
+    return 'dashboard';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null); // Chi tiết khóa học đang xem
@@ -41,6 +52,11 @@ const Instructor = () => {
   const { user, isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
   const BASE_URL = import.meta.env.VITE_BASE_URL;
+
+  // Update activeTab when location changes
+  useEffect(() => {
+    setActiveTab(getActiveTabFromPath());
+  }, [location.pathname]);
 
   // Redirect to /auth if not signed in
   // useEffect(() => {
@@ -772,15 +788,18 @@ const Instructor = () => {
             <nav className={styles.sidebarNav}>
               <div>
                 {[
-                  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                  { id: 'courses', label: 'Quản lý khóa học', icon: BookOpen },
-                  { id: 'students', label: 'Quản lý học viên', icon: Users }
+                  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/instructor/dashboard' },
+                  { id: 'courses', label: 'Quản lý khóa học', icon: BookOpen, path: '/instructor/courses' },
+                  { id: 'students', label: 'Quản lý học viên', icon: Users, path: '/instructor/students' }
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id)}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        navigate(item.path);
+                      }}
                       className={`${styles.navButton} ${activeTab === item.id ? styles.active : ''}`}
                     >
                       <Icon size={18} />
