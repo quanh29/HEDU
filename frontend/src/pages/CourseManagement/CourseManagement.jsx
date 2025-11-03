@@ -259,6 +259,9 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
                 contentUrl: lesson.contentUrl || '',
                 playbackId: lesson.playbackId || '',
                 videoId: lesson.videoId || lesson._id || '', // Add videoId for delete functionality
+                materialId: lesson.materialId || '', // Add materialId for material linking
+                fileName: lesson.fileName || '', // Add fileName for material display
+                publicId: lesson.publicId || lesson.contentUrl || '', // Add publicId for Cloudinary
                 assetId: lesson.assetId || '',
                 uploadId: lesson.uploadId || '',
                 duration: lesson.duration || 0,
@@ -267,6 +270,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
               };
               
               console.log('    ✅ Mapped videoId:', baseLesson.videoId);
+              console.log('    ✅ Mapped materialId:', baseLesson.materialId);
 
               // Transform quiz questions từ backend format sang frontend format
               if (lesson.contentType === 'quiz' && lesson.questions && lesson.questions.length > 0) {
@@ -498,13 +502,17 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             // Prefer explicit lesson.videoId (set by uploader), otherwise fall back to lesson._id
             // which often is the existing video document _id when editing.
             videoId: lesson.videoId || lesson._id || undefined,
+            // Attach materialId to link with Material documents
+            materialId: lesson.materialId || undefined,
             title: lesson.title,
             contentType: lesson.contentType,
             order: lessonIndex + 1,
             contentUrl: lesson.contentUrl || '',
             playbackId: lesson.playbackId || '',
             status: lesson.status || 'ready',
-            description: lesson.description || ''
+            description: lesson.description || '',
+            // Include fileName for materials
+            fileName: lesson.fileName || undefined
           };
 
           // Transform quiz questions từ frontend format sang backend format

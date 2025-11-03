@@ -35,7 +35,7 @@ export const mapMaterialData = (material) => {
     id: material._id,
     _id: material._id,
     title: material.title,
-    contentType: 'article',
+    contentType: 'material',
     url: material.contentUrl || '',
     info: material.description || '',
     description: material.description || '',
@@ -175,7 +175,7 @@ export const transformVideoForSave = (lesson, lessonIndex) => {
 export const transformMaterialForSave = (lesson, lessonIndex) => {
   return {
     title: lesson.title,
-    contentType: 'article',
+    contentType: 'material',
     contentUrl: lesson.url || '',
     description: lesson.description || '',
     info: lesson.info || '',
@@ -219,7 +219,7 @@ export const transformQuizForSave = (lesson, lessonIndex) => {
 export const transformLessonForSave = (lesson, lessonIndex) => {
   if (lesson.contentType === 'video') {
     return transformVideoForSave(lesson, lessonIndex);
-  } else if (lesson.contentType === 'article') {
+  } else if (lesson.contentType === 'material') {
     return transformMaterialForSave(lesson, lessonIndex);
   } else if (lesson.contentType === 'quiz') {
     return transformQuizForSave(lesson, lessonIndex);
@@ -261,7 +261,7 @@ export const getLessonStatistics = (sections) => {
       if (lesson.contentType === 'video') {
         totalVideos++;
         totalDuration += lesson.duration || 0;
-      } else if (lesson.contentType === 'article') {
+      } else if (lesson.contentType === 'material') {
         totalMaterials++;
       } else if (lesson.contentType === 'quiz') {
         totalQuizzes++;
@@ -292,7 +292,7 @@ export const validateLesson = (lesson) => {
     if (!lesson.url && !lesson.muxPlaybackId) {
       errors.push('Video chưa được upload');
     }
-  } else if (lesson.contentType === 'article') {
+  } else if (lesson.contentType === 'material') {
     if (!lesson.url) {
       errors.push('Tài liệu chưa được upload');
     }

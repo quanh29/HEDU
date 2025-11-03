@@ -951,29 +951,47 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
             
             newVideoIds.push(videoId);
         } else if (lesson.contentType === 'material') {
-            if (lesson._id && !lesson._id.startsWith('temp-')) {
-                // Cập nhật material hiện có
-                console.log('  ✏️ [updateSectionLessonsService] Updating existing material:', lesson._id);
-                await Material.findByIdAndUpdate(lesson._id, {
-                    title: lesson.title,
-                    order: lesson.order || 1,
-                    contentUrl: lesson.contentUrl || ''
-                });
-                newMaterialIds.push(lesson._id);
+            // Xử lý material: Ưu tiên materialId (từ upload), sau đó mới đến lesson._id
+            const materialIdToLink = lesson.materialId || (lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : null);
+            
+            if (materialIdToLink) {
+                // Link existing material document với section
+                console.log('  🔗 [updateSectionLessonsService] Linking existing material to section:', materialIdToLink);
+                
+                try {
+                    const material = await Material.findById(materialIdToLink);
+                    
+                    if (material) {
+                        // Update material: link với section, set isTemporary = false
+                        await Material.findByIdAndUpdate(materialIdToLink, {
+                            section: sectionId,
+                            title: lesson.title || material.originalFilename || 'Untitled Material',
+                            order: lesson.order || 1,
+                            isTemporary: false // Material giờ đã được link với course
+                        });
+                        console.log('  ✅ [updateSectionLessonsService] Material linked successfully');
+                        newMaterialIds.push(materialIdToLink);
+                    } else {
+                        console.log('  ⚠️ [updateSectionLessonsService] Material not found, skipping');
+                    }
+                } catch (error) {
+                    console.error('  ❌ [updateSectionLessonsService] Error linking material:', error);
+                }
             } else if (lesson.contentUrl) {
-                // Tạo material mới (VẪN chỉ khi có contentUrl vì material bắt buộc phải có file)
-                console.log('  ➕ [updateSectionLessonsService] Creating new material:', lesson.title);
+                // Legacy: Tạo material mới từ contentUrl (backward compatibility)
+                console.log('  ➕ [updateSectionLessonsService] Creating new material from URL:', lesson.title);
                 const newMaterial = new Material({
                     section: sectionId,
                     title: lesson.title || 'Untitled Material',
                     order: lesson.order || 1,
-                    contentUrl: lesson.contentUrl
+                    contentUrl: lesson.contentUrl,
+                    isTemporary: false
                 });
                 const savedMaterial = await newMaterial.save();
                 console.log('  ✅ [updateSectionLessonsService] Material created with ID:', savedMaterial._id);
                 newMaterialIds.push(savedMaterial._id.toString());
             } else {
-                console.log('  ⚠️ [updateSectionLessonsService] Skipping material without contentUrl:', lesson.title);
+                console.log('  ⚠️ [updateSectionLessonsService] Skipping material without materialId or contentUrl:', lesson.title);
             }
         } else if (lesson.contentType === 'quiz') {
             if (lesson._id && !lesson._id.startsWith('temp-')) {
@@ -1159,10 +1177,13 @@ export const getFullCourseDataForManagementService = async (courseId) => {
                 .filter(m => m.section.toString() === sectionIdStr)
                 .map(m => ({
                     _id: m._id,
+                    materialId: m._id, // Add materialId để frontend có thể track và link
                     contentType: 'material',
                     title: m.title,
                     order: m.order,
-                    contentUrl: m.contentUrl
+                    contentUrl: m.contentUrl,
+                    fileName: m.originalFilename || m.title, // Include fileName
+                    publicId: m.contentUrl // publicId (same as contentUrl for Cloudinary)
                 }));
 
             const sectionQuizzes = quizzes

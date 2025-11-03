@@ -19,7 +19,7 @@ const LessonStatistics = ({ sections }) => {
       if (lesson.contentType === 'video') {
         stats.totalVideos++;
         stats.totalDuration += lesson.duration || 0;
-      } else if (lesson.contentType === 'article') {
+      } else if (lesson.contentType === 'material') {
         stats.totalMaterials++;
       } else if (lesson.contentType === 'quiz') {
         stats.totalQuizzes++;

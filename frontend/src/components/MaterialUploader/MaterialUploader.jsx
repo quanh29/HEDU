@@ -5,7 +5,6 @@ import styles from './MaterialUploader.module.css';
 
 const MaterialUploader = ({ 
     lessonTitle,
-    sectionId,
     onUploadComplete,
     onUploadError 
 }) => {
@@ -19,17 +18,19 @@ const MaterialUploader = ({
         const file = e.target.files[0];
         if (!file) return;
 
-        // Validate file type (PDF, DOC, DOCX, PPT, PPTX)
+        // Validate file type (PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX)
         const allowedTypes = [
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         ];
 
         if (!allowedTypes.includes(file.type)) {
-            setErrorMessage('Chỉ hỗ trợ file PDF, DOC, DOCX, PPT, PPTX');
+            setErrorMessage('Chỉ hỗ trợ file PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX');
             setUploadStatus('error');
             return;
         }
@@ -46,11 +47,13 @@ const MaterialUploader = ({
             setProgress(0);
             setErrorMessage('');
 
-            // Upload file to backend
+            // Upload file to backend - File sẽ được upload lên Cloudinary (private)
             const formData = new FormData();
             formData.append('file', file);
             formData.append('lessonTitle', lessonTitle);
-            formData.append('sectionId', sectionId);
+
+            console.log('📤 [MaterialUploader] Uploading file:', file.name);
+            console.log('   Lesson Title:', lessonTitle);
 
             const response = await axios.post(
                 `${import.meta.env.VITE_BASE_URL}/api/material/upload`,
@@ -68,19 +71,21 @@ const MaterialUploader = ({
                 }
             );
 
+            console.log('✅ [MaterialUploader] Upload successful:', response.data);
+
             setMaterialId(response.data.materialId);
             setUploadStatus('success');
 
             if (onUploadComplete) {
                 onUploadComplete({
                     materialId: response.data.materialId,
-                    fileUrl: response.data.fileUrl,
-                    fileName: file.name
+                    publicId: response.data.publicId,
+                    fileName: response.data.originalFilename
                 });
             }
 
         } catch (error) {
-            console.error('Error uploading material:', error);
+            console.error('❌ [MaterialUploader] Error uploading material:', error);
             setUploadStatus('error');
             setErrorMessage(error.response?.data?.message || 'Upload failed');
             
@@ -105,7 +110,7 @@ const MaterialUploader = ({
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".pdf,.doc,.docx,.ppt,.pptx"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
                         onChange={handleFileSelect}
                         className={styles.fileInput}
                         id="material-upload"
@@ -116,7 +121,7 @@ const MaterialUploader = ({
                             Chọn tài liệu để upload
                         </span>
                         <span className={styles.uploadSubtext}>
-                            Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX (tối đa 50MB)
+                            Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX (tối đa 50MB)
                         </span>
                     </label>
                 </div>

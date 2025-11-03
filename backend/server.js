@@ -17,6 +17,8 @@ import importRouter from './routes/importRoute.js';
 import levelRouter from './routes/levelRoute.js';
 import languageRouter from './routes/languageRoute.js';
 import muxUploadRouter from './routes/muxUploadRoute.js';
+import cloudinaryRouter from './routes/cloudinaryRoute.js';
+import thumbnailRouter from './routes/thumbnailRoute.js';
 
 const app = express();
 const port = 3000;
@@ -55,6 +57,8 @@ app.use("/api/import", importRouter);
 app.use("/api/levels", levelRouter);
 app.use("/api/languages", languageRouter);
 app.use("/api/mux", muxUploadRouter);
+app.use("/api/cloudinary", cloudinaryRouter);
+app.use("/api/thumbnail", thumbnailRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

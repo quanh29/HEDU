@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload } from 'lucide-react';
 import MuxUploader from '../MuxUploader/MuxUploader';
+import MaterialUploader from '../MaterialUploader/MaterialUploader';
 import styles from './Curriculum.module.css';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
@@ -163,6 +164,51 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     }
   };
 
+  const handleMaterialUploadComplete = (sectionId, lessonId, data) => {
+    console.log('📤 [Curriculum] Material upload complete:', data);
+    
+    // Update lesson with material data
+    updateLesson(sectionId, lessonId, 'materialId', data.materialId);
+    updateLesson(sectionId, lessonId, 'publicId', data.publicId);
+    updateLesson(sectionId, lessonId, 'fileName', data.fileName);
+    
+    console.log('✅ [Curriculum] Material data updated in lesson');
+  };
+
+  const handleDeleteMaterial = async (sectionId, lessonId, materialId) => {
+    if (!materialId) {
+      console.error('No materialId to delete');
+      return;
+    }
+
+    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tài liệu này không?');
+    if (!confirmed) return;
+
+    console.log('🗑️ [Curriculum] Deleting material:', materialId);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/api/material/delete/${materialId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete material');
+      }
+
+      // Clear material data from lesson
+      updateLesson(sectionId, lessonId, 'materialId', '');
+      updateLesson(sectionId, lessonId, 'publicId', '');
+      updateLesson(sectionId, lessonId, 'fileName', '');
+
+      console.log('✅ Material deleted successfully');
+      alert('Tài liệu đã được xóa thành công');
+    } catch (error) {
+      console.error('❌ Error deleting material:', error);
+      alert('Có lỗi khi xóa tài liệu. Vui lòng thử lại.');
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -238,24 +284,64 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       className={styles.lessonSelect}
                     >
                       <option value="video">Video</option>
-                      <option value="article">Tài liệu</option>
+                      <option value="material">Tài liệu</option>
                       <option value="quiz">Quiz</option>
                     </select>
-                    {/* URL input for article only */}
-                    {lesson.contentType === 'article' && (
-                      <input
-                        type="url"
-                        value={lesson.url || ''}
-                        onChange={e => updateLesson(
-                          section.id || section._id,
-                          lesson.id || lesson._id,
-                          'url',
-                          e.target.value
+                    {/* MaterialUploader for article/material upload */}
+                    {lesson.contentType === 'material' && (
+                      <div style={{ marginTop: 12, marginBottom: 12 }}>
+                        {!lesson.materialId && !lesson.fileName && (
+                          <MaterialUploader
+                            lessonTitle={lesson.title}
+                            onUploadComplete={(data) => handleMaterialUploadComplete(
+                              section.id || section._id,
+                              lesson.id || lesson._id,
+                              data
+                            )}
+                            onUploadError={(error) => console.error('Material upload error:', error)}
+                          />
                         )}
-                        placeholder="Nhập URL tài liệu..."
-                        className={styles.lessonInput}
-                        style={{ marginTop: 8 }}
-                      />
+                        
+                        {/* Show material info if uploaded */}
+                        {lesson.materialId && lesson.fileName && (
+                          <div style={{
+                            marginTop: 8,
+                            padding: 12,
+                            background: '#ecfdf5',
+                            border: '2px solid #10b981',
+                            borderRadius: 8,
+                            fontSize: 13,
+                            color: '#065f46'
+                          }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>✓ Tài liệu đã upload thành công</div>
+                            <div><strong>File:</strong> {lesson.fileName}</div>
+                            <button
+                              onClick={() => handleDeleteMaterial(
+                                section.id || section._id,
+                                lesson.id || lesson._id,
+                                lesson.materialId
+                              )}
+                              style={{
+                                marginTop: 8,
+                                padding: '6px 12px',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Xóa tài liệu
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {/* MuxUploader for video upload */}
                     {lesson.contentType === 'video' && (
