@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Upload, Trash2, Loader } from 'lucide-react';
+import axios from 'axios';
 import styles from './BasicInfo.module.css';
 
 const BasicInfo = ({ 
@@ -14,6 +16,9 @@ const BasicInfo = ({
   levels = [],
   languages = []
 }) => {
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailPublicId, setThumbnailPublicId] = useState('');
+
   // Get categories for selected heading
   const getSubcategoriesForHeading = (headingId) => {
     if (!headingId) return [];
@@ -22,6 +27,119 @@ const BasicInfo = ({
 
   const selectedHeading = headings.find(h => h.heading_id === courseData.category);
   const subcategories = selectedHeading ? getSubcategoriesForHeading(selectedHeading.heading_id) : [];
+
+  // Handle thumbnail file upload
+  const handleThumbnailUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Kích thước file không được vượt quá 10MB');
+      return;
+    }
+
+    setUploadingThumbnail(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      console.log('📤 [BasicInfo] Uploading thumbnail to Cloudinary...');
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/thumbnail/upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        console.log('✅ [BasicInfo] Thumbnail uploaded successfully:', response.data);
+        
+        // Update thumbnail URL and save public ID for deletion
+        handleInputChange('thumbnail', response.data.url);
+        setThumbnailPublicId(response.data.publicId);
+        
+        alert('Upload ảnh thành công!');
+      }
+    } catch (error) {
+      console.error('❌ [BasicInfo] Thumbnail upload error:', error);
+      alert('Upload ảnh thất bại: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
+  // Extract publicId from Cloudinary URL
+  const extractPublicIdFromUrl = (url) => {
+    if (!url) return null;
+    
+    try {
+      // URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{folder}/{filename}.{ext}
+      // We need: {folder}/{filename}
+      const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
+      if (matches && matches[1]) {
+        return matches[1]; // Returns "course-thumbnails/file_up97ue"
+      }
+      return null;
+    } catch (error) {
+      console.error('Error extracting publicId from URL:', error);
+      return null;
+    }
+  };
+
+  // Handle thumbnail deletion
+  const handleDeleteThumbnail = async () => {
+    if (!courseData.thumbnail) {
+      return;
+    }
+
+    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh thumbnail này không?')) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ [BasicInfo] Deleting thumbnail from Cloudinary...');
+
+      // Extract publicId from URL or use saved publicId
+      const publicIdToDelete = thumbnailPublicId || extractPublicIdFromUrl(courseData.thumbnail);
+      
+      if (!publicIdToDelete) {
+        console.warn('⚠️ [BasicInfo] Could not extract publicId, just clearing URL');
+        handleInputChange('thumbnail', '');
+        setThumbnailPublicId('');
+        return;
+      }
+
+      console.log('   Public ID to delete:', publicIdToDelete);
+
+      const encodedPublicId = encodeURIComponent(publicIdToDelete);
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/thumbnail/${encodedPublicId}`
+      );
+
+      console.log('✅ [BasicInfo] Thumbnail deleted successfully');
+      
+      handleInputChange('thumbnail', '');
+      setThumbnailPublicId('');
+      
+      alert('Xóa ảnh thành công!');
+    } catch (error) {
+      console.error('❌ [BasicInfo] Thumbnail delete error:', error);
+      alert('Xóa ảnh thất bại: ' + (error.response?.data?.message || error.message));
+    }
+  };
 
   return (
     <div className={styles.container}>
@@ -78,25 +196,110 @@ const BasicInfo = ({
         {/* Thumbnail */}
         <div>
           <label className={styles.label}>Ảnh thumbnail</label>
-          <div className={styles.flex}>
-            <input
-              type="url"
-              value={courseData.thumbnail}
-              onChange={(e) => handleInputChange('thumbnail', e.target.value)}
-              placeholder="URL ảnh thumbnail..."
-              className={styles.input}
-              style={{flex: 1}}
-            />
-            {/* Upload button placeholder */}
-            <button className={styles.removeBtn}>Tải lên</button>
-          </div>
+          
+          {/* Upload Button - chỉ hiện khi chưa có ảnh */}
+          {!courseData.thumbnail && (
+            <div style={{ marginBottom: '12px' }}>
+              <input
+                type="file"
+                id="thumbnail-upload"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleThumbnailUpload}
+                style={{ display: 'none' }}
+                disabled={uploadingThumbnail}
+              />
+              <label
+                htmlFor="thumbnail-upload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  background: uploadingThumbnail ? '#9ca3af' : '#3b82f6',
+                  color: 'white',
+                  borderRadius: '6px',
+                  cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  border: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!uploadingThumbnail) {
+                    e.currentTarget.style.background = '#2563eb';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!uploadingThumbnail) {
+                    e.currentTarget.style.background = '#3b82f6';
+                  }
+                }}
+              >
+                {uploadingThumbnail ? (
+                  <>
+                    <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                    Đang tải lên...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={16} />
+                    Chọn ảnh
+                  </>
+                )}
+              </label>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
+                Định dạng: JPEG, PNG, GIF, WebP. Tối đa 10MB
+              </p>
+            </div>
+          )}
+
+          {/* Preview & Delete - chỉ hiện khi có ảnh */}
           {courseData.thumbnail && (
-            <div>
+            <div style={{ 
+              position: 'relative', 
+              marginTop: '12px',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '2px solid #e5e7eb',
+              display: 'inline-block',
+              maxWidth: '100%'
+            }}>
               <img
                 src={courseData.thumbnail}
                 alt="Course thumbnail"
-                className={styles.imgThumb}
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  height: 'auto',
+                  borderRadius: '6px'
+                }}
               />
+              <button
+                onClick={handleDeleteThumbnail}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  padding: '8px',
+                  background: 'rgba(239, 68, 68, 0.9)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           )}
         </div>
