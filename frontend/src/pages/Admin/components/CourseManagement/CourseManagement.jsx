@@ -1,77 +1,62 @@
 import { useState, useEffect } from 'react';
 import styles from './CourseManagement.module.css';
+import MuxVideoPlayer from '../../../../components/MuxVideoPlayer/MuxVideoPlayer';
+import { 
+  getAllCoursesForAdmin,
+  getCourseStatistics,
+  getCourseByIdForAdmin,
+  getFullCourseDataForAdmin,
+  updateCourseStatus, 
+  deleteCourseByAdmin
+} from '../../../../services/adminService';
 
 const CourseManagement = () => {
-  const [courses, setCourses] = useState([
-    {
-      id: 1,
-      title: 'JavaScript Fundamentals',
-      instructor: 'Nguyễn Văn A',
-      category: 'Lập trình',
-      status: 'published',
-      students: 245,
-      revenue: 12450000,
-      rating: 4.5,
-      reports: 0,
-      publishDate: '2024-01-10',
-      lastUpdate: '2024-01-15'
-    },
-    {
-      id: 2,
-      title: 'PHP và MySQL',
-      instructor: 'Trần Thị B',
-      category: 'Lập trình',
-      status: 'published',
-      students: 189,
-      revenue: 9450000,
-      rating: 4.2,
-      reports: 2,
-      publishDate: '2024-01-08',
-      lastUpdate: '2024-01-12'
-    },
-    {
-      id: 3,
-      title: 'Digital Marketing 2024',
-      instructor: 'Lê Văn C',
-      category: 'Marketing',
-      status: 'hidden',
-      students: 156,
-      revenue: 15600000,
-      rating: 3.8,
-      reports: 5,
-      publishDate: '2024-01-05',
-      lastUpdate: '2024-01-14'
-    },
-    {
-      id: 4,
-      title: 'Photoshop CC 2024',
-      instructor: 'Phạm Thị D',
-      category: 'Thiết kế',
-      status: 'published',
-      students: 234,
-      revenue: 11700000,
-      rating: 4.7,
-      reports: 0,
-      publishDate: '2024-01-12',
-      lastUpdate: '2024-01-16'
-    }
-  ]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [filteredCourses, setFilteredCourses] = useState(courses);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [actionType, setActionType] = useState('');
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [showLessonModal, setShowLessonModal] = useState(false);
 
   const categories = ['all', 'Lập trình', 'Marketing', 'Thiết kế', 'Kinh doanh'];
 
+  // Fetch courses from backend
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAllCoursesForAdmin();
+      console.log('Fetched courses:', data);
+      setCourses(data || []);
+    } catch (err) {
+      console.error('Error loading courses:', err);
+      setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let filtered = courses.filter(course => {
-      const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || course.status === statusFilter;
-      const matchesCategory = categoryFilter === 'all' || course.category === categoryFilter;
+      const matchesSearch = 
+        course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.instructor?.fName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.instructor?.lName?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || course.course_status === statusFilter;
+      
+      const matchesCategory = categoryFilter === 'all' || 
+        (course.categories && course.categories.some(cat => cat.title === categoryFilter));
       
       return matchesSearch && matchesStatus && matchesCategory;
     });
@@ -79,19 +64,34 @@ const CourseManagement = () => {
     setFilteredCourses(filtered);
   }, [courses, searchTerm, statusFilter, categoryFilter]);
 
-  const handleStatusChange = (courseId, newStatus) => {
-    setCourses(prev => 
-      prev.map(course => 
-        course.id === courseId 
-          ? { ...course, status: newStatus, lastUpdate: new Date().toISOString().split('T')[0] }
-          : course
-      )
-    );
+  const handleStatusChange = async (courseId, newStatus) => {
+    try {
+      await updateCourseStatus(courseId, newStatus);
+      // Update local state
+      setCourses(prev => 
+        prev.map(course => 
+          course.course_id === courseId 
+            ? { ...course, course_status: newStatus }
+            : course
+        )
+      );
+      alert('Cập nhật trạng thái thành công!');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Không thể cập nhật trạng thái. Vui lòng thử lại.');
+    }
   };
 
-  const handleDeleteCourse = (courseId) => {
+  const handleDeleteCourse = async (courseId) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa khóa học này?')) {
-      setCourses(prev => prev.filter(course => course.id !== courseId));
+      try {
+        await deleteCourseByAdmin(courseId);
+        setCourses(prev => prev.filter(course => course.course_id !== courseId));
+        alert('Xóa khóa học thành công!');
+      } catch (error) {
+        console.error('Error deleting course:', error);
+        alert('Không thể xóa khóa học. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -100,13 +100,63 @@ const CourseManagement = () => {
     setActionType('reports');
   };
 
-  const handleViewDetails = (course) => {
-    setSelectedCourse(course);
-    setActionType('details');
+  const handleViewDetails = async (course) => {
+    try {
+      const response = await getFullCourseDataForAdmin(course.course_id);
+      console.log('Full course data:', response);
+      setSelectedCourse(response.course || response);
+      setActionType('details');
+    } catch (error) {
+      console.error('Error loading course details:', error);
+      alert('Không thể tải chi tiết khóa học.');
+    }
+  };
+
+  const getContentTypeIcon = (contentType) => {
+    switch (contentType) {
+      case 'video':
+        return '🎥';
+      case 'material':
+        return '📄';
+      case 'quiz':
+        return '📝';
+      default:
+        return '📌';
+    }
+  };
+
+  const getContentTypeLabel = (contentType) => {
+    switch (contentType) {
+      case 'video':
+        return 'Video';
+      case 'material':
+        return 'Tài liệu';
+      case 'quiz':
+        return 'Quiz';
+      default:
+        return 'Nội dung';
+    }
+  };
+
+  const handleViewLesson = (lesson) => {
+    console.log('Opening lesson modal:', lesson);
+    console.log('Lesson type:', lesson.contentType);
+    console.log('Video ID:', lesson.videoId || lesson._id);
+    setSelectedLesson(lesson);
+    setShowLessonModal(true);
+  };
+
+  const closeLessonModal = () => {
+    setShowLessonModal(false);
+    setSelectedLesson(null);
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
+      draft: { label: 'Nháp', className: 'draft' },
+      pending: { label: 'Chờ duyệt', className: 'pending' },
+      approved: { label: 'Đã duyệt', className: 'approved' },
+      rejected: { label: 'Từ chối', className: 'rejected' },
       published: { label: 'Đang hoạt động', className: 'published' },
       hidden: { label: 'Đã ẩn', className: 'hidden' },
       suspended: { label: 'Tạm dừng', className: 'suspended' }
@@ -115,6 +165,35 @@ const CourseManagement = () => {
     const config = statusConfig[status] || { label: 'Unknown', className: 'unknown' };
     return <span className={`${styles.statusBadge} ${styles[config.className]}`}>{config.label}</span>;
   };
+
+  const getInstructorName = (instructor) => {
+    if (!instructor) return 'N/A';
+    return `${instructor.fName || ''} ${instructor.lName || ''}`.trim() || instructor.email || 'N/A';
+  };
+
+  const getCategoryNames = (categories) => {
+    if (!categories || categories.length === 0) return 'Chưa phân loại';
+    return categories.map(cat => cat.title).join(', ');
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.courseManagement}>
+        <div className={styles.loading}>Đang tải dữ liệu...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.courseManagement}>
+        <div className={styles.error}>
+          {error}
+          <button onClick={fetchCourses} className={styles.retryBtn}>Thử lại</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.courseManagement}>
@@ -125,10 +204,10 @@ const CourseManagement = () => {
             <span>Tổng khóa học: {courses.length}</span>
           </div>
           <div className={styles.statItem}>
-            <span>Đang hoạt động: {courses.filter(c => c.status === 'published').length}</span>
+            <span>Đã duyệt: {courses.filter(c => c.course_status === 'approved').length}</span>
           </div>
           <div className={styles.statItem}>
-            <span>Bị báo cáo: {courses.filter(c => c.reports > 0).length}</span>
+            <span>Chờ duyệt: {courses.filter(c => c.course_status === 'pending').length}</span>
           </div>
         </div>
       </div>
@@ -152,6 +231,10 @@ const CourseManagement = () => {
             className={styles.filterSelect}
           >
             <option value="all">Tất cả trạng thái</option>
+            <option value="draft">Nháp</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Từ chối</option>
             <option value="published">Đang hoạt động</option>
             <option value="hidden">Đã ẩn</option>
             <option value="suspended">Tạm dừng</option>
@@ -187,64 +270,74 @@ const CourseManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredCourses.map(course => (
-              <tr key={course.id} className={course.reports > 0 ? styles.reportedRow : ''}>
-                <td>
-                  <div className={styles.courseInfo}>
-                    <strong>{course.title}</strong>
-                    <small>Cập nhật: {new Date(course.lastUpdate).toLocaleDateString('vi-VN')}</small>
-                  </div>
-                </td>
-                <td>{course.instructor}</td>
-                <td>{course.category}</td>
-                <td>{getStatusBadge(course.status)}</td>
-                <td>{course.students}</td>
-                <td>{course.revenue.toLocaleString('vi-VN')} ₫</td>
-                <td>
-                  <div className={styles.rating}>
-                    ⭐ {course.rating}
-                  </div>
-                </td>
-                <td>
-                  <div className={styles.reports}>
-                    {course.reports > 0 ? (
-                      <span className={styles.reportCount} onClick={() => handleViewReports(course)}>
-                        ⚠️ {course.reports}
-                      </span>
-                    ) : (
-                      <span className={styles.noReports}>✅ 0</span>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <div className={styles.actions}>
-                    <button 
-                      className={styles.viewBtn}
-                      onClick={() => handleViewDetails(course)}
-                    >
-                      Xem
-                    </button>
-                    
-                    <select 
-                      value={course.status}
-                      onChange={(e) => handleStatusChange(course.id, e.target.value)}
-                      className={styles.statusSelect}
-                    >
-                      <option value="published">Hoạt động</option>
-                      <option value="hidden">Ẩn</option>
-                      <option value="suspended">Tạm dừng</option>
-                    </select>
-                    
-                    <button 
-                      className={styles.deleteBtn}
-                      onClick={() => handleDeleteCourse(course.id)}
-                    >
-                      Xóa
-                    </button>
-                  </div>
+            {filteredCourses.length === 0 ? (
+              <tr>
+                <td colSpan="9" className={styles.noData}>
+                  Không tìm thấy khóa học nào
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredCourses.map(course => (
+                <tr key={course.course_id} className={course.reports > 0 ? styles.reportedRow : ''}>
+                  <td>
+                    <div className={styles.courseInfo}>
+                      <strong>{course.title}</strong>
+                      <small>ID: {course.course_id}</small>
+                    </div>
+                  </td>
+                  <td>{getInstructorName(course.instructor)}</td>
+                  <td>{getCategoryNames(course.categories)}</td>
+                  <td>{getStatusBadge(course.course_status)}</td>
+                  <td>{course.students || 0}</td>
+                  <td>{(course.currentPrice || 0).toLocaleString('vi-VN')} ₫</td>
+                  <td>
+                    <div className={styles.rating}>
+                      ⭐ {course.rating || 0}
+                    </div>
+                  </td>
+                  <td>
+                    <div className={styles.reports}>
+                      {course.reports > 0 ? (
+                        <span className={styles.reportCount} onClick={() => handleViewReports(course)}>
+                          ⚠️ {course.reports}
+                        </span>
+                      ) : (
+                        <span className={styles.noReports}>✅ 0</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className={styles.actions}>
+                      <button 
+                        className={styles.viewBtn}
+                        onClick={() => handleViewDetails(course)}
+                      >
+                        Xem
+                      </button>
+                      
+                      <select 
+                        value={course.course_status}
+                        onChange={(e) => handleStatusChange(course.course_id, e.target.value)}
+                        className={styles.statusSelect}
+                      >
+                        <option value="draft">Nháp</option>
+                        <option value="pending">Chờ duyệt</option>
+                        <option value="approved">Duyệt</option>
+                        <option value="rejected">Từ chối</option>
+                        <option value="suspended">Tạm dừng</option>
+                      </select>
+                      
+                      <button 
+                        className={styles.deleteBtn}
+                        onClick={() => handleDeleteCourse(course.course_id)}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -267,12 +360,115 @@ const CourseManagement = () => {
             
             <div className={styles.modalBody}>
               <h4>{selectedCourse.title}</h4>
-              <p><strong>Giảng viên:</strong> {selectedCourse.instructor}</p>
-              <p><strong>Danh mục:</strong> {selectedCourse.category}</p>
-              <p><strong>Trạng thái:</strong> {getStatusBadge(selectedCourse.status)}</p>
-              <p><strong>Số học viên:</strong> {selectedCourse.students}</p>
-              <p><strong>Doanh thu:</strong> {selectedCourse.revenue.toLocaleString('vi-VN')} ₫</p>
-              <p><strong>Đánh giá:</strong> ⭐ {selectedCourse.rating}</p>
+              <p><strong>Giảng viên:</strong> {getInstructorName(selectedCourse.instructor)}</p>
+              <p><strong>Danh mục:</strong> {getCategoryNames(selectedCourse.categories)}</p>
+              <p><strong>Trạng thái:</strong> {getStatusBadge(selectedCourse.course_status)}</p>
+              <p><strong>Giá gốc:</strong> {(selectedCourse.originalPrice || 0).toLocaleString('vi-VN')} ₫</p>
+              <p><strong>Giá hiện tại:</strong> {(selectedCourse.currentPrice || 0).toLocaleString('vi-VN')} ₫</p>
+              <p><strong>Số học viên:</strong> {selectedCourse.students || 0}</p>
+              <p><strong>Đánh giá:</strong> ⭐ {selectedCourse.rating || 0} ({selectedCourse.reviewCount || 0} đánh giá)</p>
+              
+              {selectedCourse.des && (
+                <div className={styles.description}>
+                  <p><strong>Mô tả:</strong></p>
+                  <p>{selectedCourse.des}</p>
+                </div>
+              )}
+
+              {/* Hiển thị nội dung khóa học (Sections & Lessons) */}
+              {actionType === 'details' && selectedCourse.sections && selectedCourse.sections.length > 0 && (
+                <div className={styles.courseContent}>
+                  <h5>Nội dung khóa học</h5>
+                  <div className={styles.contentStats}>
+                    <span>📚 {selectedCourse.sections.length} chương</span>
+                    <span>🎥 {selectedCourse.sections.reduce((total, section) => 
+                      total + (section.lessons?.filter(l => l.contentType === 'video').length || 0), 0)} videos</span>
+                    <span>📄 {selectedCourse.sections.reduce((total, section) => 
+                      total + (section.lessons?.filter(l => l.contentType === 'material').length || 0), 0)} tài liệu</span>
+                    <span>📝 {selectedCourse.sections.reduce((total, section) => 
+                      total + (section.lessons?.filter(l => l.contentType === 'quiz').length || 0), 0)} quiz</span>
+                  </div>
+                  
+                  <div className={styles.sectionsList}>
+                    {selectedCourse.sections.map((section, sectionIndex) => (
+                      <div key={section._id} className={styles.sectionItem}>
+                        <div className={styles.sectionHeader}>
+                          <h6>Chương {sectionIndex + 1}: {section.title}</h6>
+                          <span className={styles.lessonCount}>
+                            {section.lessons?.length || 0} bài học
+                          </span>
+                        </div>
+                        
+                        {section.lessons && section.lessons.length > 0 && (
+                          <div className={styles.lessonsList}>
+                            {section.lessons.map((lesson, lessonIndex) => (
+                              <div key={lesson._id} className={styles.lessonItem}>
+                                <div className={styles.lessonInfo}>
+                                  <span className={styles.lessonIcon}>
+                                    {getContentTypeIcon(lesson.contentType)}
+                                  </span>
+                                  <div className={styles.lessonDetails}>
+                                    <span className={styles.lessonTitle}>
+                                      {lessonIndex + 1}. {lesson.title}
+                                    </span>
+                                    <span className={styles.lessonType}>
+                                      {getContentTypeLabel(lesson.contentType)}
+                                    </span>
+                                  </div>
+                                  <button 
+                                    className={styles.viewLessonBtn}
+                                    onClick={() => handleViewLesson(lesson)}
+                                    title="Xem nội dung"
+                                  >
+                                    👁️ Xem
+                                  </button>
+                                </div>
+                                
+                                {/* Hiển thị thông tin chi tiết theo loại */}
+                                {lesson.contentType === 'video' && (
+                                  <div className={styles.lessonMeta}>
+                                    {lesson.duration && <span>⏱️ {lesson.duration}</span>}
+                                    {lesson.status && (
+                                      <span className={`${styles.videoStatus} ${styles[lesson.status]}`}>
+                                        {lesson.status}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {lesson.contentType === 'material' && lesson.fileName && (
+                                  <div className={styles.lessonMeta}>
+                                    <span>📎 {lesson.fileName}</span>
+                                  </div>
+                                )}
+                                
+                                {lesson.contentType === 'quiz' && lesson.questions && (
+                                  <div className={styles.lessonMeta}>
+                                    <span>❓ {lesson.questions.length} câu hỏi</span>
+                                  </div>
+                                )}
+                                
+                                {lesson.description && (
+                                  <div className={styles.lessonDescription}>
+                                    {lesson.description}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedCourse.sections && selectedCourse.sections.length > 0 && actionType !== 'details' && (
+                <div className={styles.sectionsInfo}>
+                  <p><strong>Số chương:</strong> {selectedCourse.sections.length}</p>
+                  <p><strong>Tổng bài học:</strong> {selectedCourse.sections.reduce((total, section) => total + (section.lessons?.length || 0), 0)}</p>
+                </div>
+              )}
               
               {actionType === 'reports' && selectedCourse.reports > 0 && (
                 <div className={styles.reportsSection}>
@@ -283,12 +479,6 @@ const CourseManagement = () => {
                       <p><strong>Người báo cáo:</strong> user123@email.com</p>
                       <p><strong>Lý do:</strong> Nội dung khóa học không đúng với mô tả</p>
                       <p><strong>Ngày:</strong> 2024-01-14</p>
-                    </div>
-                    <div className={styles.reportItem}>
-                      <p><strong>Loại:</strong> Vi phạm bản quyền</p>
-                      <p><strong>Người báo cáo:</strong> instructor456@email.com</p>
-                      <p><strong>Lý do:</strong> Sử dụng tài liệu không được phép</p>
-                      <p><strong>Ngày:</strong> 2024-01-13</p>
                     </div>
                   </div>
                   
@@ -305,22 +495,244 @@ const CourseManagement = () => {
                     <button 
                       className={styles.suspendBtn}
                       onClick={() => {
-                        handleStatusChange(selectedCourse.id, 'suspended');
+                        handleStatusChange(selectedCourse.course_id, 'suspended');
                         setSelectedCourse(null);
                       }}
                     >
                       Tạm dừng khóa học
                     </button>
                     <button 
-                      className={styles.hideBtn}
+                      className={styles.rejectBtn}
                       onClick={() => {
-                        handleStatusChange(selectedCourse.id, 'hidden');
+                        handleStatusChange(selectedCourse.course_id, 'rejected');
                         setSelectedCourse(null);
                       }}
                     >
-                      Ẩn khóa học
+                      Từ chối khóa học
                     </button>
                   </div>
+                </div>
+              )}
+
+              {actionType === 'details' && selectedCourse.course_status === 'pending' && (
+                <div className={styles.approvalActions}>
+                  <button 
+                    className={styles.approveBtn}
+                    onClick={() => {
+                      handleStatusChange(selectedCourse.course_id, 'approved');
+                      setSelectedCourse(null);
+                    }}
+                  >
+                    Phê duyệt khóa học
+                  </button>
+                  <button 
+                    className={styles.rejectBtn}
+                    onClick={() => {
+                      const reason = prompt('Nhập lý do từ chối:');
+                      if (reason) {
+                        handleStatusChange(selectedCourse.course_id, 'rejected');
+                        setSelectedCourse(null);
+                      }
+                    }}
+                  >
+                    Từ chối
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for Lesson Content (Video/Material/Quiz) */}
+      {showLessonModal && selectedLesson && (
+        <div className={styles.modal}>
+          <div className={`${styles.modalContent} ${styles.lessonModalContent}`}>
+            <div className={styles.modalHeader}>
+              <h3>
+                {getContentTypeIcon(selectedLesson.contentType)} {selectedLesson.title}
+              </h3>
+              <button 
+                className={styles.closeBtn}
+                onClick={closeLessonModal}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className={styles.modalBody}>
+              {/* Video Player */}
+              {selectedLesson.contentType === 'video' && (
+                <div className={styles.videoPreview}>
+                  {selectedLesson.videoId || selectedLesson._id ? (
+                    <div className={styles.muxPlayerWrapper}>
+                      <MuxVideoPlayer
+                        videoId={selectedLesson.videoId || selectedLesson._id}
+                        autoPlay={false}
+                        onReady={(data) => {
+                          console.log('Video ready:', data);
+                        }}
+                        onTimeUpdate={(data) => {
+                          console.log('Time update:', data);
+                        }}
+                        onEnded={() => {
+                          console.log('Video ended');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={styles.noContent}>
+                      <p>Video chưa sẵn sàng để phát</p>
+                      {selectedLesson.status && (
+                        <span className={`${styles.videoStatus} ${styles[selectedLesson.status]}`}>
+                          Status: {selectedLesson.status}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {selectedLesson.description && (
+                    <div className={styles.contentDescription}>
+                      <h4>Mô tả:</h4>
+                      <p>{selectedLesson.description}</p>
+                    </div>
+                  )}
+                  
+                  <div className={styles.contentInfo}>
+                    {selectedLesson.duration && (
+                      <p><strong>Thời lượng:</strong> {selectedLesson.duration}</p>
+                    )}
+                    {selectedLesson.assetId && (
+                      <p><strong>Asset ID:</strong> {selectedLesson.assetId}</p>
+                    )}
+                    {selectedLesson.uploadId && (
+                      <p><strong>Upload ID:</strong> {selectedLesson.uploadId}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Material Viewer */}
+              {selectedLesson.contentType === 'material' && (
+                <div className={styles.materialPreview}>
+                  {selectedLesson.contentUrl ? (
+                    <>
+                      <div className={styles.materialInfo}>
+                        <p><strong>Tên file:</strong> {selectedLesson.fileName || 'N/A'}</p>
+                        <p><strong>URL:</strong> <a href={selectedLesson.contentUrl} target="_blank" rel="noopener noreferrer">
+                          {selectedLesson.contentUrl}
+                        </a></p>
+                      </div>
+                      
+                      <div className={styles.materialViewer}>
+                        {/* Nếu là PDF, hiển thị iframe */}
+                        {selectedLesson.contentUrl.toLowerCase().includes('.pdf') ? (
+                          <iframe
+                            src={selectedLesson.contentUrl}
+                            style={{
+                              width: '100%',
+                              height: '600px',
+                              border: '1px solid #dee2e6',
+                              borderRadius: '8px'
+                            }}
+                            title={selectedLesson.title}
+                          />
+                        ) : selectedLesson.contentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                          /* Nếu là ảnh */
+                          <img 
+                            src={selectedLesson.contentUrl} 
+                            alt={selectedLesson.title}
+                            style={{
+                              maxWidth: '100%',
+                              height: 'auto',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        ) : (
+                          /* Các loại file khác */
+                          <div className={styles.downloadPrompt}>
+                            <p>📎 File tài liệu</p>
+                            <a 
+                              href={selectedLesson.contentUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={styles.downloadBtn}
+                            >
+                              Tải xuống hoặc xem trong tab mới
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.noContent}>
+                      <p>Không tìm thấy nội dung tài liệu</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Quiz Viewer */}
+              {selectedLesson.contentType === 'quiz' && (
+                <div className={styles.quizPreview}>
+                  {selectedLesson.description && (
+                    <div className={styles.quizDescription}>
+                      <h4>Mô tả:</h4>
+                      <p>{selectedLesson.description}</p>
+                    </div>
+                  )}
+                  
+                  {selectedLesson.questions && selectedLesson.questions.length > 0 ? (
+                    <div className={styles.questionsList}>
+                      <h4>Danh sách câu hỏi ({selectedLesson.questions.length} câu):</h4>
+                      {selectedLesson.questions.map((question, index) => (
+                        <div key={index} className={styles.questionItem}>
+                          <div className={styles.questionHeader}>
+                            <span className={styles.questionNumber}>Câu {index + 1}</span>
+                            {question.type && (
+                              <span className={styles.questionType}>
+                                {question.type === 'multiple-choice' ? '📋 Trắc nghiệm' : '✍️ Tự luận'}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <p className={styles.questionText}>{question.question}</p>
+                          
+                          {question.options && question.options.length > 0 && (
+                            <div className={styles.optionsList}>
+                              {question.options.map((option, optionIndex) => (
+                                <div 
+                                  key={optionIndex} 
+                                  className={`${styles.optionItem} ${
+                                    question.correctAnswer === optionIndex ? styles.correctAnswer : ''
+                                  }`}
+                                >
+                                  <span className={styles.optionLabel}>
+                                    {String.fromCharCode(65 + optionIndex)}.
+                                  </span>
+                                  <span className={styles.optionText}>{option}</span>
+                                  {question.correctAnswer === optionIndex && (
+                                    <span className={styles.correctBadge}>✓ Đáp án đúng</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {question.explanation && (
+                            <div className={styles.explanation}>
+                              <strong>Giải thích:</strong>
+                              <p>{question.explanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={styles.noContent}>
+                      <p>Quiz chưa có câu hỏi</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
