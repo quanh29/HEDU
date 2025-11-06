@@ -296,10 +296,18 @@ function CoursePage() {
                             {section.lessons?.map((lesson, lidx) => (
                               <div key={lidx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <span style={{ color: '#666' }}>{lesson.contentType === 'video' ? '🎥' : '📄'}</span>
+                                  <span style={{ color: '#666' }}>
+                                    {lesson.contentType === 'video' ? '🎥' : 
+                                     lesson.contentType === 'quiz' ? '📝' : 
+                                     lesson.contentType === 'material' ? '📄' : '📚'}
+                                  </span>
                                   <span>{lesson.title}</span>
                                 </div>
-                                <span style={{ color: '#999', fontSize: '0.85rem' }}>{lesson.info || 10} phút</span>
+                                <span style={{ color: '#999', fontSize: '0.85rem' }}>
+                                  {lesson.contentType === 'video' ? 'Video' : 
+                                   lesson.contentType === 'quiz' ? 'Quiz' : 
+                                   lesson.contentType === 'material' ? 'Tài liệu' : 'Bài học'}
+                                </span>
                               </div>
                             )) || <div style={{ padding: '1rem', color: '#666', textAlign: 'center' }}>Chưa có bài học</div>}
                           </div>
@@ -381,11 +389,11 @@ function CoursePage() {
                   <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: 'bold' }}>Khóa học bao gồm:</h4>
                   <ul style={{ listStyle: 'none', padding: 0 }}>
                     <li>📚 {sections?.length || 0} chương học</li>
-                    <li>🎥 {sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</li>
-                    <li>📝 {courseData?.hasPractice ? 'Bài tập thực hành' : 'Lý thuyết'}</li>
-                    <li>🏆 {courseData?.hasCertificate ? 'Chứng chỉ hoàn thành' : 'Không có chứng chỉ'}</li>
-                    <li>🌐 {courseData?.language === 'vietnamese' ? 'Tiếng Việt' : 'Tiếng Anh'}</li>
-                    <li>📊 Trình độ: {courseData?.level === 'beginner' ? 'Cơ bản' : courseData?.level === 'intermediate' ? 'Trung cấp' : 'Nâng cao'}</li>
+                    <li>📖 {sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</li>
+                    {courseData?.hasPractice && <li>📝 Bài tập thực hành</li>}
+                    {courseData?.hasCertificate && <li>🏆 Chứng chỉ hoàn thành</li>}
+                    {courseData?.language && <li>🌐 {courseData.language}</li>}
+                    {courseData?.level && <li>📊 Trình độ: {courseData.level}</li>}
                   </ul>
                 </div>
               </div>

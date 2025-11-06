@@ -14,6 +14,18 @@ function CourseContent() {
 	const [expandedSections, setExpandedSections] = useState({});
 	const [downloading, setDownloading] = useState({});
 
+	// Helper function để format duration từ giây thành MM:SS
+	const formatDuration = (seconds) => {
+		if (!seconds || seconds === 0) return '00:00';
+		
+		// Làm tròn thành giá trị nguyên
+		const totalSeconds = Math.round(seconds);
+		const minutes = Math.floor(totalSeconds / 60);
+		const remainingSeconds = totalSeconds % 60;
+		
+		return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+	};
+
 	// Fetch dữ liệu khóa học
 	useEffect(() => {
 		const fetchCourseContent = async () => {
@@ -146,7 +158,7 @@ function CourseContent() {
 	const renderLessonMeta = (lesson) => {
 		switch (lesson.type) {
 			case 'video':
-				return <span className={styles.lessonMeta}>{lesson.duration}</span>;
+				return <span className={styles.lessonMeta}>{formatDuration(lesson.duration)}</span>;
 			case 'document':
 				return (
 					<div className={styles.documentMeta}>

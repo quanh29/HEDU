@@ -11,11 +11,6 @@ import Quiz from '../models/Quiz.js';
 /**
  * Helper functions
  */
-function calculateVideoDuration(url) {
-    // Placeholder - implement actual video duration calculation if needed
-    return '10:00';
-}
-
 function getFileType(url) {
     const extension = url.split('.').pop().toLowerCase();
     return extension || 'pdf';
@@ -456,12 +451,20 @@ export const getFullCourseContentService = async (courseId) => {
                 };
             });
 
+        // Merge tất cả lessons và sort theo order
+        const allLessons = [
+            ...sectionVideos.map(v => ({ ...v, contentType: 'video', info: v.duration ? `${v.duration} phút` : '10 phút' })),
+            ...sectionMaterials.map(m => ({ ...m, contentType: 'material', info: m.fileType || 'Tài liệu' })),
+            ...sectionQuizzes.map(q => ({ ...q, contentType: 'quiz', info: q.timeLimit ? `${q.timeLimit} phút` : 'Không giới hạn' }))
+        ].sort((a, b) => (a.order || 0) - (b.order || 0));
+
         return {
             _id: section._id,
             course_id: section.course_id,
             title: section.title,
             description: section.description || '',
             order: section.order || 0,
+            lessons: allLessons,
             videos: sectionVideos,
             materials: sectionMaterials,
             quizzes: sectionQuizzes,
@@ -546,7 +549,7 @@ export const getCourseContentForEnrolledUserService = async (courseId) => {
                 title: v.title,
                 contentUrl: v.contentUrl,
                 description: v.description || '',
-                duration: calculateVideoDuration(v.contentUrl),
+                duration: v.duration || 600, // duration in seconds
                 order: v.order,
                 completed: false
             }));
