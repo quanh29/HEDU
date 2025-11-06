@@ -188,9 +188,16 @@ export const deleteMaterial = async (req, res) => {
 export const generateMaterialSignedUrl = async (req, res) => {
     try {
         const { materialId } = req.params;
-        const { expiresIn = 3600 } = req.body; // Default 1 hour
-
-        console.log('🔑 [Material Signed URL] Generating for:', materialId);
+        
+        console.log('🔑 [Material Signed URL] Full request info:');
+        console.log('   Material ID:', materialId);
+        console.log('   Request body:', req.body);
+        console.log('   Body type:', typeof req.body);
+        console.log('   Headers:', req.headers['content-type']);
+        
+        // Handle case when req.body is undefined or null
+        const expiresIn = (req.body && req.body.expiresIn) ? parseInt(req.body.expiresIn) : 3600;
+        console.log('   Expires in:', expiresIn);
 
         const material = await Material.findById(materialId);
 
@@ -201,19 +208,26 @@ export const generateMaterialSignedUrl = async (req, res) => {
             });
         }
 
+        console.log('   Material found:', {
+            publicId: material.contentUrl,
+            resourceType: material.resource_type,
+            filename: material.originalFilename
+        });
+
         const expiresAt = Math.floor(Date.now() / 1000) + parseInt(expiresIn);
 
-        // Generate signed URL with custom filename
-        const signedUrl = cloudinary.utils.private_download_url(
-            material.contentUrl,
-            material.resource_type || 'raw',
-            {
-                expires_at: expiresAt,
-                attachment: material.originalFilename || true
-            }
-        );
+        // Generate signed URL for private raw files
+        // Use Cloudinary's utils method with proper parameters
+        const signedUrl = cloudinary.url(material.contentUrl, {
+            resource_type: 'raw',
+            type: 'private',
+            sign_url: true,
+            secure: true,
+            attachment: material.originalFilename || true
+        });
 
         console.log('✅ [Material Signed URL] URL generated');
+        console.log('   Signed URL:', signedUrl);
 
         res.status(200).json({
             success: true,
@@ -224,10 +238,12 @@ export const generateMaterialSignedUrl = async (req, res) => {
 
     } catch (error) {
         console.error('❌ [Material Signed URL] Error:', error);
+        console.error('   Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Failed to generate signed URL',
-            error: error.message
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };

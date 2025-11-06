@@ -12,6 +12,7 @@ function CourseContent() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [expandedSections, setExpandedSections] = useState({});
+	const [downloading, setDownloading] = useState({});
 
 	// Fetch dữ liệu khóa học
 	useEffect(() => {
@@ -71,8 +72,59 @@ function CourseContent() {
 			// Navigate đến quiz
 			navigate(`/quizzes?quizId=${lesson.quizId}`);
 		} else if (lesson.type === 'document') {
-			// Có thể mở document trong modal hoặc tab mới
-			console.log('Open document:', lesson);
+			// Download document
+			handleDocumentDownload(lesson);
+		}
+	};
+
+	// Handle download document
+	const handleDocumentDownload = async (lesson) => {
+		try {
+			console.log('Starting document download:', lesson);
+			console.log('Material ID:', lesson.lessonId);
+			
+			// Set downloading state
+			setDownloading(prev => ({ ...prev, [lesson.lessonId]: true }));
+
+			// Get signed URL from backend
+			const response = await axios.post(
+				`${import.meta.env.VITE_BASE_URL}/api/material/${lesson.lessonId}/signed-url`,
+				{ expiresIn: 3600 }, // URL expires in 1 hour
+				{
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				}
+			);
+
+			console.log('Response from server:', response.data);
+
+			if (response.data.success) {
+				const { signedUrl, filename } = response.data;
+				
+				// Create temporary link and trigger download
+				const link = document.createElement('a');
+				link.href = signedUrl;
+				link.download = filename || 'document';
+				link.target = '_blank';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+
+				console.log('Download started successfully');
+			} else {
+				throw new Error('Failed to get signed URL');
+			}
+		} catch (error) {
+			console.error('Error downloading document:', error);
+			console.error('Error response:', error.response?.data);
+			console.error('Error status:', error.response?.status);
+			
+			const errorMessage = error.response?.data?.message || 'Không thể tải tài liệu. Vui lòng thử lại sau.';
+			alert(errorMessage);
+		} finally {
+			// Clear downloading state
+			setDownloading(prev => ({ ...prev, [lesson.lessonId]: false }));
 		}
 	};
 
@@ -99,7 +151,11 @@ function CourseContent() {
 				return (
 					<div className={styles.documentMeta}>
 						<span className={styles.fileInfo}>{lesson.fileType?.toUpperCase()} · {lesson.fileSize}</span>
-						<Download className={styles.downloadIcon} />
+						{downloading[lesson.lessonId] ? (
+							<span className={styles.downloadingText}>Đang tải...</span>
+						) : (
+							<Download className={styles.downloadIcon} />
+						)}
 					</div>
 				);
 			case 'quiz':
@@ -164,7 +220,11 @@ function CourseContent() {
 								{section.lessons.map((lesson, lidx) => (
 									<li 
 										key={lesson.lessonId || `${section.sectionId}-${lidx}`}
-										className={`${styles.lessonItem} ${lesson.type === 'video' ? styles.clickable : ''}`}
+										className={`${styles.lessonItem} ${
+											(lesson.type === 'video' || lesson.type === 'document' || lesson.type === 'quiz') 
+											? styles.clickable 
+											: ''
+										} ${downloading[lesson.lessonId] ? styles.downloading : ''}`}
 										onClick={(e) => {
 											e.preventDefault();
 											e.stopPropagation();

@@ -165,6 +165,17 @@
   color: #6b7280;
 }
 
+.downloadingText {
+  font-size: 0.875rem;
+  color: #3b82f6;
+  font-style: italic;
+}
+
+.lessonItem.downloading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* Loading, error, and no data states */
 .loading,
 .error,
