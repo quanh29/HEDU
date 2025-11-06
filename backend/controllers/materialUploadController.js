@@ -74,13 +74,18 @@ export const uploadMaterial = async (req, res) => {
         console.log('   Type:', req.file.mimetype);
         console.log('   Lesson Title:', lessonTitle);
 
+        // Extract file extension
+        const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+        console.log('   Extension:', fileExtension);
+
         // Upload to Cloudinary as private file
         const uploadOptions = {
             folder: 'course-materials',
             resource_type: 'raw',
             type: 'private', // Private file - requires signed URL to access
             use_filename: true,
-            unique_filename: true
+            unique_filename: true,
+            format: fileExtension // Explicitly set format/extension
         };
 
         const cloudinaryResult = await uploadToCloudinary(req.file.buffer, uploadOptions);
@@ -88,6 +93,7 @@ export const uploadMaterial = async (req, res) => {
         console.log('✅ [Material Upload] Cloudinary upload successful');
         console.log('   Public ID:', cloudinaryResult.public_id);
         console.log('   Resource Type:', cloudinaryResult.resource_type);
+        console.log('   Format:', cloudinaryResult.format);
 
         // Tạo Material document tạm thời trong MongoDB
         const material = new Material({
@@ -96,6 +102,7 @@ export const uploadMaterial = async (req, res) => {
             originalFilename: req.file.originalname,
             fileSize: cloudinaryResult.bytes,
             format: cloudinaryResult.format,
+            extension: fileExtension, // Lưu extension
             isTemporary: true // Material tạm thời, chưa link với course
         });
 
@@ -112,7 +119,8 @@ export const uploadMaterial = async (req, res) => {
             resourceType: cloudinaryResult.resource_type,
             originalFilename: req.file.originalname,
             fileSize: cloudinaryResult.bytes,
-            format: cloudinaryResult.format
+            format: cloudinaryResult.format,
+            extension: fileExtension
         });
 
     } catch (error) {
@@ -211,20 +219,28 @@ export const generateMaterialSignedUrl = async (req, res) => {
         console.log('   Material found:', {
             publicId: material.contentUrl,
             resourceType: material.resource_type,
-            filename: material.originalFilename
+            filename: material.originalFilename,
+            extension: material.extension
         });
 
         const expiresAt = Math.floor(Date.now() / 1000) + parseInt(expiresIn);
 
-        // Generate signed URL for private raw files
-        // Use Cloudinary's utils method with proper parameters
-        const signedUrl = cloudinary.url(material.contentUrl, {
-            resource_type: 'raw',
-            type: 'private',
-            sign_url: true,
-            secure: true,
-            attachment: material.originalFilename || true
-        });
+        // Don't add extension again - Cloudinary publicId already includes it
+        // Just use the publicId as-is
+        console.log('   Using publicId:', material.contentUrl);
+        console.log('   Original filename:', material.originalFilename);
+
+        // For private raw files, use cloudinary.utils.private_download_url
+        // This is the correct method for authenticated downloads
+        const signedUrl = cloudinary.utils.private_download_url(
+            material.contentUrl,
+            'raw',
+            {
+                attachment: material.originalFilename, // Use original filename with extension
+                expires_at: expiresAt,
+                resource_type: 'raw'
+            }
+        );
 
         console.log('✅ [Material Signed URL] URL generated');
         console.log('   Signed URL:', signedUrl);

@@ -30,9 +30,9 @@ const materialSchema = new mongoose.Schema({
         type: Number,
         required: false,
     },
-    format: {
+    extension: {
         type: String,
-        required: false,
+        required: false, // Extension của file (pdf, docx, xlsx, etc.)
     },
     isTemporary: {
         type: Boolean,
