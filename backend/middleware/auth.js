@@ -1,6 +1,7 @@
 import {clerkClient} from '@clerk/express';
 import pool from '../config/mysql.js';
 import Enrollment from '../models/Enrollment.js';
+import logger from '../utils/logger.js';
 
 export const protectAdmin = async (req, res, next) => {
     try {
@@ -11,6 +12,7 @@ export const protectAdmin = async (req, res, next) => {
         if (user.privateMetadata.role !== 'admin') {
             return res.status(401).json({ message: 'Unauthorized' });
         }
+        logger.info(`✅ [protectAdmin] Admin access granted for userId: ${userId}`);
         next();
 
     } catch (error) {

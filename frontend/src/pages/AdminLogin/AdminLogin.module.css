@@ -1,0 +1,283 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.adminLoginContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1E3A5F 0%, #2C5282 50%, #1E3A5F 100%);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.backgroundDecoration {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  animation: float 20s infinite ease-in-out;
+}
+
+.circle:nth-child(1) {
+  width: 300px;
+  height: 300px;
+  top: -100px;
+  left: -100px;
+  animation-delay: 0s;
+}
+
+.circle:nth-child(2) {
+  width: 400px;
+  height: 400px;
+  bottom: -150px;
+  right: -150px;
+  animation-delay: 5s;
+}
+
+.circle:nth-child(3) {
+  width: 200px;
+  height: 200px;
+  top: 50%;
+  right: 10%;
+  animation-delay: 10s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+.loginCard {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 450px;
+  position: relative;
+  z-index: 1;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loginHeader {
+  padding: 40px 40px 30px;
+  text-align: center;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.logoSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconWrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1E3A5F, #2C5282);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(30, 58, 95, 0.3);
+  margin-bottom: 8px;
+}
+
+.shieldIcon {
+  color: #EDE7D9;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.lockIcon {
+  position: absolute;
+  color: #FFD700;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1E3A5F;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.clerkWrapper {
+  padding: 30px 40px;
+}
+
+/* Clerk Component Styling */
+.clerkCard {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.clerkRoot {
+  width: 100%;
+}
+
+.clerkTitle {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #1E3A5F !important;
+}
+
+.clerkSubtitle {
+  color: #6B7280 !important;
+  font-size: 14px !important;
+}
+
+.clerkSocialButton {
+  border: 1px solid #E5E7EB !important;
+  background: white !important;
+  transition: all 0.2s ease !important;
+}
+
+.clerkSocialButton:hover {
+  background: #F9FAFB !important;
+  border-color: #1E3A5F !important;
+}
+
+.clerkPrimaryButton {
+  background: linear-gradient(135deg, #1E3A5F, #2C5282) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  padding: 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+.clerkPrimaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3) !important;
+}
+
+.clerkLink {
+  color: #1E3A5F !important;
+  font-weight: 500 !important;
+}
+
+.clerkLink:hover {
+  color: #2C5282 !important;
+}
+
+.clerkInput {
+  border: 1px solid #E5E7EB !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+.clerkInput:focus {
+  border-color: #1E3A5F !important;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1) !important;
+}
+
+.clerkPreviewText {
+  color: #374151 !important;
+}
+
+.securityNotice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 40px 30px;
+  color: #6B7280;
+  font-size: 13px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.securityNotice svg {
+  color: #9CA3AF;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .adminLoginContainer {
+    padding: 16px;
+  }
+
+  .loginCard {
+    max-width: 100%;
+  }
+
+  .loginHeader {
+    padding: 30px 24px 24px;
+  }
+
+  .clerkWrapper {
+    padding: 24px;
+  }
+
+  .securityNotice {
+    padding: 16px 24px 24px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .iconWrapper {
+    width: 70px;
+    height: 70px;
+  }
+
+  .shieldIcon {
+    width: 35px;
+    height: 35px;
+  }
+
+  .lockIcon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Loading state */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

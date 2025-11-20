@@ -16,10 +16,12 @@ import { Navigate } from 'react-router-dom'
 import Instructor from './pages/Instructor/Instructor.jsx'
 import CreateUpdateCourse from './pages/CourseManagement/CourseManagement.jsx'
 import Admin from './pages/Admin/Admin.jsx'
+import AdminLogin from './pages/AdminLogin/AdminLogin.jsx'
 import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 
 function App() {
-  const isAdmin = useLocation().pathname.startsWith('/admin')
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
 
   const {user} = useAppContext();
 
@@ -52,7 +54,11 @@ function App() {
           <Route path='/instructor/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
-          <Route path='/admin' element={<Admin/>}/>
+          
+          {/* Admin Routes */}
+          <Route path='/admin' element={<AdminLogin/>}/>
+          <Route path='/admin/dashboard' element={<Admin/>}/>
+          
           <Route path='/upload-demo' element={<UploadDemo/>}/>
         </Routes>
       </div>
