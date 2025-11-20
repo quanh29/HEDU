@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import BasicInfo from '../../components/BasicInfo/BasicInfo';
 import Curriculum from '../../components/Curriculum/Curriculum';
 import LessonStatistics from '../../components/LessonStatistics/LessonStatistics';
@@ -31,6 +31,7 @@ import {
 
 const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { courseId } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!courseId;
@@ -92,10 +93,15 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const fetchHeadingsAndCategories = async () => {
     setLoadingCategories(true);
     try {
+      const token = await getToken();
       const url = `${import.meta.env.VITE_BASE_URL}/api/headings`;
       console.log('📚 [fetchHeadingsAndCategories] Fetching from:', url);
       
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const headingsData = response.data;
       
       console.log('📚 [fetchHeadingsAndCategories] Received headings:', headingsData);
@@ -128,9 +134,14 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
   const fetchLevelsAndLanguages = async () => {
     try {
+      const token = await getToken();
       const [levelsRes, languagesRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_BASE_URL}/api/levels`),
-        axios.get(`${import.meta.env.VITE_BASE_URL}/api/languages`)
+        axios.get(`${import.meta.env.VITE_BASE_URL}/api/levels`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${import.meta.env.VITE_BASE_URL}/api/languages`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
       
       console.log('📊 [fetchLevelsAndLanguages] Levels:', levelsRes.data);
@@ -155,10 +166,15 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     setLoading(true);
     console.log('Fetching course data for ID:', courseId);
     try {
+      const token = await getToken();
       // Sử dụng API mới để fetch full course data cho management (bao gồm sections và lessons)
       const url = `${import.meta.env.VITE_BASE_URL}/api/course/manage/${courseId}/full`;
       console.log('Fetching from URL:', url);
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const courseInfo = response.data;
       
       console.log('Full API Response:', courseInfo);
@@ -570,16 +586,26 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
       if (isEditMode) {
         // Update existing course
+        const token = await getToken();
         const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`;
         console.log('📝 [saveCourseWithStatus] Updating course:', url);
-        await axios.put(url, payload);
+        await axios.put(url, payload, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
         navigate('/instructor');
       } else {
         // Create new course
+        const token = await getToken();
         const url = `${import.meta.env.VITE_BASE_URL}/api/course`;
-        console.log('➕ [saveCourseWithStatus] Creating new course:', url);
-        const response = await axios.post(url, payload);
+        console.log('➡️ [saveCourseWithStatus] Creating new course:', url);
+        const response = await axios.post(url, payload, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         console.log('✅ [saveCourseWithStatus] Course created:', response.data);
         alert(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
         navigate('/instructor');

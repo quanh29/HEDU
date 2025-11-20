@@ -66,7 +66,7 @@ const courseSchema = new mongoose.Schema({
     sections:[],
     status: {
         type: String,
-        enum: ['draft', 'published', 'pending'],
+        enum: ['approved', 'pending'],
         required: true
     }
 });

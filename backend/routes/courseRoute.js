@@ -13,7 +13,7 @@ import {
     deleteCourse,
     getFullCourseDataForManagement
 } from "../controllers/courseController.js";
-import { protectEnrolledUser } from "../middleware/auth.js";
+import { protectEnrolledUser, protectCourseOwner } from "../middleware/auth.js";
 
 const courseRouter = express.Router();
 
@@ -49,7 +49,7 @@ courseRouter.get("/manage/:courseId", async (req, res) => {
 });
 
 // Route mới: lấy full course data cho management (bao gồm sections và lessons)
-courseRouter.get("/manage/:courseId/full", async (req, res) => {
+courseRouter.get("/manage/:courseId/full", protectCourseOwner, async (req, res) => {
     getFullCourseDataForManagement(req, res);
 });
 
@@ -57,11 +57,11 @@ courseRouter.patch("/:courseId/status", async (req, res) => {
     updateCourseStatus(req, res);
 });
 
-courseRouter.put("/:courseId", async (req, res) => {
+courseRouter.put("/:courseId", protectCourseOwner, async (req, res) => {
     updateCourse(req, res);
 });
 
-courseRouter.delete("/:courseId", async (req, res) => {
+courseRouter.delete("/:courseId", protectCourseOwner, async (req, res) => {
     deleteCourse(req, res);
 });
 
