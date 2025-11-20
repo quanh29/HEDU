@@ -1,87 +1,96 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import axios from 'axios';
 import styles from './MyLearning.module.css';
 import EnrolledCard from '../../components/EnrolledCard/EnrolledCard';
 import TabSwitch from '../../components/TabSwitch/TabSwitch';
 
-// Dữ liệu mẫu cho các khóa học đã đăng ký
-const enrolledCourses = [
-  {
-    id: 1,
-    title: "Lập trình Web từ cơ bản đến nâng cao",
-    instructor: "Nguyễn Văn A",
-    image: "https://media.tenor.com/6d-TGfcta6EAAAAe/meme-blue-archive.png",
-    progress: 0,
-    totalLessons: 120,
-    completedLessons: 0,
-    lastAccessed: "2 ngày trước",
-    duration: "40 giờ",
-    rating: 4.8
-  },
-  {
-    id: 2,
-    title: "React.js từ Zero đến Hero",
-    instructor: "Trần Thị B",
-    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQkKlOcX1ybokobqWGzQDACUmci5V5uOtqbTA&s",
-    progress: 45,
-    totalLessons: 80,
-    completedLessons: 36,
-    lastAccessed: "1 tuần trước",
-    duration: "25 giờ",
-    rating: 4.9
-  },
-  {
-    id: 3,
-    title: "Node.js và Backend Development",
-    instructor: "Lê Văn C",
-    image: "https://i.ytimg.com/vi/sgVe7QYBGBU/maxresdefault.jpg",
-    progress: 20,
-    totalLessons: 95,
-    completedLessons: 19,
-    lastAccessed: "3 ngày trước",
-    duration: "35 giờ",
-    rating: 4.7
-  },
-  {
-    id: 4,
-    title: "UI/UX Design với Figma",
-    instructor: "Phạm Thị D",
-    image: "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/d5004956-c7d5-44dc-b1c3-080cf8827715/de6q8q7-60682995-4335-4830-a5e5-f78cdad08483.jpg/v1/fill/w_1280,h_720,q_75,strp/fischl_wallpaper__genshin_impact__by_nathanjrrf_de6q8q7-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NzIwIiwicGF0aCI6IlwvZlwvZDUwMDQ5NTYtYzdkNS00NGRjLWIxYzMtMDgwY2Y4ODI3NzE1XC9kZTZxOHE3LTYwNjgyOTk1LTQzMzUtNDgzMC1hNWU1LWY3OGNkYWQwODQ4My5qcGciLCJ3aWR0aCI6Ijw9MTI4MCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.wdPNMY0pmTdHBcyJo3q-qXWdBMKz8Ht4wsySLe3INB4",
-    progress: 100,
-    totalLessons: 60,
-    completedLessons: 54,
-    lastAccessed: "1 ngày trước",
-    duration: "20 giờ",
-    rating: 4.6
-  },
-  {
-    id: 5,
-    title: "JavaScript ES6+ và Modern JS",
-    instructor: "Hoàng Văn E",
-    image: "https://minhtuanmobile.com/uploads/blog/lich-bao-tri-phien-ban-genshin-impact-5-1-241008102259.jpg",
-    progress: 60,
-    totalLessons: 75,
-    completedLessons: 45,
-    lastAccessed: "5 ngày trước",
-    duration: "30 giờ",
-    rating: 4.8
-  },
-  {
-    id: 6,
-    title: "Python cho Data Science",
-    instructor: "Vũ Thị F",
-    image: "https://cellphones.com.vn/sforum/wp-content/uploads/2023/05/honkai-star-rail-1-5.jpg",
-    progress: 10,
-    totalLessons: 100,
-    completedLessons: 10,
-    lastAccessed: "2 tuần trước",
-    duration: "45 giờ",
-    rating: 4.5
-  }
-];
-
 function MyLearning() {
+  const navigate = useNavigate();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Redirect to login if not signed in (after Clerk loads)
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      navigate('/auth/login');
+    }
+  }, [isLoaded, isSignedIn, navigate]);
+
+  // Fetch enrolled courses from backend
+  useEffect(() => {
+    const fetchEnrolledCourses = async () => {
+      // Chờ Clerk load xong và user đã đăng nhập
+      if (!isLoaded || !isSignedIn) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const token = await getToken();
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}/api/enrollment`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+
+        if (response.data.success) {
+          // Transform the data to match the expected format
+          const transformedCourses = response.data.data.map(enrollment => {
+            const course = enrollment.course;
+            
+            if (!course) return null; // Skip if course data is missing
+
+            // Calculate total lessons from course sections
+            const totalLessons = course.sections?.reduce((total, section) => {
+              return total + (section.lessons?.count || 0);
+            }, 0) || 0;
+
+            // Calculate progress percentage
+            const completedCount = enrollment.completedLessons?.length || 0;
+            const progress = totalLessons > 0 
+              ? Math.round((completedCount / totalLessons) * 100) 
+              : 0;
+
+            // Format instructor name
+            const instructorName = course.fName && course.lName 
+              ? `${course.fName} ${course.lName}`
+              : 'Chưa có giảng viên';
+
+            return {
+              id: course.course_id,
+              title: course.title || 'Chưa có tiêu đề',
+              instructor: instructorName,
+              image: course.picture_url || 'https://via.placeholder.com/400x300?text=No+Image',
+              progress: progress,
+              totalLessons: totalLessons,
+              completedLessons: completedCount,
+              lastAccessed: new Date(enrollment.enrolledAt).toLocaleDateString('vi-VN'),
+              duration: course.duration || 'Chưa xác định',
+              rating: course.rating || 0,
+              enrollmentId: enrollment.enrollmentId,
+              courseId: enrollment.courseId
+            };
+          }).filter(course => course !== null); // Remove null entries
+
+          setEnrolledCourses(transformedCourses);
+        }
+      } catch (err) {
+        console.error('Error fetching enrolled courses:', err);
+        setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEnrolledCourses();
+  }, [isLoaded, isSignedIn, getToken]);
+
 
   const tabs = [
     {
@@ -124,14 +133,60 @@ function MyLearning() {
   };
 
   const filteredCourses = getFilteredCourses();
+  
   const handleContinueLearning = (courseId) => {
-    console.log(`Continue learning course ${courseId}`);
-    // Navigate to course detail or learning page
+    navigate(`/course/${courseId}/content`);
   };
 
   const getProgressColor = (progress) => {
     return '#10b981'; // Green
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải khóa học...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <p>❌ {error}</p>
+          <button onClick={() => window.location.reload()} className={styles.retryBtn}>
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state (no enrollments)
+  if (enrolledCourses.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Khóa học của tôi</h1>
+          <p className={styles.subtitle}>Tiếp tục học tập và phát triển kỹ năng của bạn</p>
+        </div>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>📚</div>
+          <h2>Bạn chưa đăng ký khóa học nào</h2>
+          <p>Khám phá các khóa học để bắt đầu hành trình học tập của bạn</p>
+          <button onClick={() => navigate('/courses')} className={styles.exploreBtn}>
+            Khám phá khóa học
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -153,7 +208,9 @@ function MyLearning() {
         </div>
         <div className={styles.statCard}>
           <h3 className={styles.statNumber}>
-            {Math.round(enrolledCourses.reduce((acc, course) => acc + course.progress, 0) / enrolledCourses.length)}%
+            {enrolledCourses.length > 0 
+              ? Math.round(enrolledCourses.reduce((acc, course) => acc + course.progress, 0) / enrolledCourses.length)
+              : 0}%
           </h3>
           <p className={styles.statLabel}>Tiến độ trung bình</p>
         </div>
@@ -176,8 +233,6 @@ function MyLearning() {
           filteredCourses.map(course => (
             <EnrolledCard
               key={course.id}
-              courseId={course.id}
-              courseTitle={course.title}
               course={course}
               onContinueLearning={handleContinueLearning}
               getProgressColor={getProgressColor}

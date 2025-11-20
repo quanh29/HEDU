@@ -1,4 +1,8 @@
 import Enrollment from '../models/Enrollment.js';
+import Section from '../models/Section.js';
+import Video from '../models/video.js';
+import Material from '../models/Material.js';
+import Quiz from '../models/Quiz.js';
 import pool from '../config/mysql.js';
 
 /**
@@ -88,7 +92,7 @@ export const createEnrollment = async (req, res) => {
  */
 export const getUserEnrollments = async (req, res) => {
     try {
-        const { userId } = req.auth();
+        const { userId } = req; // userId được lấy từ protectUserAction middleware
 
         const enrollments = await Enrollment.find({ userId: userId })
             .sort({ createdAt: -1 });
@@ -104,6 +108,33 @@ export const getUserEnrollments = async (req, res) => {
                     [enrollment.courseId]
                 );
 
+                // Lấy sections và lessons để tính totalLessons
+                const sections = await Section.find({ course_id: enrollment.courseId })
+                    .sort({ order: 1 })
+                    .lean();
+
+                // Lấy số lượng lessons trong mỗi section
+                const sectionsWithLessons = await Promise.all(
+                    sections.map(async (section) => {
+                        const sectionIdStr = section._id.toString();
+                        
+                        const [videoCount, materialCount, quizCount] = await Promise.all([
+                            Video.countDocuments({ section: sectionIdStr }),
+                            Material.countDocuments({ section: sectionIdStr }),
+                            Quiz.countDocuments({ section: sectionIdStr })
+                        ]);
+
+                        return {
+                            _id: section._id,
+                            title: section.title,
+                            order: section.order,
+                            lessons: {
+                                count: videoCount + materialCount + quizCount
+                            }
+                        };
+                    })
+                );
+
                 return {
                     enrollmentId: enrollment._id,
                     userId: enrollment.userId,
@@ -111,7 +142,10 @@ export const getUserEnrollments = async (req, res) => {
                     rating: enrollment.rating,
                     completedLessons: enrollment.completedLessons,
                     enrolledAt: enrollment.createdAt,
-                    course: courses[0] || null
+                    course: courses[0] ? {
+                        ...courses[0],
+                        sections: sectionsWithLessons
+                    } : null
                 };
             })
         );
@@ -136,7 +170,7 @@ export const getUserEnrollments = async (req, res) => {
  */
 export const checkEnrollment = async (req, res) => {
     try {
-        const { userId } = req.auth();
+        const { userId } = req; // userId được lấy từ protectUserAction middleware
         const { courseId } = req.params;
 
         const enrollment = await Enrollment.findOne({
@@ -165,7 +199,7 @@ export const checkEnrollment = async (req, res) => {
  */
 export const updateCompletedLessons = async (req, res) => {
     try {
-        const { userId } = req.auth();
+        const { userId } = req; // userId được lấy từ protectUserAction middleware
         const { courseId } = req.params;
         const { lessonId, action } = req.body; // action: 'complete' or 'uncomplete'
 
@@ -224,7 +258,7 @@ export const updateCompletedLessons = async (req, res) => {
  */
 export const updateCourseRating = async (req, res) => {
     try {
-        const { userId } = req.auth();
+        const { userId } = req; // userId được lấy từ protectUserAction middleware
         const { courseId } = req.params;
         const { rating } = req.body;
 

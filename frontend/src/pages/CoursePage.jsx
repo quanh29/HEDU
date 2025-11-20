@@ -399,7 +399,7 @@ function CoursePage() {
                     <li>📖 {sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</li>
                     {courseData?.hasPractice && <li>📝 Bài tập thực hành</li>}
                     {courseData?.hasCertificate && <li>🏆 Chứng chỉ hoàn thành</li>}
-                    {courseData?.language && <li>🌐 {courseData.language}</li>}
+                    {courseData?.language && <li>🌐 Ngôn ngữ: {courseData.language}</li>}
                     {courseData?.level && <li>📊 Trình độ: {courseData.level}</li>}
                   </ul>
                 </div>
