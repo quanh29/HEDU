@@ -1,5 +1,7 @@
 import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
+import CourseRevision from '../models/CourseRevision.js';
+import logger from '../utils/logger.js';
 
 /**
  * Admin Controller - Quản lý courses cho admin
@@ -343,6 +345,88 @@ export const updateCourseByAdmin = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Lỗi khi cập nhật khóa học',
+            error: error.message 
+        });
+    }
+};
+
+/**
+ * Lấy danh sách pending revisions cho admin
+ */
+export const getPendingRevisions = async (req, res) => {
+    try {
+        const revisions = await CourseRevision.find({ status: 'pending' })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Lấy thông tin course từ MySQL
+        const revisionsWithCourseInfo = await Promise.all(
+            revisions.map(async (revision) => {
+                const [courses] = await pool.query(
+                    `SELECT c.course_id, c.title, c.course_status, 
+                            u.fName, u.lName, u.email
+                     FROM Courses c
+                     LEFT JOIN Users u ON c.instructor_id = u.user_id
+                     WHERE c.course_id = ?`,
+                    [revision.courseId]
+                );
+
+                return {
+                    ...revision,
+                    currentCourse: courses[0] || null
+                };
+            })
+        );
+
+        res.json({
+            success: true,
+            revisions: revisionsWithCourseInfo
+        });
+    } catch (error) {
+        logger.error('Error fetching pending revisions:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Lỗi khi lấy danh sách pending revisions',
+            error: error.message 
+        });
+    }
+};
+
+/**
+ * Lấy chi tiết revision
+ */
+export const getRevisionDetail = async (req, res) => {
+    try {
+        const { revisionId } = req.params;
+        
+        const revision = await CourseRevision.findById(revisionId).lean();
+        
+        if (!revision) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Revision not found' 
+            });
+        }
+
+        // Lấy thông tin course hiện tại từ MySQL
+        const [courses] = await pool.query(
+            `SELECT c.*, u.fName, u.lName, u.email
+             FROM Courses c
+             LEFT JOIN Users u ON c.instructor_id = u.user_id
+             WHERE c.course_id = ?`,
+            [revision.courseId]
+        );
+
+        res.json({
+            success: true,
+            revision,
+            currentCourse: courses[0] || null
+        });
+    } catch (error) {
+        logger.error('Error fetching revision detail:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Lỗi khi lấy chi tiết revision',
             error: error.message 
         });
     }

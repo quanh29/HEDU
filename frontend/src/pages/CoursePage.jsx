@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { courseDetailDummy } from './coursepage_dummydata';
 import Carousel from '../components/Carousel/Carousel';
 import { courses as relatedCourses } from '../assets/dummyData';
+import RatingListModal from '../components/RatingListModal/RatingListModal';
 import axios from 'axios';
 
 function CoursePage() {
@@ -14,6 +15,7 @@ function CoursePage() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // Function để convert title to slug
   const convertToSlug = (title) => {
@@ -169,7 +171,12 @@ function CoursePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontWeight: 600, color: '#333' }}>{courseData?.rating}</span>
                       <span style={{ color: '#FFD700', fontSize: '1.2rem' }}>⭐</span>
-                      <span style={{ color: '#666' }}>({courseData?.reviewCount?.toLocaleString('vi-VN')} đánh giá)</span>
+                      <span 
+                        style={{ color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => setShowRatingModal(true)}
+                      >
+                        ({courseData?.reviewCount?.toLocaleString('vi-VN')} đánh giá)
+                      </span>
                     </div>
                     <div style={{ color: '#666' }}>{courseData?.enrollmentCount?.toLocaleString('vi-VN') || 0} học viên</div>
                   </div>
@@ -401,6 +408,15 @@ function CoursePage() {
           </div>
         </div>
       </div>
+
+      {/* Rating List Modal */}
+      <RatingListModal
+        courseId={courseId}
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        totalRatings={courseData?.reviewCount || 0}
+        averageRating={courseData?.rating || 0}
+      />
     </div>
   );
 }

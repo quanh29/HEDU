@@ -1,5 +1,8 @@
 // Import services
 import * as courseService from '../services/courseService.js';
+import CourseRevision from '../models/CourseRevision.js';
+import logger from '../utils/logger.js';
+import pool from '../config/mysql.js';
 
 //get course by ID (chỉ hiển thị khóa học đã được duyệt)
 export const getCourseById = async (req, res) => {
@@ -180,14 +183,89 @@ export const importCourseData = async (req, res) => {
 };
 
 // Update course (MySQL + MongoDB)
+// Nếu course đã approved, tạo revision thay vì update trực tiếp
 export const updateCourse = async (req, res) => {
     const { courseId } = req.params;
 
     try {
+        // Kiểm tra trạng thái hiện tại của course
+        const [courses] = await pool.query(
+            'SELECT course_status FROM Courses WHERE course_id = ?',
+            [courseId]
+        );
+
+        if (!courses || courses.length === 0) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        const currentStatus = courses[0].course_status;
+        const newStatus = req.body.course_status;
+
+        logger.info(`📝 [updateCourse] Updating course ${courseId}, currentStatus: ${currentStatus}, newStatus: ${newStatus}`);
+
+        // Nếu course đã approved và đang gửi lại để pending (chỉnh sửa nội dung)
+        // thì tạo revision thay vì update trực tiếp
+        if (currentStatus === 'approved' && newStatus === 'pending') {
+            logger.info(`🔄 [updateCourse] Creating revision for approved course: ${courseId}`);
+            
+            // Kiểm tra xem đã có revision pending chưa
+            const existingRevision = await CourseRevision.findOne({
+                courseId: courseId,
+                status: 'pending'
+            });
+
+            if (existingRevision) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'A pending revision already exists for this course' 
+                });
+            }
+
+            // Tạo revision mới
+            const revision = new CourseRevision({
+                courseId: courseId,
+                title: req.body.title,
+                subtitle: req.body.subTitle,
+                instructors: [req.body.instructor_id],
+                description: req.body.des,
+                thumbnail: req.body.picture_url,
+                originalPrice: req.body.originalPrice,
+                currentPrice: req.body.currentPrice,
+                tags: req.body.categories || [],
+                level: req.body.level || 'beginner',
+                language: req.body.language || 'vietnamese',
+                hasPractice: req.body.has_practice || false,
+                hasCertificate: req.body.has_certificate || false,
+                requirements: req.body.requirements,
+                objectives: req.body.objectives,
+                sections: req.body.sections || [],
+                status: 'pending',
+                version: 1,
+                lv_id: req.body.lv_id,
+                lang_id: req.body.lang_id,
+                categories: req.body.categories,
+                picture_url: req.body.picture_url,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            await revision.save();
+
+            logger.info(`✅ [updateCourse] Revision created: ${revision._id}`);
+
+            return res.status(200).json({ 
+                success: true,
+                message: 'Course revision created and pending approval',
+                revisionId: revision._id,
+                isRevision: true
+            });
+        }
+
+        // Nếu không phải trường hợp trên, update bình thường
         const result = await courseService.updateCourseService(courseId, req.body);
         res.status(200).json(result);
     } catch (error) {
-        console.error(error);
+        logger.error('❌ [updateCourse] Error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

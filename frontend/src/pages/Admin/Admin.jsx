@@ -23,6 +23,7 @@ import CourseManagement from './components/CourseManagement/CourseManagement';
 import PromotionManagement from './components/PromotionManagement/PromotionManagement';
 import AdminManagement from './components/AdminManagement/AdminManagement';
 import SupportTickets from './components/SupportTickets/SupportTickets';
+import RevisionApproval from './components/RevisionApproval/RevisionApproval';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Admin = () => {
     const path = location.pathname;
     if (path === '/admin/dashboard') setActiveTab('dashboard');
     else if (path === '/admin/courses') setActiveTab('course-management');
+    else if (path === '/admin/revisions') setActiveTab('revision-approval');
     else if (path === '/admin/users') setActiveTab('admin-management');
     else if (path === '/admin/statistics') setActiveTab('promotions');
     else if (path === '/admin/support') setActiveTab('support-tickets');
@@ -122,6 +124,7 @@ const Admin = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Tổng quan', icon: Home, path: '/admin/dashboard' },
     { id: 'course-management', label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
+    { id: 'revision-approval', label: 'Duyệt cập nhật', icon: Bell, path: '/admin/revisions' },
     { id: 'admin-management', label: 'Người dùng', icon: Users, path: '/admin/users' },
     { id: 'promotions', label: 'Thống kê', icon: BarChart3, path: '/admin/statistics' },
     { id: 'support-tickets', label: 'Hỗ trợ', icon: HelpCircle, path: '/admin/support' },
@@ -136,6 +139,8 @@ const Admin = () => {
         return <CourseApproval />;
       case 'course-management':
         return <CourseManagement />;
+      case 'revision-approval':
+        return <RevisionApproval />;
       case 'promotions':
         return <PromotionManagement />;
       case 'admin-management':

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download } from 'lucide-react';
+import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download, Star } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import styles from './CourseContent.module.css';
 import axios from 'axios';
 import { getAuthConfigFromHook } from '../../utils/clerkAuth';
+import RatingSection from '../../components/RatingSection/RatingSection';
 
 function CourseContent() {
 	const { courseId } = useParams();
@@ -18,6 +19,7 @@ function CourseContent() {
 	const [downloading, setDownloading] = useState({});
 	const [completedLessons, setCompletedLessons] = useState([]);
 	const [updatingProgress, setUpdatingProgress] = useState(false);
+	const [showRatingModal, setShowRatingModal] = useState(false);
 
 	// Helper function để format duration từ giây thành MM:SS
 	const formatDuration = (seconds) => {
@@ -374,6 +376,15 @@ function CourseContent() {
 				Nội dung khóa học: {course.title || 'Tên khóa học'}
 			</h1>
 			
+			{/* Rating Button */}
+			<button 
+				className={styles.ratingButton}
+				onClick={() => setShowRatingModal(true)}
+			>
+				<Star size={20} />
+				Đánh giá khóa học
+			</button>
+
 			{/* Progress Bar */}
 			<div className={styles.progressSection}>
 				<div className={styles.progressHeader}>
@@ -467,6 +478,13 @@ function CourseContent() {
 					</div>
 				))}
 			</div>
+
+			{/* Rating Modal */}
+			<RatingSection 
+				courseId={courseId} 
+				isOpen={showRatingModal}
+				onClose={() => setShowRatingModal(false)}
+			/>
 		</div>
 	);
 }

@@ -6,8 +6,14 @@ import {
     updateCourseStatus,
     deleteCourseByAdmin,
     getCourseStatistics,
-    updateCourseByAdmin
+    updateCourseByAdmin,
+    getPendingRevisions,
+    getRevisionDetail
 } from '../controllers/adminController.js';
+import { 
+    approveRevision, 
+    rejectRevision 
+} from '../controllers/courseRevisionController.js';
 import { protectAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
@@ -45,5 +51,18 @@ adminRouter.put('/courses/:courseId', protectAdmin, updateCourseByAdmin);
 
 // DELETE /api/admin/courses/:courseId - Xóa course
 adminRouter.delete('/courses/:courseId', protectAdmin, deleteCourseByAdmin);
+
+// Revision management routes
+// GET /api/admin/revisions/pending - Lấy danh sách pending revisions
+adminRouter.get('/revisions/pending', protectAdmin, getPendingRevisions);
+
+// GET /api/admin/revisions/:revisionId - Lấy chi tiết revision
+adminRouter.get('/revisions/:revisionId', protectAdmin, getRevisionDetail);
+
+// POST /api/admin/revisions/:revisionId/approve - Approve revision
+adminRouter.post('/revisions/:revisionId/approve', protectAdmin, approveRevision);
+
+// POST /api/admin/revisions/:revisionId/reject - Reject revision
+adminRouter.post('/revisions/:revisionId/reject', protectAdmin, rejectRevision);
 
 export default adminRouter;

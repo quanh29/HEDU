@@ -15,6 +15,34 @@
   margin-bottom: 1.5rem;
 }
 
+/* Rating Button */
+.ratingButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1.5rem;
+  margin-left: auto;
+  width: fit-content;
+}
+
+.ratingButton:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.ratingButton:active {
+  transform: translateY(0);
+}
+
 /* Progress Section */
 .progressSection {
   background-color: #f9fafb;

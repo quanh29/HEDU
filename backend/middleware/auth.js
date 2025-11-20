@@ -129,3 +129,44 @@ export const protectCourseOwner = async (req, res, next) => {
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+/**
+ * Middleware to protect user actions - ensures user is authenticated
+ * Used for rating, profile updates, and other user-specific actions
+ */
+export const protectUserAction = async (req, res, next) => {
+    try {
+        const { userId } = getAuth(req);
+        
+        if (!userId) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Unauthorized - Please login to perform this action' 
+            });
+        }
+
+        // Verify user exists in Clerk
+        const user = await clerkClient.users.getUser(userId);
+        
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'User not found' 
+            });
+        }
+
+        // Attach userId to request for controllers to use
+        req.userId = userId;
+        req.user = user;
+        
+        logger.info(`✅ [protectUserAction] User action allowed for userId: ${userId}`);
+        next();
+
+    } catch (error) {
+        logger.error('Error in protectUserAction middleware:', error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server error during authentication' 
+        });
+    }
+};

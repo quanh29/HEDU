@@ -118,6 +118,8 @@ const Instructor = ({ activeTab: propActiveTab }) => {
           language: course.language,
           tags: course.tags,
           status: course.status || course.course_status, // MySQL uses course_status
+          hasPendingRevision: course.hasPendingRevision || false,
+          pendingRevisionId: course.pendingRevisionId || null,
           students: course.enrollmentCount || 0,
           rating: course.averageRating || 0,
           revenue: (course.enrollmentCount || 0) * (course.originalPrice || course.original_price || 0),
@@ -408,17 +410,20 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                       fontSize: '12px',
                       fontWeight: '500',
                       background: 
+                        course.hasPendingRevision ? '#fef3c7' :
                         course.status === 'approved' ? '#dcfce7' :
                         course.status === 'pending' ? '#dbeafe' :
                         course.status === 'rejected' ? '#fecaca' :
                         '#fef3c7',
                       color: 
+                        course.hasPendingRevision ? '#92400e' :
                         course.status === 'approved' ? '#166534' :
                         course.status === 'pending' ? '#1e40af' :
                         course.status === 'rejected' ? '#dc2626' :
                         '#92400e'
                     }}>
-                      {course.status === 'approved' ? 'Đã duyệt' :
+                      {course.hasPendingRevision ? 'Chờ duyệt cập nhật' :
+                       course.status === 'approved' ? 'Đã duyệt' :
                        course.status === 'pending' ? 'Chờ duyệt' :
                        course.status === 'rejected' ? 'Từ chối' :
                        'Bản nháp'}

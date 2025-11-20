@@ -10,7 +10,6 @@ import sectionRouter from './routes/sectionRoute.js';
 import videoRouter from './routes/videoRoute.js';
 import materialRouter from './routes/materialRoute.js';
 import quizRouter from './routes/quizRoute.js';
-import userRouter from './routes/userRoute.js';
 import courseRevisionRouter from './routes/courseRevisionRoute.js';
 import headingRouter from './routes/headingRoute.js';
 import importRouter from './routes/importRoute.js';
@@ -21,6 +20,7 @@ import cloudinaryRouter from './routes/cloudinaryRoute.js';
 import thumbnailRouter from './routes/thumbnailRoute.js';
 import adminRouter from './routes/adminRoute.js';
 import enrollmentRouter from './routes/enrollmentRoute.js';
+import ratingRouter from './routes/ratingRoute.js';
 
 const app = express();
 const port = 3000;
@@ -52,7 +52,6 @@ app.use("/api/section", sectionRouter);
 app.use("/api/video", videoRouter);
 app.use("/api/material", materialRouter);
 app.use("/api/quiz", quizRouter);
-app.use("/api/user", userRouter);
 app.use("/api/course-revision", courseRevisionRouter);
 app.use("/api/headings", headingRouter);
 app.use("/api/import", importRouter);
@@ -63,6 +62,7 @@ app.use("/api/cloudinary", cloudinaryRouter);
 app.use("/api/thumbnail", thumbnailRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/enrollment", enrollmentRouter);
+app.use("/api/rating", ratingRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

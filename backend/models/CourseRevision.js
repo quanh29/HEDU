@@ -1,6 +1,10 @@
-import mongoose from "mongoose";
+import mongoose, { version } from "mongoose";
 
 const courseSchema = new mongoose.Schema({
+    courseId: {
+        type: String, // MySQL course_id
+        required: true,
+    },
     title: {
         type: String,
         required: true,
@@ -22,6 +26,10 @@ const courseSchema = new mongoose.Schema({
         required: true,
     },
     originalPrice: {
+        type: Number,
+        required: true,
+    },
+    currentPrice: {
         type: Number,
         required: true,
     },
@@ -66,9 +74,20 @@ const courseSchema = new mongoose.Schema({
     sections:[],
     status: {
         type: String,
-        enum: ['approved', 'pending'],
+        enum: ['approved', 'pending', 'rejected'],
         required: true
-    }
+    },
+    version: {
+        type: Number,
+        required: true,
+        default: 1,
+    },
+    // Metadata
+    lv_id: String,
+    lang_id: String,
+    categories: [String], // Array of category_ids
+    picture_url: String,
+    rejectionReason: String // Lý do từ chối nếu bị reject
 });
 
 const CourseRevision = mongoose.model("CourseRevision", courseSchema);

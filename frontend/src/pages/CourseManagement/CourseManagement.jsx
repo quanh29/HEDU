@@ -589,12 +589,18 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         const token = await getToken();
         const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`;
         console.log('📝 [saveCourseWithStatus] Updating course:', url);
-        await axios.put(url, payload, {
+        const response = await axios.put(url, payload, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
+        
+        // Kiểm tra xem có phải là revision không
+        if (response.data.isRevision) {
+          alert('Đã gửi yêu cầu cập nhật khóa học! Vui lòng chờ admin phê duyệt.');
+        } else {
+          alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
+        }
         navigate('/instructor');
       } else {
         // Create new course
@@ -649,22 +655,25 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
           
           {!isViewMode && (
             <div className={styles.headerActions}>
-              <button
-                onClick={() => saveCourseWithStatus('draft')}
-                disabled={saving}
-                className={styles.saveButton}
-              >
-                <Save size={16} />
-                {saving ? 'Đang lưu...' : 'Lưu nháp'}
-              </button>
+              {/* Chỉ hiện nút Lưu nháp khi tạo mới (không phải edit) */}
+              {!isEditMode && (
+                <button
+                  onClick={() => saveCourseWithStatus('draft')}
+                  disabled={saving}
+                  className={styles.saveButton}
+                >
+                  <Save size={16} />
+                  {saving ? 'Đang lưu...' : 'Lưu nháp'}
+                </button>
+              )}
               <button
                 onClick={() => saveCourseWithStatus('pending')}
                 disabled={saving}
                 className={styles.saveButton}
-                style={{ marginLeft: 12, background: '#3b82f6', color: 'white' }}
+                style={{ marginLeft: !isEditMode ? 12 : 0, background: '#3b82f6', color: 'white' }}
               >
                 <Upload size={16} />
-                {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
+                {saving ? 'Đang gửi...' : (isEditMode ? 'Gửi cập nhật' : 'Gửi xét duyệt')}
               </button>
             </div>
           )}

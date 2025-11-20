@@ -32,6 +32,18 @@ CREATE TABLE Courses (
     FOREIGN KEY (lang_id) REFERENCES Languages(lang_id)
 );
 
+CREATE TABLE Ratings (
+	rating_id			VARCHAR(36) PRIMARY KEY,
+    rating				INT(1) NOT NULL,
+    user_comment		TEXT,
+    user_id				VARCHAR(36),
+    course_id			VARCHAR(36),
+    created_at			DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at			DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES Users(user_id),
+    FOREIGN KEY(course_id) REFERENCES Courses(course_id)
+);
+
 CREATE TABLE Categories (
 	category_id			VARCHAR(36) PRIMARY KEY,
     title				VARCHAR(255) UNIQUE

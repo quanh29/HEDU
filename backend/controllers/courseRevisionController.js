@@ -1,5 +1,12 @@
 // import Course from '../models/Course.js';
 import CourseRevision from '../models/CourseRevision.js';
+import pool from '../config/mysql.js';
+import Course from '../models/Course.js';
+import Section from '../models/Section.js';
+import Video from '../models/video.js';
+import Material from '../models/Material.js';
+import Quiz from '../models/Quiz.js';
+import logger from '../utils/logger.js';
 // import Section from '../models/Section.js';
 // import Lesson from '../models/Lesson.js';
 // import User from '../models/User.js';
@@ -122,6 +129,372 @@ export const deleteDraftCourseById = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Tạo course revision khi instructor gửi cập nhật
+export const createCourseRevision = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const updateData = req.body;
+
+        logger.info(`📝 [createCourseRevision] Creating revision for course: ${courseId}`);
+
+        // Kiểm tra xem khóa học có tồn tại trong MySQL không
+        const [courses] = await pool.query(
+            'SELECT * FROM Courses WHERE course_id = ?',
+            [courseId]
+        );
+
+        if (!courses || courses.length === 0) {
+            return res.status(404).json({ success: false, message: 'Course not found' });
+        }
+
+        const course = courses[0];
+
+        // Kiểm tra xem đã có revision pending nào chưa
+        const existingRevision = await CourseRevision.findOne({
+            courseId: courseId,
+            status: 'pending'
+        });
+
+        if (existingRevision) {
+            logger.warn(`⚠️ [createCourseRevision] Pending revision already exists for course: ${courseId}`);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'A pending revision already exists for this course' 
+            });
+        }
+
+        // Tạo revision mới với status 'pending'
+        const revision = new CourseRevision({
+            courseId: courseId,
+            title: updateData.title,
+            subtitle: updateData.subTitle,
+            instructors: [updateData.instructor_id],
+            description: updateData.des,
+            thumbnail: updateData.picture_url || course.picture_url,
+            originalPrice: updateData.originalPrice,
+            currentPrice: updateData.currentPrice,
+            tags: updateData.categories || [],
+            level: updateData.level || 'beginner',
+            language: updateData.language || 'vietnamese',
+            hasPractice: updateData.has_practice || false,
+            hasCertificate: updateData.has_certificate || false,
+            requirements: updateData.requirements,
+            objectives: updateData.objectives,
+            sections: updateData.sections || [],
+            status: 'pending',
+            version: (course.version || 0) + 1,
+            lv_id: updateData.lv_id,
+            lang_id: updateData.lang_id,
+            categories: updateData.categories,
+            picture_url: updateData.picture_url,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        await revision.save();
+
+        logger.info(`✅ [createCourseRevision] Revision created successfully: ${revision._id}`);
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Course revision created and pending approval',
+            revisionId: revision._id
+        });
+    } catch (error) {
+        logger.error('❌ [createCourseRevision] Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Lấy pending revisions cho admin
+export const getPendingRevisions = async (req, res) => {
+    try {
+        const revisions = await CourseRevision.find({ status: 'pending' })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Lấy thông tin khóa học từ MySQL cho mỗi revision
+        const revisionsWithCourseInfo = await Promise.all(
+            revisions.map(async (revision) => {
+                const [courses] = await pool.query(
+                    'SELECT course_id, title, course_status FROM Courses WHERE course_id = ?',
+                    [revision.courseId]
+                );
+
+                return {
+                    ...revision,
+                    currentCourseStatus: courses[0]?.course_status || null,
+                    currentCourseTitle: courses[0]?.title || null
+                };
+            })
+        );
+
+        res.status(200).json({
+            success: true,
+            revisions: revisionsWithCourseInfo
+        });
+    } catch (error) {
+        logger.error('❌ [getPendingRevisions] Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Approve revision - cập nhật course chính
+export const approveRevision = async (req, res) => {
+    try {
+        const { revisionId } = req.params;
+
+        logger.info(`✅ [approveRevision] Approving revision: ${revisionId}`);
+
+        const revision = await CourseRevision.findById(revisionId);
+
+        if (!revision) {
+            return res.status(404).json({ success: false, message: 'Revision not found' });
+        }
+
+        if (revision.status !== 'pending') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Only pending revisions can be approved' 
+            });
+        }
+
+        const courseId = revision.courseId;
+
+        // Cập nhật MySQL
+        await pool.query(
+            `UPDATE Courses SET 
+                title = ?,
+                subTitle = ?,
+                des = ?,
+                originalPrice = ?,
+                currentPrice = ?,
+                lv_id = ?,
+                lang_id = ?,
+                has_practice = ?,
+                has_certificate = ?,
+                picture_url = ?
+            WHERE course_id = ?`,
+            [
+                revision.title,
+                revision.subtitle,
+                revision.description,
+                revision.originalPrice,
+                revision.currentPrice,
+                revision.lv_id,
+                revision.lang_id,
+                revision.hasPractice,
+                revision.hasCertificate,
+                revision.picture_url,
+                courseId
+            ]
+        );
+
+        // Cập nhật MongoDB Course document
+        await Course.findByIdAndUpdate(courseId, {
+            requirements: revision.requirements,
+            objectives: revision.objectives
+        });
+
+        // Cập nhật categories
+        if (revision.categories && revision.categories.length > 0) {
+            // Xóa categories cũ
+            await pool.query('DELETE FROM Labeling WHERE course_id = ?', [courseId]);
+            
+            // Thêm categories mới
+            const categoryValues = revision.categories.map(catId => [catId, courseId]);
+            if (categoryValues.length > 0) {
+                await pool.query(
+                    'INSERT INTO Labeling (category_id, course_id) VALUES ?',
+                    [categoryValues]
+                );
+            }
+        }
+
+        // Cập nhật sections trong MongoDB
+        if (revision.sections && revision.sections.length > 0) {
+            // Lấy danh sách sections cũ trước khi xóa
+            const oldSections = await Section.find({ course_id: courseId }).lean();
+            
+            logger.info(`📦 [approveRevision] Found ${oldSections.length} old sections to replace`);
+            
+            // Xóa sections cũ
+            await Section.deleteMany({ course_id: courseId });
+
+            // Tạo sections mới từ revision và cập nhật lesson references
+            for (const sectionData of revision.sections) {
+                // Tạo section mới
+                const newSection = new Section({
+                    course_id: courseId,
+                    title: sectionData.title,
+                    order: sectionData.order,
+                    lessons: sectionData.lessons || []
+                });
+                await newSection.save();
+
+                logger.info(`📝 [approveRevision] Created new section: ${newSection._id}, title: "${newSection.title}", with ${sectionData.lessons?.length || 0} lessons`);
+
+                // Cập nhật section reference trong các lessons
+                if (sectionData.lessons && sectionData.lessons.length > 0) {
+                    for (const lesson of sectionData.lessons) {
+                        try {
+                            if (lesson.contentType === 'video') {
+                                // Tìm videoId: ưu tiên videoId explicit, fallback sang _id
+                                const videoId = lesson.videoId || lesson._id;
+                                if (videoId) {
+                                    const updateResult = await Video.findByIdAndUpdate(
+                                        videoId,
+                                        { 
+                                            section: newSection._id.toString(),
+                                            title: lesson.title || 'Untitled Video',
+                                            order: lesson.order || 1
+                                        },
+                                        { new: false }
+                                    );
+                                    if (updateResult) {
+                                        logger.info(`  ✅ Updated video "${lesson.title}" (${videoId}) to new section ${newSection._id}`);
+                                    } else {
+                                        logger.warn(`  ⚠️ Video ${videoId} not found for lesson "${lesson.title}"`);
+                                    }
+                                }
+                            } else if (lesson.contentType === 'material') {
+                                const materialId = lesson.materialId || lesson._id;
+                                if (materialId) {
+                                    const updateResult = await Material.findByIdAndUpdate(
+                                        materialId,
+                                        { 
+                                            section: newSection._id.toString(),
+                                            title: lesson.title || 'Untitled Material',
+                                            order: lesson.order || 1
+                                        },
+                                        { new: false }
+                                    );
+                                    if (updateResult) {
+                                        logger.info(`  ✅ Updated material "${lesson.title}" (${materialId}) to new section ${newSection._id}`);
+                                    } else {
+                                        logger.warn(`  ⚠️ Material ${materialId} not found for lesson "${lesson.title}"`);
+                                    }
+                                }
+                            } else if (lesson.contentType === 'quiz') {
+                                const quizId = lesson._id;
+                                if (quizId && !quizId.startsWith('temp-')) {
+                                    // Cập nhật quiz hiện có
+                                    const updateResult = await Quiz.findByIdAndUpdate(
+                                        quizId,
+                                        { 
+                                            section: newSection._id.toString(),
+                                            title: lesson.title || 'Untitled Quiz',
+                                            description: lesson.description || '',
+                                            order: lesson.order || 1,
+                                            questions: lesson.questions || []
+                                        },
+                                        { new: false }
+                                    );
+                                    if (updateResult) {
+                                        logger.info(`  ✅ Updated quiz "${lesson.title}" (${quizId}) to new section ${newSection._id}`);
+                                    } else {
+                                        logger.warn(`  ⚠️ Quiz ${quizId} not found for lesson "${lesson.title}"`);
+                                    }
+                                } else if (!quizId || quizId.startsWith('temp-')) {
+                                    // Tạo quiz mới nếu là temp ID hoặc không có ID
+                                    const newQuiz = new Quiz({
+                                        section: newSection._id.toString(),
+                                        title: lesson.title || 'Untitled Quiz',
+                                        description: lesson.description || '',
+                                        order: lesson.order || 1,
+                                        questions: lesson.questions || []
+                                    });
+                                    const savedQuiz = await newQuiz.save();
+                                    logger.info(`  ✅ Created new quiz "${lesson.title}" (${savedQuiz._id}) in section ${newSection._id}`);
+                                }
+                            }
+                        } catch (lessonError) {
+                            logger.error(`  ❌ Error updating lesson "${lesson.title}":`, lessonError);
+                        }
+                    }
+                }
+            }
+
+            logger.info(`✅ [approveRevision] All sections and lessons updated successfully`);
+        }
+
+        // Cập nhật status của revision thành 'approved'
+        revision.status = 'approved';
+        revision.updatedAt = new Date();
+        await revision.save();
+
+        logger.info(`✅ [approveRevision] Revision approved and course updated: ${courseId}`);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Revision approved and course updated successfully' 
+        });
+    } catch (error) {
+        logger.error('❌ [approveRevision] Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Reject revision
+export const rejectRevision = async (req, res) => {
+    try {
+        const { revisionId } = req.params;
+        const { reason } = req.body;
+
+        logger.info(`❌ [rejectRevision] Rejecting revision: ${revisionId}`);
+
+        const revision = await CourseRevision.findById(revisionId);
+
+        if (!revision) {
+            return res.status(404).json({ success: false, message: 'Revision not found' });
+        }
+
+        if (revision.status !== 'pending') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Only pending revisions can be rejected' 
+            });
+        }
+
+        // Cập nhật status của revision thành 'rejected'
+        revision.status = 'rejected';
+        revision.rejectionReason = reason || 'No reason provided';
+        revision.updatedAt = new Date();
+        await revision.save();
+
+        logger.info(`✅ [rejectRevision] Revision rejected: ${revisionId}`);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Revision rejected successfully' 
+        });
+    } catch (error) {
+        logger.error('❌ [rejectRevision] Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// Kiểm tra xem khóa học có revision pending không
+export const checkPendingRevision = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+
+        const revision = await CourseRevision.findOne({
+            courseId: courseId,
+            status: 'pending'
+        });
+
+        res.status(200).json({
+            success: true,
+            hasPendingRevision: !!revision,
+            revision: revision || null
+        });
+    } catch (error) {
+        logger.error('❌ [checkPendingRevision] Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 

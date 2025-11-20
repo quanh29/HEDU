@@ -7,6 +7,7 @@ import Section from '../models/Section.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
+import CourseRevision from '../models/CourseRevision.js';
 
 /**
  * Helper functions
@@ -626,10 +627,24 @@ export const getInstructorCoursesService = async (instructorId, page = 1, limit 
 
     const [courses] = await pool.query(query, params);
 
-    return courses.map(c => ({
-        ...c,
-        instructors: [{ fullName: `${c.fName} ${c.lName}` }]
-    }));
+    // Check for pending revisions for each course
+    const coursesWithRevisionStatus = await Promise.all(
+        courses.map(async (c) => {
+            const pendingRevision = await CourseRevision.findOne({
+                courseId: c.course_id,
+                status: 'pending'
+            }).lean();
+
+            return {
+                ...c,
+                instructors: [{ fullName: `${c.fName} ${c.lName}` }],
+                hasPendingRevision: !!pendingRevision,
+                pendingRevisionId: pendingRevision?._id || null
+            };
+        })
+    );
+
+    return coursesWithRevisionStatus;
 };
 
 /**
@@ -908,22 +923,23 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                 
                 if (existingVideo) {
                     // Cập nhật video với section và thông tin mới
+                    console.log('  📝 [updateSectionLessonsService] Updating video:', {
+                        oldSection: existingVideo.section,
+                        newSection: sectionId,
+                        oldTitle: existingVideo.title,
+                        newTitle: lesson.title
+                    });
+                    
                     await Video.findByIdAndUpdate(lesson.videoId, {
                         section: sectionId,
                         title: lesson.title || existingVideo.title,
                         description: lesson.description || existingVideo.description || '',
-                        order: lesson.order || 1,
-                        contentUrl: lesson.contentUrl || existingVideo.contentUrl || '',
-                        playbackId: lesson.playbackId || existingVideo.playbackId || '',
-                        assetId: lesson.assetId || existingVideo.assetId || '',
-                        uploadId: lesson.uploadId || existingVideo.uploadId || '',
-                        status: lesson.status || existingVideo.status || 'uploading',
-                        duration: lesson.duration || existingVideo.duration || 0
+                        order: lesson.order || 1
                     });
                     videoId = lesson.videoId;
-                    console.log('  ✅ [updateSectionLessonsService] Video linked successfully');
+                    console.log('  ✅ [updateSectionLessonsService] Video linked and updated successfully');
                 } else {
-                    console.log('  ⚠️ [updateSectionLessonsService] Video not found, creating new');
+                    console.log('  ⚠️ [updateSectionLessonsService] Video not found, skipping');
                 }
             }
             // Case 2: Lesson mới có playbackId → tìm video theo playbackId và link
@@ -933,26 +949,55 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
                 
                 if (existingVideo) {
                     console.log('  🔗 [updateSectionLessonsService] Found video, linking to section:', existingVideo._id);
+                    console.log('  📝 [updateSectionLessonsService] Updating video:', {
+                        oldSection: existingVideo.section,
+                        newSection: sectionId,
+                        oldTitle: existingVideo.title,
+                        newTitle: lesson.title
+                    });
+                    
                     // Cập nhật video với section và thông tin mới
                     await Video.findByIdAndUpdate(existingVideo._id, {
                         section: sectionId,
                         title: lesson.title || existingVideo.title,
                         description: lesson.description || existingVideo.description || '',
-                        order: lesson.order || 1,
-                        contentUrl: lesson.contentUrl || existingVideo.contentUrl || '',
-                        assetId: lesson.assetId || existingVideo.assetId || '',
-                        uploadId: lesson.uploadId || existingVideo.uploadId || '',
-                        status: lesson.status || existingVideo.status || 'uploading',
-                        duration: lesson.duration || existingVideo.duration || 0
+                        order: lesson.order || 1
                     });
                     videoId = existingVideo._id.toString();
-                    console.log('  ✅ [updateSectionLessonsService] Video linked successfully');
+                    console.log('  ✅ [updateSectionLessonsService] Video linked and updated successfully');
                 } else {
-                    console.log('  ⚠️ [updateSectionLessonsService] Video not found by playbackId, creating new');
+                    console.log('  ⚠️ [updateSectionLessonsService] Video not found by playbackId, skipping');
+                }
+            }
+            // Case 3: Lesson có _id (existing video)
+            else if (lesson._id && !lesson._id.startsWith('temp-')) {
+                console.log('  📝 [updateSectionLessonsService] Updating existing video by _id:', lesson._id);
+                const existingVideo = await Video.findById(lesson._id);
+                
+                if (existingVideo) {
+                    console.log('  📝 [updateSectionLessonsService] Updating video:', {
+                        oldSection: existingVideo.section,
+                        newSection: sectionId,
+                        oldTitle: existingVideo.title,
+                        newTitle: lesson.title
+                    });
+                    
+                    await Video.findByIdAndUpdate(lesson._id, {
+                        section: sectionId,
+                        title: lesson.title || existingVideo.title,
+                        description: lesson.description || existingVideo.description || '',
+                        order: lesson.order || 1
+                    });
+                    videoId = lesson._id;
+                    console.log('  ✅ [updateSectionLessonsService] Video updated successfully');
+                } else {
+                    console.log('  ⚠️ [updateSectionLessonsService] Video not found by _id, skipping');
                 }
             }
             
-            newVideoIds.push(videoId);
+            if (videoId) {
+                newVideoIds.push(videoId);
+            }
         } else if (lesson.contentType === 'material') {
             // Xử lý material: Ưu tiên materialId (từ upload), sau đó mới đến lesson._id
             const materialIdToLink = lesson.materialId || (lesson._id && !lesson._id.startsWith('temp-') ? lesson._id : null);
