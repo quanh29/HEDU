@@ -13,6 +13,7 @@ import {
     deleteCourse,
     getFullCourseDataForManagement
 } from "../controllers/courseController.js";
+import { protectEnrolledUser } from "../middleware/auth.js";
 
 const courseRouter = express.Router();
 
@@ -28,7 +29,8 @@ courseRouter.get("/:courseId/full", async (req, res) => {
 
 // Route mới: lấy chi tiết đầy đủ course content cho học viên đã đăng ký
 // Bao gồm contentUrl của videos, materials và chi tiết quiz
-courseRouter.get("/:courseId/content", async (req, res) => {
+// Protected route - yêu cầu user đã đăng ký khóa học
+courseRouter.get("/:courseId/content", protectEnrolledUser, async (req, res) => {
     getCourseContentForEnrolledUser(req, res);
 });
 

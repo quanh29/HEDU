@@ -12,6 +12,7 @@ import {
     generateMaterialSignedUrl,
     upload 
 } from '../controllers/materialUploadController.js';
+import { protectEnrolledUser } from '../middleware/auth.js';
 
 const materialRouter = express.Router();
 
@@ -21,11 +22,11 @@ materialRouter.post('/upload', upload.single('file'), uploadMaterial);
 // Delete material with file (from Cloudinary and MongoDB)
 materialRouter.delete('/delete/:materialId', deleteMaterialFile);
 
-// Generate signed URL for downloading material (public route - có thể access từ frontend)
-materialRouter.post('/:materialId/signed-url', generateMaterialSignedUrl);
+// Generate signed URL for downloading material (protected for enrolled users)
+materialRouter.post('/:materialId/signed-url', protectEnrolledUser, generateMaterialSignedUrl);
 
-// Get material by ID (public route - để frontend có thể lấy thông tin)
-materialRouter.get('/:materialId', getMaterialById);
+// Get material by ID (protected for enrolled users)
+materialRouter.get('/:materialId', protectEnrolledUser, getMaterialById);
 
 // Public routes
 materialRouter.get('/section/:sectionId', getMaterialsBySectionId);

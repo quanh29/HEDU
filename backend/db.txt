@@ -70,10 +70,11 @@ CREATE TABLE Levels (
     title				VARCHAR(255) UNIQUE
 );
 
-//chưa thêm
-CREATE TABLE Enrollments (
+CREATE TABLE Enrolments (
 	user_id 			VARCHAR(36),
     course_id			VARCHAR(36),
+    rating				DECIMAL,
+    enroll_time			DATETIME,
     FOREIGN KEY(course_id) REFERENCES Courses(course_id),
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );

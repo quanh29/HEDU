@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import styles from './CourseContent.module.css';
 import axios from 'axios';
+import { getAuthConfigFromHook } from '../../utils/clerkAuth';
 
 function CourseContent() {
 	const { courseId } = useParams();
 	const navigate = useNavigate();
+	const { getToken, isLoaded, isSignedIn } = useAuth();
 	const [course, setCourse] = useState(null);
 	const [sections, setSections] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [expandedSections, setExpandedSections] = useState({});
 	const [downloading, setDownloading] = useState({});
+	const [completedLessons, setCompletedLessons] = useState([]);
+	const [updatingProgress, setUpdatingProgress] = useState(false);
 
 	// Helper function để format duration từ giây thành MM:SS
 	const formatDuration = (seconds) => {
@@ -26,14 +31,97 @@ function CourseContent() {
 		return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 	};
 
+	// Fetch enrollment progress
+	const fetchEnrollmentProgress = async () => {
+		try {
+			const authConfig = await getAuthConfigFromHook(getToken);
+			const response = await axios.get(
+				`${import.meta.env.VITE_BASE_URL}/api/enrollment/check/${courseId}`,
+				authConfig
+			);
+			
+			if (response.data.success && response.data.data) {
+				setCompletedLessons(response.data.data.completedLessons || []);
+			}
+		} catch (error) {
+			console.error('Error fetching enrollment progress:', error);
+		}
+	};
+
+	// Toggle lesson complete status
+	const toggleLessonComplete = async (e, lessonId) => {
+		e.stopPropagation(); // Prevent lesson click event
+		
+		if (updatingProgress) return;
+		
+		try {
+			setUpdatingProgress(true);
+			const authConfig = await getAuthConfigFromHook(getToken);
+			
+			// Check current status
+			const wasCompleted = completedLessons.includes(lessonId);
+			
+			// Optimistically update UI
+			if (wasCompleted) {
+				// Remove from completed
+				setCompletedLessons(prev => prev.filter(id => id !== lessonId));
+			} else {
+				// Add to completed
+				setCompletedLessons(prev => [...prev, lessonId]);
+			}
+			
+			// Call API to update
+			await axios.put(
+				`${import.meta.env.VITE_BASE_URL}/api/enrollment/${courseId}/complete-lesson`,
+				{ 
+					lessonId,
+					action: wasCompleted ? 'uncomplete' : 'complete'
+				},
+				authConfig
+			);
+		} catch (error) {
+			console.error('Error updating lesson progress:', error);
+			// Revert on error
+			await fetchEnrollmentProgress();
+		} finally {
+			setUpdatingProgress(false);
+		}
+	};
+
+	// Calculate progress percentage
+	const calculateProgress = () => {
+		const totalLessons = sections.reduce((sum, section) => sum + section.lessons.length, 0);
+		if (totalLessons === 0) return 0;
+		return Math.round((completedLessons.length / totalLessons) * 100);
+	};
+
 	// Fetch dữ liệu khóa học
 	useEffect(() => {
 		const fetchCourseContent = async () => {
+			// Wait for Clerk to be loaded
+			if (!isLoaded) {
+				return;
+			}
+
+			// Check if user is signed in
+			if (!isSignedIn) {
+				setError('Vui lòng đăng nhập để truy cập nội dung khóa học');
+				setLoading(false);
+				return;
+			}
+
 			try {
 				setLoading(true);
-				// const response = await fetch(`http://localhost:3000/api/course/${courseId}/content`);
-				// use env variable for base URL
-				const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/content`);
+				setError(null);
+				
+				// Lấy auth config từ Clerk hook
+				const authConfig = await getAuthConfigFromHook(getToken);
+				
+				// Gọi API với authentication header
+				const response = await axios.get(
+					`${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/content`,
+					authConfig
+				);
 				
 				if (response.status !== 200) {
 					throw new Error('Failed to fetch course content');
@@ -42,6 +130,9 @@ function CourseContent() {
 				const data = response.data;
 				setCourse(data.course);
 				setSections(data.sections);
+				
+				// Fetch enrollment để lấy completed lessons
+				await fetchEnrollmentProgress();
 				
 				// Mở rộng tất cả section mặc định
 				const initial = {};
@@ -53,7 +144,16 @@ function CourseContent() {
 				setLoading(false);
 			} catch (err) {
 				console.error('Error fetching course content:', err);
-				setError(err.message);
+				
+				// Xử lý các loại lỗi khác nhau
+				if (err.response?.status === 401) {
+					setError('Vui lòng đăng nhập để truy cập nội dung khóa học');
+				} else if (err.response?.status === 403) {
+					setError('Bạn chưa đăng ký khóa học này. Vui lòng đăng ký để truy cập nội dung.');
+				} else {
+					setError(err.response?.data?.message || 'Có lỗi xảy ra khi tải nội dung khóa học');
+				}
+				
 				setLoading(false);
 			}
 		};
@@ -61,7 +161,7 @@ function CourseContent() {
 		if (courseId) {
 			fetchCourseContent();
 		}
-	}, [courseId]);
+	}, [courseId, isLoaded, isSignedIn, getToken]);
 
 	const toggleSection = (sectionId) => {
 		setExpandedSections(prev => ({
@@ -80,9 +180,10 @@ function CourseContent() {
 			navigate(`/course/${courseId}/content/video?videoId=${lesson.lessonId}`);
 		} else if (lesson.type === 'video') {
 			console.warn('Video lesson missing videoId:', lesson);
-		} else if (lesson.type === 'quiz') {
-			// Navigate đến quiz
-			navigate(`/quizzes?quizId=${lesson.quizId}`);
+		} else if (lesson.type === 'quiz' && lesson.lessonId) {
+			// Navigate đến quiz với courseId
+			console.log('Navigating to quiz:', lesson.lessonId);
+			navigate(`/course/${courseId}/content/quiz?quizId=${lesson.lessonId}&view=intro`);
 		} else if (lesson.type === 'document') {
 			// Download document
 			handleDocumentDownload(lesson);
@@ -98,13 +199,17 @@ function CourseContent() {
 			// Set downloading state
 			setDownloading(prev => ({ ...prev, [lesson.lessonId]: true }));
 
+			// Lấy auth config từ Clerk hook
+			const authConfig = await getAuthConfigFromHook(getToken);
+
 			// Get signed URL from backend
 			const response = await axios.post(
-				`${import.meta.env.VITE_BASE_URL}/api/material/${lesson.lessonId}/signed-url`,
+				`${import.meta.env.VITE_BASE_URL}/api/material/${lesson.lessonId}/signed-url?courseId=${courseId}`,
 				{ expiresIn: 3600 }, // URL expires in 1 hour
 				{
 					headers: {
-						'Content-Type': 'application/json'
+						'Content-Type': 'application/json',
+						...authConfig.headers
 					}
 				}
 			);
@@ -132,7 +237,16 @@ function CourseContent() {
 			console.error('Error response:', error.response?.data);
 			console.error('Error status:', error.response?.status);
 			
-			const errorMessage = error.response?.data?.message || 'Không thể tải tài liệu. Vui lòng thử lại sau.';
+			let errorMessage = 'Không thể tải tài liệu. Vui lòng thử lại sau.';
+			
+			if (error.response?.status === 401) {
+				errorMessage = 'Vui lòng đăng nhập để tải tài liệu';
+			} else if (error.response?.status === 403) {
+				errorMessage = 'Bạn không có quyền tải tài liệu này';
+			} else if (error.response?.data?.message) {
+				errorMessage = error.response.data.message;
+			}
+			
 			alert(errorMessage);
 		} finally {
 			// Clear downloading state
@@ -190,7 +304,57 @@ function CourseContent() {
 	if (error) {
 		return (
 			<div className={styles.courseContainer}>
-				<div className={styles.error}>Lỗi: {error}</div>
+				<div className={styles.error}>
+					<h2 style={{ marginBottom: '1rem', color: '#e74c3c' }}>Không thể truy cập khóa học</h2>
+					<p style={{ marginBottom: '1.5rem' }}>{error}</p>
+					{error.includes('đăng nhập') && (
+						<button 
+							onClick={() => navigate('/sign-in')}
+							style={{
+								padding: '0.75rem 1.5rem',
+								background: '#333',
+								color: 'white',
+								border: 'none',
+								borderRadius: '8px',
+								cursor: 'pointer',
+								fontSize: '1rem'
+							}}
+						>
+							Đăng nhập
+						</button>
+					)}
+					{error.includes('đăng ký khóa học') && (
+						<button 
+							onClick={() => navigate(`/course/${courseId}`)}
+							style={{
+								padding: '0.75rem 1.5rem',
+								background: '#333',
+								color: 'white',
+								border: 'none',
+								borderRadius: '8px',
+								cursor: 'pointer',
+								fontSize: '1rem',
+								marginRight: '1rem'
+							}}
+						>
+							Xem thông tin khóa học
+						</button>
+					)}
+					<button 
+						onClick={() => navigate('/')}
+						style={{
+							padding: '0.75rem 1.5rem',
+							background: 'transparent',
+							color: '#333',
+							border: '2px solid #333',
+							borderRadius: '8px',
+							cursor: 'pointer',
+							fontSize: '1rem'
+						}}
+					>
+						Về trang chủ
+					</button>
+				</div>
 			</div>
 		);
 	}
@@ -209,6 +373,24 @@ function CourseContent() {
 			<h1 className={styles.courseTitle}>
 				Nội dung khóa học: {course.title || 'Tên khóa học'}
 			</h1>
+			
+			{/* Progress Bar */}
+			<div className={styles.progressSection}>
+				<div className={styles.progressHeader}>
+					<span className={styles.progressLabel}>Tiến độ học tập</span>
+					<span className={styles.progressPercentage}>{calculateProgress()}%</span>
+				</div>
+				<div className={styles.progressBarContainer}>
+					<div 
+						className={styles.progressBarFill} 
+						style={{ width: `${calculateProgress()}%` }}
+					></div>
+				</div>
+				<div className={styles.progressStats}>
+					<span>{completedLessons.length} / {sections.reduce((sum, s) => sum + s.lessons.length, 0)} bài học đã hoàn thành</span>
+				</div>
+			</div>
+
 			<div className={styles.sectionsContainer}>
 				{sections.map((section, idx) => (
 					<div key={section.sectionId} className={styles.section}>
@@ -229,43 +411,57 @@ function CourseContent() {
 						</div>
 						{expandedSections[section.sectionId] && (
 							<ul className={styles.lessonsList}>
-								{section.lessons.map((lesson, lidx) => (
-									<li 
-										key={lesson.lessonId || `${section.sectionId}-${lidx}`}
-										className={`${styles.lessonItem} ${
-											(lesson.type === 'video' || lesson.type === 'document' || lesson.type === 'quiz') 
-											? styles.clickable 
-											: ''
-										} ${downloading[lesson.lessonId] ? styles.downloading : ''}`}
-										onClick={(e) => {
-											e.preventDefault();
-											e.stopPropagation();
-											console.log('Li clicked for lesson:', lesson.title); // Debug
-											handleLessonClick(lesson);
-										}}
-									>
-										<div className={styles.lessonContent}>
-											<div className={styles.iconContainer}>
-												{renderLessonIcon(lesson.type)}
-											</div>
-											<div className={styles.lessonDetails}>
-												<div className={styles.titleRow}>
-													<h3 className={`${styles.lessonTitle} ${lesson.completed ? styles.lessonTitleCompleted : ''}`}>
-														{lesson.title || `Bài học ${lidx + 1}`}
-													</h3>
-													{lesson.completed && (
-														<span className={styles.completedBadge}>
-															Đã hoàn thành
-														</span>
-													)}
+								{section.lessons.map((lesson, lidx) => {
+									const isCompleted = completedLessons.includes(lesson.lessonId);
+									return (
+										<li 
+											key={lesson.lessonId || `${section.sectionId}-${lidx}`}
+											className={`${styles.lessonItem} ${
+												(lesson.type === 'video' || lesson.type === 'document' || lesson.type === 'quiz') 
+												? styles.clickable 
+												: ''
+											} ${downloading[lesson.lessonId] ? styles.downloading : ''}`}
+											onClick={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												console.log('Li clicked for lesson:', lesson.title); // Debug
+												handleLessonClick(lesson);
+											}}
+										>
+											<div className={styles.lessonContent}>
+												{/* Checkbox */}
+												<div className={styles.checkboxContainer}>
+													<input
+														type="checkbox"
+														className={styles.lessonCheckbox}
+														checked={isCompleted}
+														onChange={(e) => toggleLessonComplete(e, lesson.lessonId)}
+														onClick={(e) => e.stopPropagation()}
+													/>
 												</div>
-												<div className={styles.metaContainer}>
-													{renderLessonMeta(lesson)}
+												
+												<div className={styles.iconContainer}>
+													{renderLessonIcon(lesson.type)}
+												</div>
+												<div className={styles.lessonDetails}>
+													<div className={styles.titleRow}>
+														<h3 className={`${styles.lessonTitle} ${isCompleted ? styles.lessonTitleCompleted : ''}`}>
+															{lesson.title || `Bài học ${lidx + 1}`}
+														</h3>
+														{isCompleted && (
+															<span className={styles.completedBadge}>
+																Đã hoàn thành
+															</span>
+														)}
+													</div>
+													<div className={styles.metaContainer}>
+														{renderLessonMeta(lesson)}
+													</div>
 												</div>
 											</div>
-										</div>
-									</li>
-								))}
+										</li>
+									);
+								})}
 							</ul>
 						)}
 					</div>

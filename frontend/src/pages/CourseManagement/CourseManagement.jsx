@@ -461,8 +461,13 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
     setSaving(true);
     try {
-      // Hardcoded instructorId - tạm thời như trong Instructor.jsx
-      const instructorId = '98f7f734-aaa8-11f0-8462-581122e62853';
+      // Get instructorId from Clerk user
+      const instructorId = user?.id;
+      
+      if (!instructorId) {
+        alert('Vui lòng đăng nhập để tạo khóa học');
+        return;
+      }
       
       // Map level và language từ title sang ID
       const selectedLevel = levels.find(lv => lv.title.toLowerCase() === courseData.level.toLowerCase());

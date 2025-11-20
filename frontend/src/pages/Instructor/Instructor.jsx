@@ -59,31 +59,41 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   }, [location.pathname]);
 
   // Redirect to /auth if not signed in
-  // useEffect(() => {
-  //   if (isLoaded && !isSignedIn) {
-  //     navigate('/auth', { replace: true });
-  //   }
-  // }, [isLoaded, isSignedIn, navigate]);
-
-  // Fetch data when component mounts
   useEffect(() => {
-    // Tạm thời bỏ check user?.id để test với user_id cố định
-    fetchInstructorData();
-  }, []);
+    if (isLoaded && !isSignedIn) {
+      navigate('/sign-in', { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate]);
+
+  // Fetch data when component mounts and user is loaded
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user?.id) {
+      fetchInstructorData();
+    }
+  }, [isLoaded, isSignedIn, user?.id]);
 
   // Refresh data when window gets focus (user comes back from creating course)
   useEffect(() => {
     const handleFocus = () => {
-      fetchInstructorData();
+      if (isLoaded && isSignedIn && user?.id) {
+        fetchInstructorData();
+      }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [isLoaded, isSignedIn, user?.id]);
 
   const fetchInstructorData = async () => {
-    // Tạm thời dùng user_id cố định để test
-    const instructorId = '98f7f734-aaa8-11f0-8462-581122e62853';
+    // Kiểm tra user đã load và có userId
+    if (!user?.id) {
+      console.warn('User not loaded or no user ID');
+      setLoading(false);
+      return;
+    }
+
+    const instructorId = user.id;
+    console.log('Fetching data for instructor:', instructorId);
     
     setLoading(true);
     try {
@@ -766,6 +776,22 @@ const Instructor = ({ activeTab: propActiveTab }) => {
     );
   };
 
+  // Loading state - hiển thị khi đang load Clerk hoặc fetch data
+  if (!isLoaded || loading) {
+    return (
+      <div className={styles.instructorContainer}>
+        <div className={styles.loading}>
+          {!isLoaded ? 'Đang xác thực...' : 'Đang tải dữ liệu...'}
+        </div>
+      </div>
+    );
+  }
+
+  // Not signed in - đã được redirect bởi useEffect
+  if (!isSignedIn) {
+    return null;
+  }
+
   return (
     <div className={styles.instructorContainer}>
       {/* Header */}
@@ -813,18 +839,10 @@ const Instructor = ({ activeTab: propActiveTab }) => {
 
           {/* Main Content */}
           <div className={styles.mainContent}>
-            {loading ? (
-              <div className={styles.loading}>
-                Đang tải dữ liệu...
-              </div>
-            ) : (
-              <>
-                {activeTab === 'dashboard' && <Dashboard />}
-                {activeTab === 'courses' && <CourseManagement />}
-                {activeTab === 'students' && <StudentManagement />}
-                {activeTab === 'courseDetail' && <CourseDetail />}
-              </>
-            )}
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'courses' && <CourseManagement />}
+            {activeTab === 'students' && <StudentManagement />}
+            {activeTab === 'courseDetail' && <CourseDetail />}
           </div>
         </div>
       </div>

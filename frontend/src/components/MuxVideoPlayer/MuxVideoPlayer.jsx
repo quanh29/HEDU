@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
+import { useAuth } from '@clerk/clerk-react';
 import styles from './MuxVideoPlayer.module.css';
 
-const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate, onReady }) => {
+const MuxVideoPlayer = ({ videoId, courseId, autoPlay = false, onEnded, onTimeUpdate, onReady }) => {
   const [playbackData, setPlaybackData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const playerRef = useRef(null);
   const onReadyRef = useRef(onReady);
+  const { getToken } = useAuth();
 
   // Update ref when onReady changes
   useEffect(() => {
@@ -22,12 +24,25 @@ const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate, onRe
       return;
     }
 
+    if (!courseId) {
+      setError('Course ID is required');
+      setLoading(false);
+      return;
+    }
+
     const fetchPlayback = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/video/playback/${videoId}`);
+        const token = await getToken();
+        const url = `${import.meta.env.VITE_BASE_URL}/api/video/playback/${videoId}?courseId=${courseId}`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const result = await response.json();
 
         if (!response.ok || !result.success) {
@@ -49,7 +64,7 @@ const MuxVideoPlayer = ({ videoId, autoPlay = false, onEnded, onTimeUpdate, onRe
     };
 
     fetchPlayback();
-  }, [videoId]); // Only depend on videoId
+  }, [videoId, courseId, getToken]); // Depend on videoId, courseId, and getToken
 
   // Handle player events
   const handleTimeUpdate = (e) => {

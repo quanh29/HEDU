@@ -20,6 +20,7 @@ import muxUploadRouter from './routes/muxUploadRoute.js';
 import cloudinaryRouter from './routes/cloudinaryRoute.js';
 import thumbnailRouter from './routes/thumbnailRoute.js';
 import adminRouter from './routes/adminRoute.js';
+import enrollmentRouter from './routes/enrollmentRoute.js';
 
 const app = express();
 const port = 3000;
@@ -61,6 +62,7 @@ app.use("/api/mux", muxUploadRouter);
 app.use("/api/cloudinary", cloudinaryRouter);
 app.use("/api/thumbnail", thumbnailRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/enrollment", enrollmentRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

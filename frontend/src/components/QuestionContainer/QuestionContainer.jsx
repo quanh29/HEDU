@@ -11,7 +11,7 @@ const QuestionContainer = ({ question, answers, handleAnswerSelect }) => (
         {question.type === 'single' ? 'Chọn một đáp án' : 'Chọn nhiều đáp án'}
       </span>
     </div>
-    <h2 className={styles.questionText}>{question.question}</h2>
+    <h2 className={styles.questionText}>{question.questionText || question.question}</h2>
     <div className={styles.options}>
       {question.options.map((option, index) => {
         const isSelected = answers[question.id]?.includes(index) || false;

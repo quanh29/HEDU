@@ -3,18 +3,23 @@ import {
     addQuiz, 
     getQuizById, 
     getQuizForStudent,
+    getQuizForEnrolledUser,
     getQuizzesBySectionId, 
     submitQuiz,
     updateQuiz, 
     deleteQuiz 
 } from '../controllers/quizController.js';
+import { protectEnrolledUser } from '../middleware/auth.js';
 
 const quizRouter = express.Router();
 
 // Public routes
 quizRouter.get('/section/:sectionId', getQuizzesBySectionId);
 quizRouter.get('/student/:quizId', getQuizForStudent);
-quizRouter.post('/submit/:quizId', submitQuiz);
+
+// Protected routes - for enrolled users
+quizRouter.get('/enrolled/:courseId/:quizId', protectEnrolledUser, getQuizForEnrolledUser);
+quizRouter.post('/submit/:quizId', protectEnrolledUser, submitQuiz);
 
 // Protected routes (instructor/admin)
 quizRouter.post('/', addQuiz);

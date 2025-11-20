@@ -81,6 +81,7 @@ const VideoSection = () => {
         {videoId ? (
           <MuxVideoPlayer
             videoId={videoId}
+            courseId={courseId}
             autoPlay={false}
             onReady={handleVideoReady}
             onTimeUpdate={handleTimeUpdate}
