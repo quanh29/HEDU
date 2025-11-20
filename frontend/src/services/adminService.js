@@ -1,11 +1,12 @@
-import api from './api';
+import axios from 'axios';
 
 /**
  * Admin Service - API calls cho admin quản lý courses
+ * Note: Các function này cần truyền token từ Clerk vào
  */
 
 // Lấy tất cả courses cho admin (bao gồm tất cả status)
-export const getAllCoursesForAdmin = async (filters = {}) => {
+export const getAllCoursesForAdmin = async (token, filters = {}) => {
   try {
     const params = new URLSearchParams();
     
@@ -25,7 +26,14 @@ export const getAllCoursesForAdmin = async (filters = {}) => {
       params.append('limit', filters.limit);
     }
     
-    const response = await api.get(`/api/admin/courses?${params.toString()}`);
+    const response = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching courses for admin:', error);
@@ -34,9 +42,16 @@ export const getAllCoursesForAdmin = async (filters = {}) => {
 };
 
 // Lấy thống kê courses
-export const getCourseStatistics = async () => {
+export const getCourseStatistics = async (token) => {
   try {
-    const response = await api.get('/api/admin/courses/statistics');
+    const response = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/statistics`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching course statistics:', error);
@@ -45,9 +60,16 @@ export const getCourseStatistics = async () => {
 };
 
 // Lấy chi tiết course cho admin
-export const getCourseByIdForAdmin = async (courseId) => {
+export const getCourseByIdForAdmin = async (token, courseId) => {
   try {
-    const response = await api.get(`/api/admin/courses/${courseId}`);
+    const response = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/${courseId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching course for admin:', error);
@@ -56,9 +78,16 @@ export const getCourseByIdForAdmin = async (courseId) => {
 };
 
 // Lấy full course data cho admin (bao gồm sections và lessons)
-export const getFullCourseDataForAdmin = async (courseId) => {
+export const getFullCourseDataForAdmin = async (token, courseId) => {
   try {
-    const response = await api.get(`/api/admin/courses/${courseId}/full`);
+    const response = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/${courseId}/full`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching full course data for admin:', error);
@@ -67,12 +96,20 @@ export const getFullCourseDataForAdmin = async (courseId) => {
 };
 
 // Cập nhật status của course
-export const updateCourseStatus = async (courseId, status, reason = '') => {
+export const updateCourseStatus = async (token, courseId, status, reason = '') => {
   try {
-    const response = await api.patch(`/api/admin/courses/${courseId}/status`, {
-      course_status: status,
-      reason: reason
-    });
+    const response = await axios.patch(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/${courseId}/status`,
+      {
+        course_status: status,
+        reason: reason
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error updating course status:', error);
@@ -81,9 +118,17 @@ export const updateCourseStatus = async (courseId, status, reason = '') => {
 };
 
 // Cập nhật thông tin course
-export const updateCourseByAdmin = async (courseId, courseData) => {
+export const updateCourseByAdmin = async (token, courseId, courseData) => {
   try {
-    const response = await api.put(`/api/admin/courses/${courseId}`, courseData);
+    const response = await axios.put(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/${courseId}`,
+      courseData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error updating course by admin:', error);
@@ -92,9 +137,16 @@ export const updateCourseByAdmin = async (courseId, courseData) => {
 };
 
 // Xóa course
-export const deleteCourseByAdmin = async (courseId) => {
+export const deleteCourseByAdmin = async (token, courseId) => {
   try {
-    const response = await api.delete(`/api/admin/courses/${courseId}`);
+    const response = await axios.delete(
+      `${import.meta.env.VITE_BASE_URL}/api/admin/courses/${courseId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error deleting course by admin:', error);

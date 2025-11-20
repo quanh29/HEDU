@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import axios from 'axios';
 import styles from './Admin.module.css';
 import { 
@@ -14,7 +14,8 @@ import {
   Bell,
   Mail,
   ChevronRight,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
 import Dashboard from './components/Dashboard/Dashboard';
 import CourseApproval from './components/CourseApproval/CourseApproval';
@@ -25,8 +26,10 @@ import SupportTickets from './components/SupportTickets/SupportTickets';
 
 const Admin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
+  const { signOut } = useClerk();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [verifying, setVerifying] = useState(true);
@@ -36,6 +39,17 @@ const Admin = () => {
     initials: 'A'
   });
 
+  // Sync activeTab with URL
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === '/admin/dashboard') setActiveTab('dashboard');
+    else if (path === '/admin/courses') setActiveTab('course-management');
+    else if (path === '/admin/users') setActiveTab('admin-management');
+    else if (path === '/admin/statistics') setActiveTab('promotions');
+    else if (path === '/admin/support') setActiveTab('support-tickets');
+    else if (path === '/admin/settings') setActiveTab('settings');
+  }, [location.pathname]);
+
   // Verify admin access via backend
   useEffect(() => {
     const verifyAdminAccess = async () => {
@@ -43,7 +57,7 @@ const Admin = () => {
 
       if (!isSignedIn) {
         // Not signed in, redirect to admin login
-        navigate('/admin');
+        navigate('/login-admin');
         return;
       }
 
@@ -78,24 +92,40 @@ const Admin = () => {
         }
       } catch (error) {
         console.error('Admin verification failed:', error);
-        // Not authorized, redirect to admin login with error
-        alert('Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản admin.');
-        navigate('/admin');
+        
+        // User is signed in but not admin, force sign out
+        await signOut();
+        
+        // Redirect to admin login with error message
+        alert('Bạn không có quyền truy cập trang quản trị. Bạn đã được đăng xuất. Vui lòng đăng nhập bằng tài khoản admin.');
+        navigate('/login-admin');
       } finally {
         setVerifying(false);
       }
     };
 
     verifyAdminAccess();
-  }, [isLoaded, isSignedIn, user, getToken, navigate]);
+  }, [isLoaded, isSignedIn, user, getToken, signOut, navigate]);
+
+  const handleLogout = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+      try {
+        await signOut({ redirectUrl: null });
+        navigate('/login-admin');
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại.');
+      }
+    }
+  };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Tổng quan', icon: Home },
-    { id: 'course-management', label: 'Khóa học', icon: BookOpen },
-    { id: 'admin-management', label: 'Người dùng', icon: Users },
-    { id: 'promotions', label: 'Thống kê', icon: BarChart3 },
-    { id: 'support-tickets', label: 'Hỗ trợ', icon: HelpCircle },
-    { id: 'settings', label: 'Cài đặt', icon: Settings }
+    { id: 'dashboard', label: 'Tổng quan', icon: Home, path: '/admin/dashboard' },
+    { id: 'course-management', label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
+    { id: 'admin-management', label: 'Người dùng', icon: Users, path: '/admin/users' },
+    { id: 'promotions', label: 'Thống kê', icon: BarChart3, path: '/admin/statistics' },
+    { id: 'support-tickets', label: 'Hỗ trợ', icon: HelpCircle, path: '/admin/support' },
+    { id: 'settings', label: 'Cài đặt', icon: Settings, path: '/admin/settings' }
   ];
 
   const renderContent = () => {
@@ -154,7 +184,7 @@ const Admin = () => {
                 key={item.id}
                 className={`${styles.menuItem} ${activeTab === item.id ? styles.active : ''}`}
                 onClick={() => {
-                  setActiveTab(item.id);
+                  navigate(item.path);
                   setSidebarOpen(false);
                 }}
               >
@@ -171,6 +201,13 @@ const Admin = () => {
             <div className={styles.userName}>{adminInfo.name}</div>
             <div className={styles.userRole}>{adminInfo.role}</div>
           </div>
+          <button 
+            className={styles.logoutButton}
+            onClick={handleLogout}
+            title="Đăng xuất"
+          >
+            <LogOut size={20} />
+          </button>
         </div>
       </aside>
 

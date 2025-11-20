@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import styles from './CourseManagement.module.css';
 import MuxVideoPlayer from '../../../../components/MuxVideoPlayer/MuxVideoPlayer';
 import { 
@@ -11,6 +12,7 @@ import {
 } from '../../../../services/adminService';
 
 const CourseManagement = () => {
+  const { getToken } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,7 +37,8 @@ const CourseManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getAllCoursesForAdmin();
+      const token = await getToken();
+      const data = await getAllCoursesForAdmin(token);
       console.log('Fetched courses:', data);
       setCourses(data || []);
     } catch (err) {
@@ -66,7 +69,8 @@ const CourseManagement = () => {
 
   const handleStatusChange = async (courseId, newStatus) => {
     try {
-      await updateCourseStatus(courseId, newStatus);
+      const token = await getToken();
+      await updateCourseStatus(token, courseId, newStatus);
       // Update local state
       setCourses(prev => 
         prev.map(course => 
@@ -85,7 +89,8 @@ const CourseManagement = () => {
   const handleDeleteCourse = async (courseId) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa khóa học này?')) {
       try {
-        await deleteCourseByAdmin(courseId);
+        const token = await getToken();
+        await deleteCourseByAdmin(token, courseId);
         setCourses(prev => prev.filter(course => course.course_id !== courseId));
         alert('Xóa khóa học thành công!');
       } catch (error) {
@@ -102,7 +107,8 @@ const CourseManagement = () => {
 
   const handleViewDetails = async (course) => {
     try {
-      const response = await getFullCourseDataForAdmin(course.course_id);
+      const token = await getToken();
+      const response = await getFullCourseDataForAdmin(token, course.course_id);
       console.log('Full course data:', response);
       setSelectedCourse(response.course || response);
       setActionType('details');

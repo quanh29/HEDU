@@ -1,5 +1,5 @@
 import Navbar from './components/Navbar/Navbar.jsx'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import CourseSearch from './pages/CourseSearch/CourseSearch.jsx'
 import CoursePage from './pages/CoursePage.jsx'
@@ -12,7 +12,6 @@ import VideoSection from './pages/VideoSection/VideoSection.jsx'
 import Quizzes from './pages/Quizzes/Quizzes.jsx'
 import SSOCallback from './components/SSOCallback/SSOCallback.jsx'
 import { useAppContext } from './context/AppContext.jsx'
-import { Navigate } from 'react-router-dom'
 import Instructor from './pages/Instructor/Instructor.jsx'
 import CreateUpdateCourse from './pages/CourseManagement/CourseManagement.jsx'
 import Admin from './pages/Admin/Admin.jsx'
@@ -21,14 +20,14 @@ import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 
 function App() {
   const location = useLocation();
-  const isAdmin = location.pathname.startsWith('/admin');
+  const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/login-admin');
 
   const {user} = useAppContext();
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Toaster/>
-      {!isAdmin && <Navbar/>}
+      {!isAdminRoute && <Navbar/>}
       <div style={{ flex: 1 }}>
         <Routes >
           <Route path='/' element={<Home/>}/>
@@ -55,14 +54,20 @@ function App() {
           
           <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           
-          {/* Admin Routes */}
-          <Route path='/admin' element={<AdminLogin/>}/>
+          {/* Admin Routes - Completely separate, no Navbar/Footer */}
+          <Route path='/login-admin' element={<AdminLogin/>}/>
+          <Route path='/admin' element={<Navigate to="/admin/dashboard" replace />}/>
           <Route path='/admin/dashboard' element={<Admin/>}/>
+          <Route path='/admin/courses' element={<Admin/>}/>
+          <Route path='/admin/users' element={<Admin/>}/>
+          <Route path='/admin/statistics' element={<Admin/>}/>
+          <Route path='/admin/support' element={<Admin/>}/>
+          <Route path='/admin/settings' element={<Admin/>}/>
           
           <Route path='/upload-demo' element={<UploadDemo/>}/>
         </Routes>
       </div>
-      {!isAdmin && <Footer/>}
+      {!isAdminRoute && <Footer/>}
     </div>
   )
 }
