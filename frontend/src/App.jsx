@@ -17,6 +17,7 @@ import CreateUpdateCourse from './pages/CourseManagement/CourseManagement.jsx'
 import Admin from './pages/Admin/Admin.jsx'
 import AdminLogin from './pages/AdminLogin/AdminLogin.jsx'
 import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
+import { CartProvider } from './context/CartContext.jsx'
 
 function App() {
   const location = useLocation();
@@ -25,9 +26,10 @@ function App() {
   const {user} = useAppContext();
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Toaster/>
-      {!isAdminRoute && <Navbar/>}
+    <CartProvider>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Toaster/>
+        {!isAdminRoute && <Navbar/>}
       <div style={{ flex: 1 }}>
         <Routes >
           <Route path='/' element={<Home/>}/>
@@ -70,6 +72,7 @@ function App() {
       </div>
       {!isAdminRoute && <Footer/>}
     </div>
+    </CartProvider>
   )
 }
 

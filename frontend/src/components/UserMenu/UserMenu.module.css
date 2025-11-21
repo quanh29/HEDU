@@ -1,0 +1,149 @@
+/* User Menu Styles */
+.userMenuWrapper {
+  position: relative;
+}
+
+.userAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #e0e0e0;
+  transition: all 0.3s ease;
+  object-fit: cover;
+}
+
+.userAvatar:hover {
+  border-color: #FF6B6B;
+  transform: scale(1.05);
+}
+
+.userDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 0;
+  min-width: 280px;
+  z-index: 1000;
+  margin-top: 8px;
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.userInfo {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.userDropdownAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+}
+
+.userDetails {
+  flex: 1;
+}
+
+.userName {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.userEmail {
+  color: #718096;
+  font-size: 0.875rem;
+}
+
+.menuDivider {
+  height: 1px;
+  background: #f1f3f4;
+  margin: 0;
+}
+
+.userMenuList {
+  list-style: none;
+  padding: 0.5rem 0;
+  margin: 0;
+}
+
+.userMenuList li {
+  padding: 0;
+}
+
+.userMenuList li span {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: #4a5568;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.userMenuList li:hover span {
+  background: #f7fafc;
+  color: #2d3748;
+}
+
+.signOutBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+  color: #e53e3e;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signOutBtn:hover {
+  background: #fed7d7;
+}
+
+.menuIcon {
+  display: flex;
+  align-items: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .userDropdown {
+    min-width: 250px;
+    right: -20px;
+  }
+
+  .userInfo {
+    padding: 1rem;
+  }
+
+  .userMenuList li span,
+  .signOutBtn {
+    padding: 0.625rem 1rem;
+  }
+}

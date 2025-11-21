@@ -111,11 +111,9 @@ CREATE TABLE OrderDetail (
 CREATE TABLE Carts (
 	cart_id				VARCHAR(36) PRIMARY KEY,
     user_id				VARCHAR(36) UNIQUE,
-    amount				DECIMAL,
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );
 
-//chưa thêm
 CREATE TABLE CartDetail (
 	cart_id				VARCHAR(36),
     course_id			VARCHAR(36),

@@ -180,7 +180,7 @@ function MyLearning() {
           <div className={styles.emptyIcon}>📚</div>
           <h2>Bạn chưa đăng ký khóa học nào</h2>
           <p>Khám phá các khóa học để bắt đầu hành trình học tập của bạn</p>
-          <button onClick={() => navigate('/courses')} className={styles.exploreBtn}>
+          <button onClick={() => navigate('/')} className={styles.exploreBtn}>
             Khám phá khóa học
           </button>
         </div>

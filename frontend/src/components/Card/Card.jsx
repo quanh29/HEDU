@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { useCart } from '../../context/CartContext';
+import axios from 'axios';
 
 const Card = ({ 
   courseId, // Thêm courseId prop
@@ -13,6 +16,8 @@ const Card = ({
 }) => {
   const hasDiscount = originalPrice && currentPrice && originalPrice !== currentPrice;
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
+  const { addToCart } = useCart();
   const [isHovered, setIsHovered] = useState(false);
   
   const handleStarHover = (e, isEntering) => {
@@ -57,6 +62,31 @@ const Card = ({
       navigate(url);
     } else {
       console.warn('Missing courseId:', { courseId, title });
+    }
+  };
+
+  // Xử lý thêm vào giỏ hàng
+  const handleAddToCart = async (e) => {
+    e.stopPropagation(); // Ngăn click event bubbling lên card
+
+    if (!isSignedIn) {
+      // Nếu chưa đăng nhập, chuyển đến trang login
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for cart addition');
+      return;
+    }
+
+    const success = await addToCart(courseId);
+    if (success) {
+      console.log('Course added to cart successfully');
+      alert('Đã thêm khóa học vào giỏ hàng!');
+    } else {
+      console.error('Failed to add course to cart');
+      alert('Có lỗi xảy ra khi thêm vào giỏ hàng');
     }
   };
 
@@ -230,11 +260,7 @@ const Card = ({
             Mua ngay
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation(); // Ngăn click event bubbling lên card
-              // Xử lý thêm vào giỏ hàng
-              console.log('Thêm vào giỏ hàng:', title);
-            }}
+            onClick={handleAddToCart}
             style={{
               padding: '12px 0',
               border: '2px solid rgba(255,255,255,0.8)',
