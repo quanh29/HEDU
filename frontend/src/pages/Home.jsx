@@ -3,8 +3,11 @@ import Hero from "../components/Hero/Hero.jsx";
 import { courses } from "../assets/dummyData.js";
 import Testimonial from "../components/Testimonial/Testimonial.jsx";
 import TrustedBrand from "../components/TrustedBrand/TrustedBrand.jsx";
+import useDocumentTitle from "../hooks/useDocumentTitle.js";
 
 function Home() {
+  useDocumentTitle("Trang chủ");
+
   return (
     <>
       <Hero />

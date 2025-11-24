@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import MuxVideoPlayer from '../../components/MuxVideoPlayer/MuxVideoPlayer';
 import styles from './VideoSection.module.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const VideoSection = () => {
   const { courseId } = useParams();
@@ -10,6 +11,10 @@ const VideoSection = () => {
   const videoId = searchParams.get('videoId'); // Lấy videoId từ query params
 
   const [lessonTitle, setLessonTitle] = useState('');
+  
+  // Dynamic title based on lesson name
+  useDocumentTitle(lessonTitle || 'Xem video');
+
   const [playbackProgress, setPlaybackProgress] = useState({
     currentTime: 0,
     duration: 0,

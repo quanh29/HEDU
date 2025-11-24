@@ -24,8 +24,11 @@ import axios from 'axios';
 import { useUser } from '@clerk/clerk-react';
 import { useLocation, Outlet } from 'react-router-dom';
 import styles from './Instructor.module.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Instructor = ({ activeTab: propActiveTab }) => {
+  useDocumentTitle('Quản lý giảng dạy');
+  
   const location = useLocation();
   
   // Determine active tab from route or prop

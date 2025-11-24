@@ -18,6 +18,7 @@ import Admin from './pages/Admin/Admin.jsx'
 import AdminLogin from './pages/AdminLogin/AdminLogin.jsx'
 import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 import { CartProvider } from './context/CartContext.jsx'
+import Checkout from './pages/Checkout/Checkout.jsx'
 
 function App() {
   const location = useLocation();
@@ -42,6 +43,9 @@ function App() {
           <Route path='/course/:courseId/content/' element={<CourseContent/>}/>
           <Route path='/course/:courseId/content/video' element={<VideoSection/>}/>
           <Route path='/course/:courseId/content/quiz' element={<Quizzes/>}/>
+          
+          {/* Checkout Route */}
+          <Route path='/checkout' element={<Checkout/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

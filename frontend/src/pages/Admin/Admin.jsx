@@ -24,8 +24,11 @@ import PromotionManagement from './components/PromotionManagement/PromotionManag
 import AdminManagement from './components/AdminManagement/AdminManagement';
 import SupportTickets from './components/SupportTickets/SupportTickets';
 import RevisionApproval from './components/RevisionApproval/RevisionApproval';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Admin = () => {
+  useDocumentTitle('Quản trị hệ thống');
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoaded, isSignedIn } = useUser();

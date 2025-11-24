@@ -40,11 +40,6 @@ const Cart = () => {
     }
   };
 
-  const handleViewCart = () => {
-    setShowCartMenu(false);
-    navigate('/cart');
-  };
-
   const handleCheckout = () => {
     setShowCartMenu(false);
     navigate('/checkout');
@@ -123,12 +118,6 @@ const Cart = () => {
               </div>
               <div className={styles.cartDivider}></div>
               <div className={styles.cartActions}>
-                <button
-                  className={styles.viewCartBtn}
-                  onClick={handleViewCart}
-                >
-                  Xem giỏ hàng
-                </button>
                 <button
                   className={styles.checkoutBtn}
                   onClick={handleCheckout}

@@ -18,8 +18,8 @@ CREATE TABLE Courses (
     des					TEXT,
     rating				DECIMAL(2,1) DEFAULT 0,
     reviewCount			int(10) DEFAULT 0,
-    originalPrice		DECIMAL(10) NOT NULL,
-    currentPrice		DECIMAL(10) NOT NULL,
+    originalPrice		DECIMAL(10,2) NOT NULL,
+    currentPrice		DECIMAL(10,2) NOT NULL,
     instructor_id		VARCHAR(36),
     lv_id				VARCHAR(36),            (L1, L2, L3)
     lang_id				VARCHAR(36),
@@ -82,15 +82,6 @@ CREATE TABLE Levels (
     title				VARCHAR(255) UNIQUE
 );
 
-CREATE TABLE Enrolments (
-	user_id 			VARCHAR(36),
-    course_id			VARCHAR(36),
-    rating				DECIMAL,
-    enroll_time			DATETIME,
-    FOREIGN KEY(course_id) REFERENCES Courses(course_id),
-    FOREIGN KEY(user_id) REFERENCES Users(user_id)
-);
-
 CREATE TABLE Orders (
 	order_id			VARCHAR(36) PRIMARY KEY,
     user_id				VARCHAR(36),
@@ -103,6 +94,7 @@ CREATE TABLE Orders (
 CREATE TABLE OrderDetail (
 	order_id			VARCHAR(36),
     course_id			VARCHAR(36),
+    price				DECIMAL(10, 2),
     PRIMARY KEY(order_id, course_id),
     FOREIGN KEY(order_id) REFERENCES Orders(order_id),
     FOREIGN KEY(course_id) REFERENCES Courses(course_id)
@@ -126,9 +118,10 @@ CREATE TABLE Payments (
 	payment_id			VARCHAR(36) PRIMARY KEY,
     user_id				VARCHAR(36),
     order_id			VARCHAR(36),
-    payment_status		VARCHAR(255),
+    payment_status		ENUM('pending', 'success', 'failed') NOT NULL DEFAULT 'pending',
     method				VARCHAR(255),
-    amount				DECIMAL,
+    amount				DECIMAL(10, 2),
+    created_at 			DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES Users(user_id),
     FOREIGN KEY(order_id) REFERENCES Orders(order_id)
 );

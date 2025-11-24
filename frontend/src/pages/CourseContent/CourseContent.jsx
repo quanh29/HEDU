@@ -6,12 +6,17 @@ import styles from './CourseContent.module.css';
 import axios from 'axios';
 import { getAuthConfigFromHook } from '../../utils/clerkAuth';
 import RatingSection from '../../components/RatingSection/RatingSection';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 function CourseContent() {
 	const { courseId } = useParams();
 	const navigate = useNavigate();
 	const { getToken, isLoaded, isSignedIn } = useAuth();
 	const [course, setCourse] = useState(null);
+	
+	// Dynamic title based on course name
+	useDocumentTitle(course?.title || 'Nội dung khóa học');
+
 	const [sections, setSections] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);

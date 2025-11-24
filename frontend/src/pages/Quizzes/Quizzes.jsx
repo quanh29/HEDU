@@ -7,6 +7,7 @@ import styles from './Quizzes.module.css';
 import QuestionNav from '../../components/QuestionNav/QuestionNav.jsx';
 import QuestionContainer from '../../components/QuestionContainer/QuestionContainer.jsx';
 import ReviewQuestion from '../../components/ReviewQuestion/ReviewQuestion.jsx';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Quizzes = () => {
   const navigate = useNavigate();
@@ -32,6 +33,16 @@ const Quizzes = () => {
 
   // Quiz states
   const [quizData, setQuizData] = useState(null);
+  
+  // Dynamic title based on quiz name and view
+  useDocumentTitle(
+    quizData?.title 
+      ? isResultView || isReviewView 
+        ? `Kết quả: ${quizData.title}` 
+        : quizData.title
+      : 'Bài kiểm tra'
+  );
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);

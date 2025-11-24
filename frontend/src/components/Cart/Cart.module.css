@@ -197,9 +197,8 @@
   gap: 0.75rem;
 }
 
-.viewCartBtn,
 .checkoutBtn {
-  flex: 1;
+  width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-weight: 600;
@@ -207,26 +206,14 @@
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-}
-
-.viewCartBtn {
   background: transparent;
   color: #6366f1;
   border: 2px solid #6366f1;
 }
 
-.viewCartBtn:hover {
-  background: #6366f1;
-  color: white;
-}
-
-.checkoutBtn {
-  background: #6366f1;
-  color: white;
-}
-
 .checkoutBtn:hover {
-  background: #5b5cf6;
+  background: #6366f1;
+  color: white;
 }
 
 .emptyCart {

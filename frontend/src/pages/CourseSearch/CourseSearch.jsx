@@ -4,6 +4,7 @@ import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import Card from '../../components/Card/Card.jsx';
 import CourseFilter from '../../components/CourseFilter/CourseFilter.jsx';
 import axios from 'axios';
+import useDocumentTitle from '../../hooks/useDocumentTitle.js';
 
 const CourseSearch = () => {
   const [searchParams] = useSearchParams();
@@ -11,6 +12,14 @@ const CourseSearch = () => {
   const titleQuery = searchParams.get('title') || '';
   
   const [searchTerm, setSearchTerm] = useState(titleQuery || '');
+  
+  // Set dynamic title
+  useDocumentTitle(
+    searchTerm 
+      ? `Tìm kiếm: ${searchTerm}` 
+      : 'Tìm kiếm khóa học'
+  );
+
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

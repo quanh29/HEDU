@@ -5,6 +5,7 @@ import Carousel from '../components/Carousel/Carousel';
 import { courses as relatedCourses } from '../assets/dummyData';
 import RatingListModal from '../components/RatingListModal/RatingListModal';
 import axios from 'axios';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 function CoursePage() {
   // Lấy params từ URL - chỉ courseId (no slug)
@@ -16,6 +17,9 @@ function CoursePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+
+  // Set dynamic title based on course name
+  useDocumentTitle(course?.title || 'Khóa học');
 
   // Function để convert title to slug
   const convertToSlug = (title) => {

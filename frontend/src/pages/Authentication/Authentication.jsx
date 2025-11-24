@@ -6,6 +6,7 @@ import styles from './Authentication.module.css';
 import LoginForm from '../../components/LoginForm/LoginForm.jsx';
 import SignupForm from '../../components/SignupForm/SignupForm.jsx';
 import ResetPassword from '../../components/ResetPassword/ResetPassword.jsx';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 export default function Authentication() {
     const location = useLocation();
@@ -13,6 +14,14 @@ export default function Authentication() {
     const isLoginPage = location.pathname === '/auth/login';
     const isSignupPage = location.pathname === '/auth/signup';
     const isResetPage = location.pathname === '/auth/reset';
+
+    // Dynamic title based on auth page
+    useDocumentTitle(
+        isLoginPage ? 'Đăng nhập' : 
+        isSignupPage ? 'Đăng ký' : 
+        isResetPage ? 'Đặt lại mật khẩu' : 
+        'Xác thực'
+    );
 
     // Show loading while Clerk is initializing
     if (!isLoaded) {

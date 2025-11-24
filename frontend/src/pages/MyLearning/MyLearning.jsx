@@ -5,8 +5,11 @@ import axios from 'axios';
 import styles from './MyLearning.module.css';
 import EnrolledCard from '../../components/EnrolledCard/EnrolledCard';
 import TabSwitch from '../../components/TabSwitch/TabSwitch';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 function MyLearning() {
+  useDocumentTitle('Khóa học của tôi');
+  
   const navigate = useNavigate();
   const { getToken, isSignedIn, isLoaded } = useAuth();
   const [activeTab, setActiveTab] = useState('all');

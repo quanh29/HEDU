@@ -4,8 +4,11 @@ import { useAuth, useClerk, useSignIn } from '@clerk/clerk-react';
 import axios from 'axios';
 import styles from './AdminLogin.module.css';
 import { Shield, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const AdminLogin = () => {
+  useDocumentTitle('Đăng nhập quản trị');
+  
   const navigate = useNavigate();
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { signOut } = useClerk();

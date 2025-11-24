@@ -1,0 +1,147 @@
+.voucherContainer {
+  margin-bottom: 30px;
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #1E3A5F;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f2f2f2;
+}
+
+.voucherButton {
+  width: 100%;
+  padding: 12px;
+  background: #EDE7D9;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.voucherButton:hover {
+  background: #ddd;
+}
+
+.voucherForm {
+  margin-top: 16px;
+  padding: 20px;
+  background: #f2f2f2;
+  border-radius: 6px;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.voucherInput {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.applyButton {
+  padding: 12px 24px;
+  background: #1E3A5F;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.applyButton:hover {
+  background: #0f2740;
+}
+
+.message {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message.success {
+  color: #0a6e0a;
+  background: #d4edda;
+}
+
+.message.error {
+  color: #c00;
+  background: #f8d7da;
+}
+
+.appliedVoucher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #d4edda;
+  border: 1px solid #0a6e0a;
+  border-radius: 6px;
+}
+
+.voucherInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0a6e0a;
+}
+
+.voucherDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voucherCode {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.voucherMessage {
+  font-size: 13px;
+}
+
+.removeVoucherButton {
+  background: transparent;
+  border: none;
+  color: #0a6e0a;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.removeVoucherButton:hover {
+  background: rgba(10, 110, 10, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .inputGroup {
+    flex-direction: column;
+  }
+
+  .applyButton {
+    width: 100%;
+  }
+}
