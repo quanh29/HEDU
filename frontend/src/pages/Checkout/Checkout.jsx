@@ -15,7 +15,8 @@ const Checkout = () => {
   const { isSignedIn, isLoaded } = useUser();
   const { cartItems, getTotalPrice, clearCart } = useCart();
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [voucherType, setVoucherType] = useState(null);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   useEffect(() => {
@@ -29,13 +30,15 @@ const Checkout = () => {
     }
   }, [isLoaded, isSignedIn, cartItems, navigate]);
 
-  const handleApplyVoucher = (code, percent) => {
-    setDiscountPercent(percent);
+  const handleApplyVoucher = (code, amount, type) => {
+    setVoucherDiscount(amount);
+    setVoucherType(type);
     setAppliedVoucher(code);
   };
 
   const handleRemoveVoucher = () => {
-    setDiscountPercent(0);
+    setVoucherDiscount(0);
+    setVoucherType(null);
     setAppliedVoucher(null);
   };
 
@@ -44,11 +47,16 @@ const Checkout = () => {
   };
 
   const calculateDiscount = () => {
-    return calculateSubtotal() * (discountPercent / 100);
+    if (voucherType === 'percentage') {
+      return calculateSubtotal() * (voucherDiscount / 100);
+    } else if (voucherType === 'absolute') {
+      return voucherDiscount;
+    }
+    return 0;
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal() - calculateDiscount();
+    return Math.max(0, calculateSubtotal() - calculateDiscount());
   };
 
   const handleCheckout = async () => {
@@ -71,13 +79,59 @@ const Checkout = () => {
     }
 
     if (selectedPayment === 'momo') {
-      // Momo payment
-      const success = confirm(`Xác nhận thanh toán ${calculateTotal().toLocaleString('vi-VN')}₫ qua Ví MoMo?`);
-      if (success) {
-        // Here you would integrate with actual payment API
-        await clearCart();
-        alert('Thanh toán thành công! Cảm ơn bạn đã đăng ký khóa học.');
-        navigate('/my-learning');
+      try {
+        // Get Clerk token
+        const token = await window.Clerk.session.getToken();
+        
+        // Step 1: Create order from cart
+        const orderResponse = await fetch(`${import.meta.env.VITE_BASE_URL}/api/order/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            voucherCode: appliedVoucher || null
+          })
+        });
+
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json();
+          alert(errorData.message || 'Lỗi khi tạo đơn hàng');
+          return;
+        }
+
+        const orderData = await orderResponse.json();
+        const { orderId, totalAmount } = orderData;
+
+        // Step 2: Initiate MoMo payment
+        const paymentResponse = await fetch(`${import.meta.env.VITE_BASE_URL}/api/payment/momo/initiate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ orderId })
+        });
+
+        if (!paymentResponse.ok) {
+          const errorData = await paymentResponse.json();
+          alert(errorData.message || 'Lỗi khi khởi tạo thanh toán MoMo');
+          return;
+        }
+
+        const paymentData = await paymentResponse.json();
+
+        // Step 3: Redirect to MoMo payment page
+        if (paymentData.success && paymentData.paymentUrl) {
+          window.location.href = paymentData.paymentUrl;
+        } else {
+          alert('Không thể khởi tạo thanh toán MoMo. Vui lòng thử lại.');
+        }
+
+      } catch (error) {
+        console.error('Error during checkout:', error);
+        alert('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
       }
     }
   };
@@ -99,7 +153,6 @@ const Checkout = () => {
               subtotal={calculateSubtotal()}
               discount={calculateDiscount()}
               total={calculateTotal()}
-              discountPercent={discountPercent}
             />
           </div>
 

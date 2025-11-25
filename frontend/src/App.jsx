@@ -19,6 +19,8 @@ import AdminLogin from './pages/AdminLogin/AdminLogin.jsx'
 import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import Checkout from './pages/Checkout/Checkout.jsx'
+import PaymentStatus from './pages/PaymentStatus/PaymentStatus.jsx'
+import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
 
 function App() {
   const location = useLocation();
@@ -46,6 +48,12 @@ function App() {
           
           {/* Checkout Route */}
           <Route path='/checkout' element={<Checkout/>}/>
+          
+          {/* Payment Status Route */}
+          <Route path='/payment/momo/return' element={<PaymentStatus/>}/>
+          
+          {/* Payment History Route */}
+          <Route path='/payment-history' element={<PaymentHistory/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

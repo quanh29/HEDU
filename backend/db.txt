@@ -85,12 +85,12 @@ CREATE TABLE Levels (
 CREATE TABLE Orders (
 	order_id			VARCHAR(36) PRIMARY KEY,
     user_id				VARCHAR(36),
-    order_status		VARCHAR(255),
-    amount				DECIMAL,
+    order_status		ENUM('pending', 'success', 'failed') NOT NULL DEFAULT 'pending',
+    voucher_code		VARCHAR(255) NULL,
+    FOREIGN KEY(voucher_code) REFERENCES Vouchers(voucher_code),
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );
 
-//chưa thêm
 CREATE TABLE OrderDetail (
 	order_id			VARCHAR(36),
     course_id			VARCHAR(36),
@@ -98,6 +98,14 @@ CREATE TABLE OrderDetail (
     PRIMARY KEY(order_id, course_id),
     FOREIGN KEY(order_id) REFERENCES Orders(order_id),
     FOREIGN KEY(course_id) REFERENCES Courses(course_id)
+);
+
+CREATE TABLE Vouchers(
+	voucher_code			VARCHAR(255) PRIMARY KEY,
+    voucher_type			ENUM('percentage', 'absolute') NOT NULL,
+    amount					DECIMAL(10,2) NOT NULL,
+    created_at				DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expire_at				DATETIME
 );
 
 CREATE TABLE Carts (

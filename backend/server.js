@@ -22,6 +22,9 @@ import adminRouter from './routes/adminRoute.js';
 import enrollmentRouter from './routes/enrollmentRoute.js';
 import ratingRouter from './routes/ratingRoute.js';
 import cartRouter from './routes/cartRoute.js';
+import orderRouter from './routes/orderRoute.js';
+import paymentRouter from './routes/paymentRoute.js';
+import voucherRouter from './routes/voucherRoute.js';
 
 const app = express();
 const port = 3000;
@@ -65,6 +68,9 @@ app.use("/api/admin", adminRouter);
 app.use("/api/enrollment", enrollmentRouter);
 app.use("/api/rating", ratingRouter);
 app.use("/api/cart", cartRouter);
+app.use("/api/order", orderRouter);
+app.use("/api/payment", paymentRouter);
+app.use("/api/voucher", voucherRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

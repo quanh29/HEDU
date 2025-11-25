@@ -1,26 +1,22 @@
 import React, { useState } from 'react';
 import { Tag, X, Check } from 'lucide-react';
+import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
 import styles from './VoucherSection.module.css';
 
 const VoucherSection = ({ onApplyVoucher, onRemoveVoucher, appliedVoucher }) => {
+  const { getToken } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
-
-  // Valid vouchers list
-  const validVouchers = {
-    'SALE20': 20,
-    'SALE10': 10,
-    'FREESHIP': 5,
-    'NEWUSER': 15
-  };
+  const [isValidating, setIsValidating] = useState(false);
 
   const handleToggleForm = () => {
     setShowForm(!showForm);
     setMessage({ text: '', type: '' });
   };
 
-  const handleApplyVoucher = () => {
+  const handleApplyVoucher = async () => {
     const code = voucherCode.trim().toUpperCase();
 
     if (code === '') {
@@ -28,15 +24,35 @@ const VoucherSection = ({ onApplyVoucher, onRemoveVoucher, appliedVoucher }) => 
       return;
     }
 
-    if (validVouchers[code]) {
-      onApplyVoucher(code, validVouchers[code]);
-      setMessage({
-        text: `Áp dụng mã thành công! Giảm ${validVouchers[code]}%`,
-        type: 'success'
-      });
-    } else {
-      setMessage({ text: 'Mã voucher không hợp lệ', type: 'error' });
+    try {
+      setIsValidating(true);
+      const token = await getToken();
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/voucher/validate`,
+        { voucherCode: code },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.valid) {
+        const { voucher } = response.data;
+        const discountText = voucher.type === 'percentage' 
+          ? `${voucher.amount}%` 
+          : `${voucher.amount.toLocaleString('vi-VN')}₫`;
+        
+        onApplyVoucher(code, voucher.amount, voucher.type);
+        setMessage({
+          text: `Áp dụng mã thành công! Giảm ${discountText}`,
+          type: 'success'
+        });
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Mã giảm giá không hợp lệ';
+      setMessage({ text: errorMessage, type: 'error' });
       onRemoveVoucher();
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -66,9 +82,14 @@ const VoucherSection = ({ onApplyVoucher, onRemoveVoucher, appliedVoucher }) => 
                   onChange={(e) => setVoucherCode(e.target.value)}
                   placeholder="Nhập mã voucher"
                   className={styles.voucherInput}
+                  disabled={isValidating}
                 />
-                <button className={styles.applyButton} onClick={handleApplyVoucher}>
-                  Áp dụng
+                <button 
+                  className={styles.applyButton} 
+                  onClick={handleApplyVoucher}
+                  disabled={isValidating}
+                >
+                  {isValidating ? 'Đang kiểm tra...' : 'Áp dụng'}
                 </button>
               </div>
 

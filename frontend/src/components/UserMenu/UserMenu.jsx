@@ -84,6 +84,9 @@ const UserMenu = () => {
             <li onClick={() => handleMenuItemClick('/my-learning')}>
               <span>Khóa học của tôi</span>
             </li>
+            <li onClick={() => handleMenuItemClick('/payment-history')}>
+              <span>Lịch sử thanh toán</span>
+            </li>
             <li onClick={() => handleMenuItemClick('/support')}>
               <span>Hỗ trợ</span>
             </li>

@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import styles from './OrderSummary.module.css';
 
-const OrderSummary = ({ cartItems, subtotal, discount, total, discountPercent }) => {
+const OrderSummary = ({ cartItems, subtotal, discount, total }) => {
   const { removeFromCart } = useCart();
 
   const handleRemoveCourse = async (courseId, courseName) => {
@@ -55,16 +55,16 @@ const OrderSummary = ({ cartItems, subtotal, discount, total, discountPercent })
           <span>{subtotal.toLocaleString('vi-VN')}₫</span>
         </div>
 
-        {discountPercent > 0 && (
+        {discount > 0 && (
           <div className={`${styles.summaryRow} ${styles.discount}`}>
-            <span>Giảm giá ({discountPercent}%):</span>
-            <span>-{discount.toLocaleString('vi-VN')}₫</span>
+            <span>Giảm giá:</span>
+            <span>-{Math.round(discount).toLocaleString('vi-VN')}₫</span>
           </div>
         )}
 
         <div className={`${styles.summaryRow} ${styles.total}`}>
           <span>Tổng thanh toán:</span>
-          <span>{total.toLocaleString('vi-VN')}₫</span>
+          <span>{Math.round(total).toLocaleString('vi-VN')}₫</span>
         </div>
       </div>
     </div>

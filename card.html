@@ -3,9 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - eLearning Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>404 - Không tìm thấy trang</title>
     <style>
+        /* 
+         * ==========================================
+         * CSS VARIABLES & RESET
+         * Thiết lập bảng màu và reset mặc định
+         * ==========================================
+         */
+        :root {
+            /* Bảng màu theo yêu cầu: Tối giản, không gradient */
+            --color-bg: #FFFFFF;        /* Trắng sạch */
+            --color-text: #1E3A5F;      /* Xanh đậm (Navy Blue) - tạo sự tin cậy */
+            --color-subtext: #8892b0;   /* Xám xanh nhạt - cho mô tả */
+            --color-btn-bg: #1E3A5F;    /* Nền nút */
+            --color-btn-text: #FFFFFF;  /* Chữ nút */
+            --color-hover: #152a45;     /* Màu hover của nút (đậm hơn chút) */
+            --color-illustration: #EDE7D9; /* Màu Be nhạt làm điểm nhấn cho hình vẽ */
+            
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,1446 +31,193 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: #F8F9FA;
-            color: #1E1E1E;
-            overflow-x: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 240px;
+            font-family: var(--font-main);
+            background-color: var(--color-bg);
+            color: var(--color-text);
             height: 100vh;
-            background: #1E3A5F;
-            color: #FFFFFF;
-            padding: 24px 0;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-logo {
-            padding: 0 24px 32px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .logo-text {
-            font-size: 20px;
-            font-weight: 700;
-            color: #EDE7D9;
-        }
-
-        .logo-subtitle {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: 4px;
-        }
-
-        .sidebar-menu {
-            padding: 24px 0;
-            flex: 1;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 24px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .menu-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: #FFFFFF;
-        }
-
-        .menu-item.active {
-            background: rgba(74, 144, 226, 0.15);
-            color: #FFFFFF;
-            border-left: 3px solid #4A90E2;
-        }
-
-        .menu-item svg {
-            width: 20px;
-            height: 20px;
-            margin-right: 12px;
-        }
-
-        .sidebar-user {
-            padding: 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #4A90E2;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-        }
-
-        .user-info {
-            flex: 1;
-        }
-
-        .user-name {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .user-role {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        /* Header */
-        .header {
-            position: fixed;
-            left: 240px;
-            top: 0;
-            right: 0;
-            height: 64px;
-            background: #FFFFFF;
-            border-bottom: 1px solid #E5E7EB;
-            display: flex;
-            align-items: center;
-            padding: 0 32px;
-            z-index: 999;
-            transition: left 0.3s ease;
-        }
-
-        .search-box {
-            flex: 1;
-            max-width: 400px;
-            position: relative;
-        }
-
-        .search-box input {
             width: 100%;
-            padding: 10px 16px 10px 40px;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: #4A90E2;
-            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6B7280;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-left: auto;
-        }
-
-        .icon-button {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            transition: all 0.2s ease;
-        }
-
-        .icon-button:hover {
-            background: #F3F4F6;
-        }
-
-        .badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 8px;
-            height: 8px;
-            background: #EF4444;
-            border-radius: 50%;
-            border: 2px solid #FFFFFF;
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: 240px;
-            margin-top: 64px;
-            padding: 32px;
-            transition: margin-left 0.3s ease;
-        }
-
-        .page-header {
-            margin-bottom: 32px;
-        }
-
-        .breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #6B7280;
-            margin-bottom: 12px;
-        }
-
-        .page-title {
-            font-size: 32px;
-            font-weight: 700;
-            color: #1E1E1E;
-        }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        .stat-card {
-            background: #FFFFFF;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .stat-icon.blue { background: rgba(74, 144, 226, 0.1); color: #4A90E2; }
-        .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: #10B981; }
-        .stat-icon.orange { background: rgba(245, 158, 11, 0.1); color: #F59E0B; }
-        .stat-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8B5CF6; }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 14px;
-            color: #6B7280;
-        }
-
-        .stat-change {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .stat-change.positive { color: #10B981; }
-        .stat-change.negative { color: #EF4444; }
-
-        /* Charts Section */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        .chart-card {
-            background: #FFFFFF;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .chart-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .filter-btn {
-            padding: 6px 12px;
-            border: 1px solid #E5E7EB;
-            background: transparent;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .filter-btn:hover {
-            border-color: #4A90E2;
-        }
-
-        .filter-btn.active {
-            background: #4A90E2;
-            color: #FFFFFF;
-            border-color: #4A90E2;
-        }
-
-        .chart-placeholder {
-            height: 300px;
-            background: linear-gradient(180deg, #F8F9FA 0%, #FFFFFF 100%);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6B7280;
-        }
-
-        /* Tables */
-        .table-card {
-            background: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-bottom: 24px;
-        }
-
-        .table-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #E5E7EB;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .table-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #4A90E2;
-            color: #FFFFFF;
-        }
-
-        .btn-primary:hover {
-            background: #357ABD;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-        }
-
-        .btn-secondary {
-            background: #F3F4F6;
-            color: #1E1E1E;
-        }
-
-        .btn-secondary:hover {
-            background: #E5E7EB;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background: #F8F9FA;
-        }
-
-        th {
-            padding: 12px 24px;
-            text-align: left;
-            font-size: 13px;
-            font-weight: 600;
-            color: #6B7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        td {
-            padding: 16px 24px;
-            border-top: 1px solid #F3F4F6;
-            font-size: 14px;
-        }
-
-        tbody tr {
-            transition: background 0.2s ease;
-        }
-
-        tbody tr:hover {
-            background: #F8F9FA;
-        }
-
-        .user-cell {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar-small {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #EDE7D9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
-            color: #1E3A5F;
-        }
-
-        .user-details {
+            /* Căn giữa toàn màn hình (Vertical + Horizontal) */
             display: flex;
             flex-direction: column;
-        }
-
-        .user-name-table {
-            font-weight: 500;
-            color: #1E1E1E;
-        }
-
-        .user-email {
-            font-size: 13px;
-            color: #6B7280;
-        }
-
-        .badge-status {
-            display: inline-flex;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .badge-status.active {
-            background: rgba(16, 185, 129, 0.1);
-            color: #10B981;
-        }
-
-        .badge-status.pending {
-            background: rgba(245, 158, 11, 0.1);
-            color: #F59E0B;
-        }
-
-        .badge-status.inactive {
-            background: rgba(107, 114, 128, 0.1);
-            color: #6B7280;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        .action-btn {
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: transparent;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .action-btn:hover {
-            background: #F3F4F6;
-        }
-
-        .action-btn.edit:hover { color: #4A90E2; }
-        .action-btn.delete:hover { color: #EF4444; }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
             align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.2s ease;
+            overflow: hidden; /* Ngăn cuộn trang */
         }
 
-        .modal.show {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background: #FFFFFF;
-            border-radius: 16px;
-            width: 90%;
+        /* 
+         * ==========================================
+         * MAIN CONTAINER
+         * ==========================================
+         */
+        .container {
+            text-align: center;
+            padding: 2rem;
             max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s ease;
+            /* Hiệu ứng xuất hiện nhẹ nhàng */
+            animation: fadeIn 0.8s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
         }
 
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
+        /* 
+         * ==========================================
+         * SVG ILLUSTRATION (Minimalist)
+         * Hình minh họa dạng nét mảnh (Line art)
+         * ==========================================
+         */
+        .illustration-svg {
+            width: 180px;
+            height: auto;
+            margin-bottom: 1rem;
+        }
+
+        .illustration-path {
+            fill: none;
+            stroke: var(--color-text);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .illustration-fill {
+            fill: var(--color-illustration);
+            stroke: none;
+        }
+
+        /* 
+         * ==========================================
+         * TYPOGRAPHY
+         * ==========================================
+         */
+        h1.error-code {
+            font-size: 8rem;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: -4px;
+            margin-bottom: 0.5rem;
+            color: var(--color-text);
+        }
+
+        p.description {
+            font-size: 1.25rem;
+            color: var(--color-subtext);
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+        }
+
+        /* 
+         * ==========================================
+         * BUTTON STYLES
+         * Bo góc, phẳng, không gradient
+         * ==========================================
+         */
+        .btn-home {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: var(--color-btn-bg);
+            color: var(--color-btn-text);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px; /* Bo góc mềm mại */
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-home:hover {
+            background-color: var(--color-hover);
+            transform: translateY(-2px); /* Hiệu ứng nhấc nhẹ nút khi hover */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-home:active {
+            transform: translateY(0);
+        }
+
+        /* 
+         * ==========================================
+         * ANIMATION
+         * ==========================================
+         */
+        @keyframes fadeIn {
             to {
-                transform: translateY(0);
                 opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        .modal-header {
-            padding: 24px;
-            border-bottom: 1px solid #E5E7EB;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .close-btn {
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: transparent;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .close-btn:hover {
-            background: #F3F4F6;
-        }
-
-        .modal-body {
-            padding: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #1E1E1E;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #E5E7EB;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #4A90E2;
-            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
-        }
-
-        .modal-footer {
-            padding: 20px 24px;
-            border-top: 1px solid #E5E7EB;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
-
-        /* Support Tickets */
-        .ticket-item {
-            display: flex;
-            padding: 16px;
-            border-bottom: 1px solid #F3F4F6;
-            transition: background 0.2s ease;
-            cursor: pointer;
-        }
-
-        .ticket-item:hover {
-            background: #F8F9FA;
-        }
-
-        .ticket-priority {
-            width: 4px;
-            background: #6B7280;
-            margin-right: 16px;
-            border-radius: 2px;
-        }
-
-        .ticket-priority.high { background: #EF4444; }
-        .ticket-priority.medium { background: #F59E0B; }
-        .ticket-priority.low { background: #10B981; }
-
-        .ticket-content {
-            flex: 1;
-        }
-
-        .ticket-header-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 8px;
-        }
-
-        .ticket-title {
-            font-weight: 600;
-            color: #1E1E1E;
-            margin-bottom: 4px;
-        }
-
-        .ticket-meta {
-            font-size: 13px;
-            color: #6B7280;
-        }
-
-        .ticket-description {
-            font-size: 14px;
-            color: #6B7280;
-            line-height: 1.5;
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
+        /* Responsive cho màn hình nhỏ */
         @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
+            h1.error-code {
+                font-size: 6rem;
             }
-
-            .sidebar.open {
-                transform: translateX(0);
+            p.description {
+                font-size: 1rem;
             }
-
-            .header {
-                left: 0;
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
+            .illustration-svg {
+                width: 140px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-text">EduCommerce</div>
-            <div class="logo-subtitle">Admin Dashboard</div>
-        </div>
+
+    <main class="container">
+        <!-- 
+            Minh họa SVG tối giản: Một khuôn mặt hình học biểu cảm bối rối/trống rỗng 
+            Kết hợp màu Be nhạt và nét Xanh đậm
+        -->
+        <svg class="illustration-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <!-- Hình nền tròn màu Be -->
+            <circle cx="100" cy="100" r="80" class="illustration-fill" />
+            
+            <!-- Viền ngoài -->
+            <circle cx="100" cy="100" r="80" class="illustration-path" />
+            
+            <!-- Mắt trái (dấu gạch chéo) -->
+            <path d="M60 80 L80 100 M80 80 L60 100" class="illustration-path" />
+            
+            <!-- Mắt phải (dấu gạch chéo) -->
+            <path d="M120 80 L140 100 M140 80 L120 100" class="illustration-path" />
+            
+            <!-- Miệng (Đường thẳng ngang thể hiện sự im lặng/trống rỗng) -->
+            <line x1="70" y1="140" x2="130" y2="140" class="illustration-path" />
+            
+            <!-- Dấu hỏi chấm nhỏ lơ lửng bên phải -->
+            <path d="M160 50 C 160 40, 170 40, 170 50 C 170 60, 160 60, 160 70" class="illustration-path" />
+            <circle cx="160" cy="80" r="1.5" fill="#1E3A5F" />
+        </svg>
+
+        <h1 class="error-code">404</h1>
+        <p class="description">Trang bạn tìm không tồn tại.</p>
         
-        <div class="sidebar-menu">
-            <a href="#" class="menu-item active">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                </svg>
-                Tổng quan
-            </a>
-            <a href="#" class="menu-item">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                </svg>
-                Khóa học
-            </a>
-            <a href="#" class="menu-item">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                </svg>
-                Người dùng
-            </a>
-            <a href="#" class="menu-item">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                Thống kê
-            </a>
-            <a href="#" class="menu-item">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                </svg>
-                Hỗ trợ
-            </a>
-            <a href="#" class="menu-item">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                Cài đặt
-            </a>
-        </div>
-
-        <div class="sidebar-user">
-            <div class="user-avatar">AN</div>
-            <div class="user-info">
-                <div class="user-name">Admin Nguyễn</div>
-                <div class="user-role">Super Admin</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Header -->
-    <div class="header">
-        <div class="search-box">
-            <svg class="search-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-            <input type="text" placeholder="Tìm kiếm khóa học, người dùng...">
-        </div>
-
-        <div class="header-actions">
-            <button class="icon-button">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                </svg>
-                <span class="badge"></span>
-            </button>
-            <button class="icon-button">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="page-header">
-            <div class="breadcrumb">
-                <span>Dashboard</span>
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-                <span>Tổng quan</span>
-            </div>
-            <h1 class="page-title">Tổng quan hệ thống</h1>
-        </div>
-
-        <!-- Stats Grid -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon blue">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="stat-value">12,458</div>
-                <div class="stat-label">Tổng số học viên</div>
-                <div class="stat-change positive">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                    </svg>
-                    +12.5% so với tháng trước
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon green">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="stat-value">$342,890</div>
-                <div class="stat-label">Doanh thu tháng này</div>
-                <div class="stat-change positive">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                    </svg>
-                    +8.2% so với tháng trước
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon orange">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="stat-value">248</div>
-                <div class="stat-label">Khóa học hoạt động</div>
-                <div class="stat-change positive">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                    </svg>
-                    +15 khóa học mới
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon purple">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="stat-value">23</div>
-                <div class="stat-label">Yêu cầu hỗ trợ chờ xử lý</div>
-                <div class="stat-change negative">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                    </svg>
-                    -5 so với hôm qua
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts -->
-        <div class="charts-grid">
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3 class="chart-title">Doanh thu & Đăng ký mới</h3>
-                    <div class="filter-buttons">
-                        <button class="filter-btn">7 ngày</button>
-                        <button class="filter-btn active">30 ngày</button>
-                        <button class="filter-btn">90 ngày</button>
-                        <button class="filter-btn">1 năm</button>
-                    </div>
-                </div>
-                <div class="chart-placeholder" id="revenueChart">
-                    <canvas id="chartCanvas" width="800" height="300"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3 class="chart-title">Danh mục khóa học</h3>
-                </div>
-                <div class="chart-placeholder" id="categoryChart">
-                    <canvas id="donutCanvas" width="400" height="300"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Courses -->
-        <div class="table-card">
-            <div class="table-header">
-                <h3 class="table-title">Khóa học gần đây</h3>
-                <button class="btn btn-primary" onclick="openModal('courseModal')">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Thêm khóa học
-                </button>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Khóa học</th>
-                        <th>Giảng viên</th>
-                        <th>Học viên</th>
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <div class="user-cell">
-                                <div class="user-avatar-small" style="background: #4A90E2; color: white;">JS</div>
-                                <div class="user-details">
-                                    <div class="user-name-table">JavaScript từ cơ bản đến nâng cao</div>
-                                    <div class="user-email">Lập trình Web</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Trần Văn A</td>
-                        <td>1,234</td>
-                        <td><span class="badge-status active">Hoạt động</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="action-btn edit" onclick="openModal('courseModal')">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                </button>
-                                <button class="action-btn delete">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="user-cell">
-                                <div class="user-avatar-small" style="background: #10B981; color: white;">PY</div>
-                                <div class="user-details">
-                                    <div class="user-name-table">Python cho Data Science</div>
-                                    <div class="user-email">Khoa học dữ liệu</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Nguyễn Thị B</td>
-                        <td>892</td>
-                        <td><span class="badge-status active">Hoạt động</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="action-btn edit" onclick="openModal('courseModal')">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                </button>
-                                <button class="action-btn delete">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="user-cell">
-                                <div class="user-avatar-small" style="background: #F59E0B; color: white;">UI</div>
-                                <div class="user-details">
-                                    <div class="user-name-table">UI/UX Design Masterclass</div>
-                                    <div class="user-email">Thiết kế</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Lê Văn C</td>
-                        <td>567</td>
-                        <td><span class="badge-status pending">Chờ duyệt</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="action-btn edit" onclick="openModal('courseModal')">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                </button>
-                                <button class="action-btn delete">
-                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Support Tickets -->
-        <div class="table-card">
-            <div class="table-header">
-                <h3 class="table-title">Yêu cầu hỗ trợ gần đây</h3>
-                <button class="btn btn-secondary">Xem tất cả</button>
-            </div>
-            <div>
-                <div class="ticket-item" onclick="openModal('ticketModal')">
-                    <div class="ticket-priority high"></div>
-                    <div class="ticket-content">
-                        <div class="ticket-header-info">
-                            <div>
-                                <div class="ticket-title">Không thể truy cập video bài giảng</div>
-                                <div class="ticket-meta">Nguyễn Văn D • #TK-1234 • 15 phút trước</div>
-                            </div>
-                            <span class="badge-status active">Đang xử lý</span>
-                        </div>
-                        <div class="ticket-description">
-                            Tôi đã thanh toán khóa học nhưng không thể xem được video. Hệ thống báo lỗi 403...
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ticket-item" onclick="openModal('ticketModal')">
-                    <div class="ticket-priority medium"></div>
-                    <div class="ticket-content">
-                        <div class="ticket-header-info">
-                            <div>
-                                <div class="ticket-title">Yêu cầu hoàn tiền khóa học</div>
-                                <div class="ticket-meta">Trần Thị E • #TK-1233 • 1 giờ trước</div>
-                            </div>
-                            <span class="badge-status pending">Mới</span>
-                        </div>
-                        <div class="ticket-description">
-                            Khóa học không đúng như mô tả. Tôi muốn được hoàn lại tiền trong 7 ngày...
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ticket-item" onclick="openModal('ticketModal')">
-                    <div class="ticket-priority low"></div>
-                    <div class="ticket-content">
-                        <div class="ticket-header-info">
-                            <div>
-                                <div class="ticket-title">Hỏi về chứng chỉ sau khóa học</div>
-                                <div class="ticket-meta">Lê Văn F • #TK-1232 • 3 giờ trước</div>
-                            </div>
-                            <span class="badge-status inactive">Đã hoàn tất</span>
-                        </div>
-                        <div class="ticket-description">
-                            Tôi đã hoàn thành 100% khóa học. Khi nào tôi nhận được chứng chỉ?
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <button id="back-btn" class="btn-home">Trở về trang chủ</button>
     </main>
 
-    <!-- Course Modal -->
-    <div class="modal" id="courseModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Chi tiết khóa học</h3>
-                <button class="close-btn" onclick="closeModal('courseModal')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Tên khóa học</label>
-                    <input type="text" class="form-input" placeholder="Nhập tên khóa học" value="JavaScript từ cơ bản đến nâng cao">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Giảng viên</label>
-                    <input type="text" class="form-input" placeholder="Tên giảng viên" value="Trần Văn A">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Danh mục</label>
-                    <input type="text" class="form-input" placeholder="Danh mục" value="Lập trình Web">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Giá khóa học (VNĐ)</label>
-                    <input type="text" class="form-input" placeholder="0" value="1,990,000">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Mô tả</label>
-                    <textarea class="form-input" rows="4" placeholder="Mô tả khóa học">Khóa học JavaScript toàn diện từ cơ bản đến nâng cao, phù hợp cho người mới bắt đầu.</textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('courseModal')">Hủy</button>
-                <button class="btn btn-primary">Lưu thay đổi</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Ticket Modal -->
-    <div class="modal" id="ticketModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Chi tiết yêu cầu hỗ trợ #TK-1234</h3>
-                <button class="close-btn" onclick="closeModal('ticketModal')">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Người gửi</label>
-                    <input type="text" class="form-input" value="Nguyễn Văn D" readonly>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Tiêu đề</label>
-                    <input type="text" class="form-input" value="Không thể truy cập video bài giảng" readonly>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Nội dung</label>
-                    <textarea class="form-input" rows="4" readonly>Tôi đã thanh toán khóa học nhưng không thể xem được video. Hệ thống báo lỗi 403. Vui lòng kiểm tra và hỗ trợ tôi.</textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Trạng thái</label>
-                    <select class="form-input">
-                        <option>Mới</option>
-                        <option selected>Đang xử lý</option>
-                        <option>Đã hoàn tất</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Trả lời</label>
-                    <textarea class="form-input" rows="4" placeholder="Nhập câu trả lời..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('ticketModal')">Đóng</button>
-                <button class="btn btn-primary">Gửi phản hồi</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // Modal functions
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.add('show');
-        }
+        /**
+         * JavaScript xử lý chuyển hướng
+         * Logic: Đợi DOM load xong, lắng nghe sự kiện click và redirect.
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cấu hình đường dẫn trang chủ tại đây
+            const HOME_URL = '/'; 
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('show');
-        }
+            const backButton = document.getElementById('back-btn');
 
-        // Close modal on outside click
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('show');
-            }
-        }
+            if (backButton) {
+                backButton.addEventListener('click', () => {
+                    // Cách 1: Chuyển hướng bằng window.location
+                    window.location.href = HOME_URL;
 
-        // Draw Revenue Chart
-        function drawRevenueChart() {
-            const canvas = document.getElementById('chartCanvas');
-            const ctx = canvas.getContext('2d');
-            const width = canvas.width;
-            const height = canvas.height;
-
-            // Clear canvas
-            ctx.clearRect(0, 0, width, height);
-
-            // Sample data
-            const data = [65, 78, 85, 72, 90, 95, 88, 92, 100, 85, 78, 95, 102, 110, 105, 98, 115, 120, 125, 118, 130, 135, 140, 138, 145, 150, 148, 155, 160, 158];
-            const max = Math.max(...data);
-            const padding = 40;
-            const chartWidth = width - padding * 2;
-            const chartHeight = height - padding * 2;
-
-            // Draw grid lines
-            ctx.strokeStyle = '#E5E7EB';
-            ctx.lineWidth = 1;
-            for (let i = 0; i <= 5; i++) {
-                const y = padding + (chartHeight / 5) * i;
-                ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(width - padding, y);
-                ctx.stroke();
-            }
-
-            // Draw gradient area
-            const gradient = ctx.createLinearGradient(0, padding, 0, height - padding);
-            gradient.addColorStop(0, 'rgba(74, 144, 226, 0.2)');
-            gradient.addColorStop(1, 'rgba(74, 144, 226, 0)');
-
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.moveTo(padding, height - padding);
-            
-            data.forEach((value, index) => {
-                const x = padding + (chartWidth / (data.length - 1)) * index;
-                const y = height - padding - (value / max) * chartHeight;
-                if (index === 0) {
-                    ctx.lineTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            
-            ctx.lineTo(width - padding, height - padding);
-            ctx.closePath();
-            ctx.fill();
-
-            // Draw line
-            ctx.strokeStyle = '#4A90E2';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            
-            data.forEach((value, index) => {
-                const x = padding + (chartWidth / (data.length - 1)) * index;
-                const y = height - padding - (value / max) * chartHeight;
-                if (index === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            
-            ctx.stroke();
-
-            // Draw points
-            data.forEach((value, index) => {
-                const x = padding + (chartWidth / (data.length - 1)) * index;
-                const y = height - padding - (value / max) * chartHeight;
-                
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                ctx.arc(x, y, 5, 0, 2 * Math.PI);
-                ctx.fill();
-                
-                ctx.strokeStyle = '#4A90E2';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-        }
-
-        // Draw Donut Chart
-        function drawDonutChart() {
-            const canvas = document.getElementById('donutCanvas');
-            const ctx = canvas.getContext('2d');
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = 100;
-            const innerRadius = 65;
-
-            const data = [
-                { label: 'Lập trình', value: 35, color: '#4A90E2' },
-                { label: 'Thiết kế', value: 25, color: '#10B981' },
-                { label: 'Marketing', value: 20, color: '#F59E0B' },
-                { label: 'Kinh doanh', value: 15, color: '#8B5CF6' },
-                { label: 'Khác', value: 5, color: '#EDE7D9' }
-            ];
-
-            let currentAngle = -Math.PI / 2;
-            const total = data.reduce((sum, item) => sum + item.value, 0);
-
-            data.forEach((item, index) => {
-                const sliceAngle = (2 * Math.PI * item.value) / total;
-
-                // Draw slice
-                ctx.fillStyle = item.color;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-                ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true);
-                ctx.closePath();
-                ctx.fill();
-
-                // Draw label
-                const labelAngle = currentAngle + sliceAngle / 2;
-                const labelX = centerX + Math.cos(labelAngle) * (radius + 30);
-                const labelY = centerY + Math.sin(labelAngle) * (radius + 30);
-
-                ctx.fillStyle = '#1E1E1E';
-                ctx.font = '12px Inter';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${item.label} (${item.value}%)`, labelX, labelY);
-
-                currentAngle += sliceAngle;
-            });
-
-            // Draw center circle (donut hole)
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
-            ctx.fill();
-
-            // Draw center text
-            ctx.fillStyle = '#1E1E1E';
-            ctx.font = 'bold 24px Inter';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('248', centerX, centerY - 10);
-            
-            ctx.font = '14px Inter';
-            ctx.fillStyle = '#6B7280';
-            ctx.fillText('Khóa học', centerX, centerY + 15);
-        }
-
-        // Initialize charts when page loads
-        window.addEventListener('load', function() {
-            drawRevenueChart();
-            drawDonutChart();
-        });
-
-        // Menu item click handling
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                document.querySelectorAll('.menu-item').forEach(mi => mi.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
-        // Filter button handling
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                // Redraw chart with new data
-                drawRevenueChart();
-            });
-        });
-
-        // Animate stats on scroll
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, { threshold: 0.1 });
-
-        document.querySelectorAll('.stat-card, .chart-card, .table-card').forEach(card => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(20px)';
-            card.style.transition = 'all 0.5s ease';
-            observer.observe(card);
-        });
-
-        // Responsive sidebar toggle
-        const sidebar = document.querySelector('.sidebar');
-        const menuToggle = document.createElement('button');
-        menuToggle.className = 'menu-toggle';
-        menuToggle.innerHTML = `
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
-        `;
-        menuToggle.style.cssText = `
-            display: none;
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 1001;
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: #1E3A5F;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-        `;
-
-        document.body.appendChild(menuToggle);
-
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-        });
-
-        // Handle responsive behavior
-        function handleResize() {
-            if (window.innerWidth <= 768) {
-                menuToggle.style.display = 'flex';
-            } else {
-                menuToggle.style.display = 'none';
-                sidebar.classList.remove('open');
-            }
-        }
-
-        window.addEventListener('resize', handleResize);
-        handleResize();
-
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && 
-                sidebar.classList.contains('open') && 
-                !sidebar.contains(e.target) && 
-                !menuToggle.contains(e.target)) {
-                sidebar.classList.remove('open');
+                    // Cách 2 (nếu dùng History API trong Single Page App):
+                    // history.pushState({}, '', HOME_URL);
+                    // location.reload();
+                });
             }
         });
-
-        // Search functionality
-        const searchInput = document.querySelector('.search-box input');
-        searchInput.addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            // Here you would implement actual search logic
-            console.log('Searching for:', searchTerm);
-        });
-
-        // Notification badge animation
-        const notificationBtn = document.querySelector('.icon-button .badge');
-        if (notificationBtn) {
-            setInterval(() => {
-                notificationBtn.style.animation = 'pulse 1s ease-in-out';
-                setTimeout(() => {
-                    notificationBtn.style.animation = '';
-                }, 1000);
-            }, 5000);
-        }
-
-        // Add pulse animation to CSS
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes pulse {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.2); }
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
