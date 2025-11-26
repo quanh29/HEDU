@@ -276,7 +276,7 @@ export const handleMoMoCallback = async (req, res) => {
 
         // 5. Create enrollments for each course (MongoDB - async)
         // Import enrollmentController dynamically to avoid circular dependency
-        const { addEnrollment } = await import('./enrollmentController.js');
+        const { createEnrollment } = await import('./enrollmentController.js');
         
         for (const item of orderItems) {
           try {
@@ -289,7 +289,7 @@ export const handleMoMoCallback = async (req, res) => {
               status: (code) => ({ json: () => {} }),
               json: () => {}
             };
-            await addEnrollment(enrollReq, enrollRes);
+            await createEnrollment(enrollReq, enrollRes);
           } catch (enrollError) {
             console.error(`Error creating enrollment for course ${item.course_id}:`, enrollError);
             // Continue with other enrollments even if one fails
