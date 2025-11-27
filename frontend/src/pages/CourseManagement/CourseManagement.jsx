@@ -59,6 +59,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [initialData, setInitialData] = useState(null);
+  const [lastSaved, setLastSaved] = useState(null);
 
   // Headings and categories state
   const [headings, setHeadings] = useState([]);
@@ -230,6 +232,25 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         currentPrice: courseInfo.currentPrice || 0
       });
       
+      // Store initial data for change tracking
+      setInitialData({
+        title: courseInfo.title || '',
+        subtitle: courseInfo.subTitle || '',
+        description: courseInfo.des || '',
+        thumbnail: courseInfo.picture_url || '',
+        level: courseInfo.level_title || 'beginner',
+        language: courseInfo.language_title || 'vietnamese',
+        tags: tags,
+        objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
+        requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
+        category: categoryId,
+        subcategory: subcategoryId,
+        hasPractice: courseInfo.has_practice === 1 || false,
+        hasCertificate: courseInfo.has_certificate === 1 || false,
+        originalPrice: courseInfo.originalPrice || 0,
+        currentPrice: courseInfo.currentPrice || 0
+      });
+      
       console.log('Set courseData:', {
         title: courseInfo.title,
         objectives: courseInfo.objectives,
@@ -274,14 +295,14 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
                 order: lesson.order || 0,
                 contentUrl: lesson.contentUrl || '',
                 playbackId: lesson.playbackId || '',
-                videoId: lesson.videoId || lesson._id || '', // Add videoId for delete functionality
+                videoId: lesson.videoId || '', // Only use videoId if exists, don't fallback to _id
                 materialId: lesson.materialId || '', // Add materialId for material linking
                 fileName: lesson.fileName || '', // Add fileName for material display
                 publicId: lesson.publicId || lesson.contentUrl || '', // Add publicId for Cloudinary
                 assetId: lesson.assetId || '',
                 uploadId: lesson.uploadId || '',
                 duration: lesson.duration || 0,
-                status: lesson.status || 'ready',
+                status: lesson.status || '', // Don't default to 'ready' - let it be empty for new lessons
                 description: lesson.description || ''
               };
               
@@ -370,50 +391,172 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   };
 
   // Section management
-  const addSection = () => {
-    const newSection = {
-      id: Date.now().toString(),
-      title: '',
-      lessons: []
-    };
-    setSections(prev => [...prev, newSection]);
+  const addSection = async (title = 'Chương mới') => {
+    if (!courseId) {
+      // If no courseId yet (creating new course), just add to state
+      const newSection = {
+        id: `temp-${Date.now()}`,
+        title: title,
+        lessons: []
+      };
+      setSections(prev => [...prev, newSection]);
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/section`,
+        {
+          courseId: courseId,
+          title: title,
+          order: sections.length + 1
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      const newSection = {
+        _id: response.data._id,
+        id: response.data._id,
+        title: response.data.title,
+        order: response.data.order,
+        lessons: []
+      };
+      setSections(prev => [...prev, newSection]);
+      console.log('\u2705 Section created on server:', response.data._id);
+    } catch (error) {
+      console.error('\u274c Error creating section:', error);
+      alert('Kh\u00f4ng th\u1ec3 t\u1ea1o ch\u01b0\u01a1ng: ' + (error.response?.data?.message || error.message));
+    }
   };
 
-  const updateSection = (sectionId, field, value) => {
+  const updateSection = async (sectionId, field, value) => {
+    // Update state immediately for responsiveness
     setSections(prev => prev.map(section => 
       section.id === sectionId || section._id === sectionId
         ? { ...section, [field]: value }
         : section
     ));
+
+    // If section exists on server, update it
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    if (section && section._id && !section._id.toString().startsWith('temp-')) {
+      try {
+        const token = await getToken();
+        await axios.put(
+          `${import.meta.env.VITE_BASE_URL}/api/section/${section._id}`,
+          { [field]: value },
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        console.log(`\u2705 Section ${field} updated on server`);
+      } catch (error) {
+        console.error('\u274c Error updating section:', error);
+        // Don't alert for every keystroke, just log
+      }
+    }
   };
 
-  const removeSection = (sectionId) => {
+  const removeSection = async (sectionId) => {
+    // Check if section exists on server
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    
+    // Remove from UI immediately
     setSections(prev => prev.filter(section => 
       section.id !== sectionId && section._id !== sectionId
     ));
+
+    // If section exists on server, delete it (backend will cascade delete lessons)
+    if (section && section._id && !section._id.toString().startsWith('temp-')) {
+      try {
+        const token = await getToken();
+        await axios.delete(
+          `${import.meta.env.VITE_BASE_URL}/api/section/${section._id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        console.log('✅ Section deleted from server:', section._id);
+      } catch (error) {
+        console.error('❌ Error deleting section from server:', error);
+        // Section already removed from UI, just log the error
+      }
+    }
   };
 
   // Lesson management
-  const addLesson = (sectionId) => {
-    const newLesson = {
-      id: Date.now().toString(),
-      title: '',
-      contentType: 'video',
-      info: ''
-    };
-    
-    setSections(prev => prev.map(section => {
-      if (section.id === sectionId || section._id === sectionId) {
-        return {
-          ...section,
-          lessons: [...(section.lessons || []), newLesson]
-        };
-      }
-      return section;
-    }));
+  const addLesson = async (sectionId, title = 'Bài học mới', contentType = 'video') => {
+    // Check if section is temporary (not yet on server)
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    if (!section || !section._id || section._id.toString().startsWith('temp-')) {
+      // Section not yet saved, just add to state
+      const newLesson = {
+        id: `temp-${Date.now()}`,
+        title: title,
+        contentType: contentType,
+        info: ''
+      };
+      
+      setSections(prev => prev.map(s => {
+        if ((s.id || s._id) === sectionId) {
+          return {
+            ...s,
+            lessons: [...(s.lessons || []), newLesson]
+          };
+        }
+        return s;
+      }));
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/lesson`,
+        {
+          sectionId: sectionId,
+          title: title,
+          contentType: contentType,
+          order: (section.lessons || []).length + 1
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      // Backend returns { success, message, data: lesson }
+      const lessonData = response.data.data || response.data;
+      
+      const newLesson = {
+        _id: lessonData._id,
+        id: lessonData._id,
+        title: lessonData.title,
+        contentType: lessonData.contentType,
+        order: lessonData.order,
+        info: ''
+      };
+      
+      setSections(prev => prev.map(s => {
+        if ((s.id || s._id) === sectionId) {
+          return {
+            ...s,
+            lessons: [...(s.lessons || []), newLesson]
+          };
+        }
+        return s;
+      }));
+      console.log('\u2705 Lesson created on server:', response.data._id);
+    } catch (error) {
+      console.error('\u274c Error creating lesson:', error);
+      alert('Kh\u00f4ng th\u1ec3 t\u1ea1o b\u00e0i h\u1ecdc: ' + (error.response?.data?.message || error.message));
+    }
   };
 
-  const updateLesson = (sectionId, lessonId, field, value) => {
+  const updateLesson = async (sectionId, lessonId, field, value) => {
+    // Update state immediately for responsiveness
     setSections(prev => prev.map(section => {
       if (section.id === sectionId || section._id === sectionId) {
         return {
@@ -427,6 +570,28 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       }
       return section;
     }));
+
+    // Find the lesson
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    if (section) {
+      const lesson = section.lessons?.find(l => (l.id || l._id) === lessonId);
+      if (lesson && lesson._id && !lesson._id.toString().startsWith('temp-')) {
+        try {
+          const token = await getToken();
+          await axios.put(
+            `${import.meta.env.VITE_BASE_URL}/api/lesson/${lesson._id}`,
+            { [field]: value },
+            {
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+          console.log(`\u2705 Lesson ${field} updated on server`);
+        } catch (error) {
+          console.error('\u274c Error updating lesson:', error);
+          // Don't alert for every keystroke, just log
+        }
+      }
+    }
   };
 
   const removeLesson = (sectionId, lessonId) => {
@@ -467,6 +632,58 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle save basic info only
+  const handleSaveBasicInfo = async () => {
+    if (!isEditMode || !courseId) {
+      alert('Chỉ có thể lưu khi chỉnh sửa khóa học');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = await getToken();
+      
+      // Map level and language
+      const selectedLevel = levels.find(lv => lv.title.toLowerCase() === courseData.level.toLowerCase());
+      const selectedLanguage = languages.find(lang => lang.title.toLowerCase() === courseData.language.toLowerCase());
+      const lv_id = selectedLevel ? selectedLevel.lv_id : 'L1';
+      const lang_id = selectedLanguage ? selectedLanguage.lang_id : languages[0]?.lang_id;
+      
+      // Only save basic info, keep status as is
+      const payload = {
+        title: courseData.title,
+        subTitle: courseData.subtitle,
+        des: courseData.description,
+        originalPrice: courseData.originalPrice || 0,
+        lv_id: lv_id,
+        lang_id: lang_id,
+        has_practice: courseData.hasPractice ? 1 : 0,
+        has_certificate: courseData.hasCertificate ? 1 : 0,
+        picture_url: courseData.thumbnail,
+        requirements: courseData.requirements.filter(r => r.trim() !== ''),
+        objectives: courseData.objectives.filter(o => o.trim() !== ''),
+        categories: courseData.subcategory ? [courseData.subcategory] : []
+      };
+
+      const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`;
+      await axios.put(url, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Update initial data after successful save
+      setInitialData({ ...courseData });
+      setLastSaved(new Date());
+      alert('Lưu thông tin thành công!');
+    } catch (error) {
+      console.error('❌ [handleSaveBasicInfo] Error:', error);
+      alert('Có lỗi xảy ra khi lưu: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Lưu khóa học với status truyền vào
@@ -601,6 +818,10 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         } else {
           alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
         }
+        
+        // Update initial data and last saved time
+        setInitialData({ ...courseData });
+        setLastSaved(new Date());
         navigate('/instructor');
       } else {
         // Create new course
@@ -651,26 +872,27 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             <h1 className={styles.title}>
               {isViewMode ? 'Xem khóa học' : (isEditMode ? 'Chỉnh sửa khóa học' : 'Tạo khóa học mới')}
             </h1>
+            {lastSaved && isEditMode && (
+              <span style={{
+                marginLeft: '16px',
+                fontSize: '12px',
+                color: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                ✓ Đã lưu lúc {lastSaved.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
           
           {!isViewMode && (
             <div className={styles.headerActions}>
-              {/* Chỉ hiện nút Lưu nháp khi tạo mới (không phải edit) */}
-              {!isEditMode && (
-                <button
-                  onClick={() => saveCourseWithStatus('draft')}
-                  disabled={saving}
-                  className={styles.saveButton}
-                >
-                  <Save size={16} />
-                  {saving ? 'Đang lưu...' : 'Lưu nháp'}
-                </button>
-              )}
               <button
                 onClick={() => saveCourseWithStatus('pending')}
                 disabled={saving}
                 className={styles.saveButton}
-                style={{ marginLeft: !isEditMode ? 12 : 0, background: '#3b82f6', color: 'white' }}
+                style={{ background: '#3b82f6', color: 'white' }}
               >
                 <Upload size={16} />
                 {saving ? 'Đang gửi...' : (isEditMode ? 'Gửi cập nhật' : 'Gửi xét duyệt')}
@@ -716,6 +938,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             levels={levels}
             languages={languages}
             readOnly={isViewMode}
+            onSave={isEditMode && !isViewMode ? handleSaveBasicInfo : null}
+            initialData={initialData}
           />
         )}
 

@@ -66,13 +66,14 @@ export const uploadMaterial = async (req, res) => {
             });
         }
 
-        const { lessonTitle } = req.body;
+        const { lessonTitle, lessonId } = req.body;
 
         console.log('📤 [Material Upload] Starting private upload...');
         console.log('   File:', req.file.originalname);
         console.log('   Size:', (req.file.size / 1024 / 1024).toFixed(2) + 'MB');
         console.log('   Type:', req.file.mimetype);
         console.log('   Lesson Title:', lessonTitle);
+        console.log('   Lesson ID:', lessonId);
 
         // Extract file extension
         const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
@@ -110,6 +111,20 @@ export const uploadMaterial = async (req, res) => {
 
         console.log('✅ [Material Upload] Material document created');
         console.log('   Material ID:', material._id);
+
+        // Link material với lesson nếu có lessonId
+        if (lessonId) {
+            const Lesson = (await import('../models/Lesson.js')).default;
+            const lesson = await Lesson.findById(lessonId);
+            if (lesson) {
+                lesson.material = material._id;
+                lesson.duration = 0; // Materials don't have duration
+                await lesson.save();
+                console.log(`✅ Linked material ${material._id} to lesson ${lessonId}`);
+            } else {
+                console.log(`⚠️ Lesson ${lessonId} not found, material not linked`);
+            }
+        }
 
         res.status(200).json({
             success: true,

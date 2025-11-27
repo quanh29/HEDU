@@ -4,7 +4,12 @@ const videoSchema = new mongoose.Schema({
     section: {
         type: String,
         ref: 'Section',
-        required: true,
+        required: false, // Optional for backward compatibility
+    },
+    lesson: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lesson',
+        required: false, // Will be required for new structure
     },
     title: {
         type: String,

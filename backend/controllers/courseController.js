@@ -44,12 +44,26 @@ export const addCourse = async (req, res) => {
         hasSections: !!sections
     });
 
-    if (!title || !subTitle || !originalPrice || !currentPrice || !instructor_id || !requirements || !objectives) {
-        return res.status(400).json({ message: 'Required fields are missing' });
+    // Allow creating draft course with minimal data
+    if (!title || !instructor_id) {
+        return res.status(400).json({ message: 'Title and instructor_id are required' });
     }
 
+    // Set defaults for draft courses
+    const courseData = {
+        title,
+        subTitle: subTitle || '',
+        originalPrice: originalPrice || 0,
+        currentPrice: currentPrice || 0,
+        instructor_id,
+        requirements: requirements || [],
+        objectives: objectives || [],
+        sections: sections || [],
+        course_status: 'draft' // Always create as draft
+    };
+
     try {
-        const result = await courseService.createCourseService(req.body);
+        const result = await courseService.createCourseService(courseData);
         console.log('✅ [addCourse] Course created successfully:', result);
         res.status(201).json({ success: true, ...result });
     } catch (error) {

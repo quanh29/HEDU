@@ -5,6 +5,7 @@ import styles from './MaterialUploader.module.css';
 
 const MaterialUploader = ({ 
     lessonTitle,
+    lessonId, // Add lessonId prop
     onUploadComplete,
     onUploadError 
 }) => {
@@ -51,9 +52,11 @@ const MaterialUploader = ({
             const formData = new FormData();
             formData.append('file', file);
             formData.append('lessonTitle', lessonTitle);
+            formData.append('lessonId', lessonId); // Add lessonId to link material with lesson
 
             console.log('📤 [MaterialUploader] Uploading file:', file.name);
             console.log('   Lesson Title:', lessonTitle);
+            console.log('   Lesson ID:', lessonId);
 
             const response = await axios.post(
                 `${import.meta.env.VITE_BASE_URL}/api/material/upload`,

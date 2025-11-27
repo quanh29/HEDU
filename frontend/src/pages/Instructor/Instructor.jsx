@@ -225,6 +225,47 @@ const Instructor = ({ activeTab: propActiveTab }) => {
     navigate(`/instructor/update-course/${courseId}`);
   };
 
+  // Create new draft course
+  const createNewCourse = async () => {
+    if (!user?.id) {
+      alert('Vui lòng đăng nhập để tạo khóa học');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = await getToken();
+      
+      // Create draft course with minimal data
+      const response = await axios.post(
+        `${BASE_URL}/api/course`,
+        {
+          title: 'Khóa học mới',
+          instructor_id: user.id
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success && response.data.course_id) {
+        console.log('✅ Created draft course:', response.data.course_id);
+        // Navigate to edit page with the new course ID
+        navigate(`/instructor/update-course/${response.data.course_id}`);
+      } else {
+        console.error('Response data:', response.data);
+        throw new Error('Failed to get course ID from response');
+      }
+    } catch (error) {
+      console.error('Error creating draft course:', error);
+      alert('Không thể tạo khóa học. Vui lòng thử lại: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Dashboard Component
   const Dashboard = () => (
     <div className="space-y-6">
@@ -340,10 +381,11 @@ const Instructor = ({ activeTab: propActiveTab }) => {
             fontSize: '14px',
             fontWeight: '500'
           }}
-          onClick={() => navigate('/instructor/create-course')}
+          onClick={createNewCourse}
+          disabled={loading}
         >
           <Plus size={16} />
-          Tạo khóa học mới
+          {loading ? 'Đang tạo...' : 'Tạo khóa học mới'}
         </button>
       </div>
 

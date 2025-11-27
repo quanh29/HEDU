@@ -11,6 +11,7 @@ import { socketAuth } from './middleware/socketAuth.js';
 import { setupVideoSocketHandlers } from './sockets/videoSocket.js';
 import courseRouter from './routes/courseRoute.js';
 import sectionRouter from './routes/sectionRoute.js';
+import lessonRouter from './routes/lessonRoute.js';
 import videoRouter from './routes/videoRoute.js';
 import materialRouter from './routes/materialRoute.js';
 import quizRouter from './routes/quizRoute.js';
@@ -81,6 +82,7 @@ app.use("/api/inngest", serve({ client: inngest, functions }));
 
 app.use("/api/course", courseRouter);
 app.use("/api/section", sectionRouter);
+app.use("/api/lesson", lessonRouter);
 app.use("/api/video", videoRouter);
 app.use("/api/material", materialRouter);
 app.use("/api/quiz", quizRouter);

@@ -15,7 +15,7 @@ const { video } = new Mux({
  * Tạo direct upload URL cho video
  */
 export const createDirectUpload = async (req, res) => {
-    let { lessonTitle, sectionId } = req.body;
+    let { lessonTitle, sectionId, lessonId } = req.body;
 
     try {
         // Get userId from Clerk authentication
@@ -39,16 +39,17 @@ export const createDirectUpload = async (req, res) => {
         
         logger.info(`Creating MUX upload for: ${lessonTitle}`);
         logger.debug(`Section ID: ${sectionId}`);
+        logger.debug(`Lesson ID: ${lessonId}`);
         
         // Log credentials status
         logger.envCheck('MUX_TOKEN_ID', process.env.MUX_TOKEN_ID);
         logger.envCheck('MUX_SECRET_KEY', process.env.MUX_SECRET_KEY);
 
-        // Validate input - chỉ cần sectionId
-        if (!sectionId) {
-            logger.error('Missing required field: sectionId');
+        // Validate input - cần cả sectionId và lessonId
+        if (!sectionId || !lessonId) {
+            logger.error('Missing required fields: sectionId and lessonId');
             return res.status(400).json({ 
-                message: 'Missing required field: sectionId' 
+                message: 'Missing required fields: sectionId and lessonId' 
             });
         }
 
@@ -79,12 +80,25 @@ export const createDirectUpload = async (req, res) => {
         await videoDoc.save();
 
         logger.success(`Video document created: ${videoDoc._id}`);
+        
+        // Link video với lesson
+        const Lesson = (await import('../models/Lesson.js')).default;
+        const lesson = await Lesson.findById(lessonId);
+        if (lesson) {
+            lesson.video = videoDoc._id;
+            await lesson.save();
+            logger.success(`Linked video ${videoDoc._id} to lesson ${lessonId}`);
+        } else {
+            logger.warning(`Lesson ${lessonId} not found, video not linked`);
+        }
+
         logger.info(`🔗 Mapping created:`);
         logger.info(`   Video ID: ${videoDoc._id}`);
         logger.info(`   User ID: ${videoDoc.userId}`);
         logger.info(`   Upload ID: ${upload.id}`);
         logger.info(`   Title: ${videoDoc.title}`);
         logger.info(`   Section: ${videoDoc.section}`);
+        logger.info(`   Lesson: ${lessonId}`);
         logger.info(`   Initial Status: ${videoDoc.status}`);
         logger.info(`   Initial AssetId: ${videoDoc.assetId || '(empty)'}`);
         logger.info(`   Created At: ${videoDoc.createdAt}`);

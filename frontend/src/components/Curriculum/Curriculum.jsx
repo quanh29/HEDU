@@ -1,14 +1,30 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload } from 'lucide-react';
+import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload, Edit2 } from 'lucide-react';
 import MuxUploader from '../MuxUploader/MuxUploader';
 import MaterialUploader from '../MaterialUploader/MaterialUploader';
+import SectionModal from '../Modals/SectionModal';
+import LessonModal from '../Modals/LessonModal';
+import QuizQuestionModal from '../Modals/QuizQuestionModal';
 import styles from './Curriculum.module.css';
 import { useVideoSocket } from '../../context/SocketContext.jsx';
+import { useAuth } from '@clerk/clerk-react';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
+  const { getToken } = useAuth();
   const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
   const cancelFunctionsRef = useRef({}); // Store cancel functions for each lesson: { lessonId: cancelFunction }
   const cancellingRef = useRef({}); // Track which lessons are currently being cancelled
+  
+  // Modal states
+  const [sectionModalOpen, setSectionModalOpen] = useState(false);
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+  const [quizQuestionModalOpen, setQuizQuestionModalOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [currentSectionId, setCurrentSectionId] = useState(null);
+  const [currentLessonId, setCurrentLessonId] = useState(null);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
   
   // WebSocket listener for video status updates - handles ALL video updates for this component
   const handleVideoStatusUpdate = useCallback((data) => {
@@ -424,17 +440,286 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     }
   };
 
+  // Section modal handlers
+  const handleAddSection = () => {
+    setEditingSection(null);
+    setSectionModalOpen(true);
+  };
+
+  const handleEditSection = (section) => {
+    setEditingSection(section);
+    setSectionModalOpen(true);
+  };
+
+  const handleSectionSubmit = (title) => {
+    if (editingSection) {
+      // Edit existing section
+      updateSection(editingSection.id || editingSection._id, 'title', title);
+    } else {
+      // Add new section with title
+      addSection(title);
+    }
+    setSectionModalOpen(false);
+    setEditingSection(null);
+  };
+
+  // Lesson modal handlers
+  const handleAddLesson = (sectionId) => {
+    setCurrentSectionId(sectionId);
+    setEditingLesson(null);
+    setLessonModalOpen(true);
+  };
+
+  const handleEditLesson = (sectionId, lesson) => {
+    setCurrentSectionId(sectionId);
+    setEditingLesson(lesson);
+    setLessonModalOpen(true);
+  };
+
+  const handleLessonSubmit = async (title, contentType) => {
+    if (!currentSectionId) return;
+
+    if (editingLesson) {
+      const lessonId = editingLesson.id || editingLesson._id;
+      
+      // Update title
+      updateLesson(currentSectionId, lessonId, 'title', title);
+      
+      // Check if contentType changed
+      if (contentType !== editingLesson.contentType) {
+        console.log('📝 Content type changed from', editingLesson.contentType, 'to', contentType);
+        
+        // Delete old content based on previous type
+        if (editingLesson.contentType === 'video' && editingLesson.videoId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/video/${editingLesson.videoId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Old video deleted');
+          } catch (error) {
+            console.error('❌ Error deleting old video:', error);
+          }
+        } else if (editingLesson.contentType === 'material' && editingLesson.materialId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${editingLesson.materialId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Old material deleted');
+          } catch (error) {
+            console.error('❌ Error deleting old material:', error);
+          }
+        } else if (editingLesson.contentType === 'quiz' && editingLesson.quizId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/quiz/${editingLesson.quizId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Old quiz deleted');
+          } catch (error) {
+            console.error('❌ Error deleting old quiz:', error);
+          }
+        }
+        
+        // Update contentType and clear all content-related fields
+        updateLesson(currentSectionId, lessonId, 'contentType', contentType);
+        updateLesson(currentSectionId, lessonId, 'videoId', '');
+        updateLesson(currentSectionId, lessonId, 'playbackId', '');
+        updateLesson(currentSectionId, lessonId, 'assetId', '');
+        updateLesson(currentSectionId, lessonId, 'materialId', '');
+        updateLesson(currentSectionId, lessonId, 'publicId', '');
+        updateLesson(currentSectionId, lessonId, 'fileName', '');
+        updateLesson(currentSectionId, lessonId, 'quizId', '');
+        updateLesson(currentSectionId, lessonId, 'quizQuestions', []);
+        updateLesson(currentSectionId, lessonId, 'status', '');
+        updateLesson(currentSectionId, lessonId, 'uploadStatus', 'idle');
+      }
+    } else {
+      // Add new lesson with title and contentType
+      addLesson(currentSectionId, title, contentType);
+    }
+    setLessonModalOpen(false);
+    setEditingLesson(null);
+    setCurrentSectionId(null);
+  };
+
+  // Quiz question modal handlers
+  const handleAddQuizQuestion = (sectionId, lessonId) => {
+    setCurrentSectionId(sectionId);
+    setCurrentLessonId(lessonId);
+    setEditingQuestion(null);
+    setEditingQuestionIndex(null);
+    setQuizQuestionModalOpen(true);
+  };
+
+  const handleEditQuizQuestion = (sectionId, lessonId, question, questionIndex) => {
+    setCurrentSectionId(sectionId);
+    setCurrentLessonId(lessonId);
+    setEditingQuestion(question);
+    setEditingQuestionIndex(questionIndex);
+    setQuizQuestionModalOpen(true);
+  };
+
+  const handleQuizQuestionSubmit = async (question, answers, explanation) => {
+    if (!currentSectionId || !currentLessonId) return;
+
+    // Find the lesson
+    const section = sections.find(s => (s.id || s._id) === currentSectionId);
+    if (!section) return;
+
+    const lesson = section.lessons?.find(l => (l.id || l._id) === currentLessonId);
+    if (!lesson) return;
+
+    const quizQuestions = [...(lesson.quizQuestions || [])];
+
+    if (editingQuestionIndex !== null) {
+      // Edit existing question
+      quizQuestions[editingQuestionIndex] = { question, answers, explanation };
+    } else {
+      // Add new question
+      quizQuestions.push({ question, answers, explanation });
+    }
+
+    // Update UI immediately
+    updateLesson(currentSectionId, currentLessonId, 'quizQuestions', quizQuestions);
+    
+    // Sync with backend
+    try {
+      await syncQuizWithBackend(currentSectionId, currentLessonId, lesson, quizQuestions);
+    } catch (error) {
+      console.error('❌ Error syncing quiz with backend:', error);
+      alert('Có lỗi khi lưu câu hỏi. Vui lòng thử lại.');
+    }
+    
+    setQuizQuestionModalOpen(false);
+    setEditingQuestion(null);
+    setEditingQuestionIndex(null);
+    setCurrentSectionId(null);
+    setCurrentLessonId(null);
+  };
+
+  const handleDeleteQuizQuestion = async (sectionId, lessonId, questionIndex) => {
+    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');
+    if (!confirmed) return;
+
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    if (!section) return;
+
+    const lesson = section.lessons?.find(l => (l.id || l._id) === lessonId);
+    if (!lesson) return;
+
+    const quizQuestions = [...(lesson.quizQuestions || [])];
+    quizQuestions.splice(questionIndex, 1);
+    
+    // Update UI immediately
+    updateLesson(sectionId, lessonId, 'quizQuestions', quizQuestions);
+    
+    // Sync with backend
+    try {
+      await syncQuizWithBackend(sectionId, lessonId, lesson, quizQuestions);
+    } catch (error) {
+      console.error('❌ Error syncing quiz with backend:', error);
+      alert('Có lỗi khi xóa câu hỏi. Vui lòng thử lại.');
+    }
+  };
+
+  // Helper function to sync quiz with backend
+  const syncQuizWithBackend = async (sectionId, lessonId, lesson, quizQuestions) => {
+    // Transform frontend format to backend format
+    const backendQuestions = quizQuestions.map(q => ({
+      questionText: q.question,
+      options: q.answers.map(a => a.text),
+      correctAnswers: q.answers
+        .map((a, idx) => a.isCorrect ? a.text : null)
+        .filter(a => a !== null),
+      explanation: q.explanation || ''
+    }));
+
+    const token = await getToken();
+
+    if (lesson.quizId) {
+      // Update existing quiz
+      console.log('📝 Updating quiz:', lesson.quizId);
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/api/quiz/${lesson.quizId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title: lesson.title || 'Quiz',
+            questions: backendQuestions
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update quiz');
+      }
+
+      console.log('✅ Quiz updated successfully');
+    } else {
+      // Create new quiz
+      console.log('➕ Creating new quiz for lesson:', lessonId);
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/api/quiz`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            section: sectionId,
+            title: lesson.title || 'Quiz',
+            questions: backendQuestions,
+            order: lesson.order || 0
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to create quiz');
+      }
+
+      const data = await response.json();
+      const quizId = data._id;
+
+      console.log('✅ Quiz created with ID:', quizId);
+
+      // Link quiz with lesson via lesson update API
+      const updateLessonResponse = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/api/lesson/${lessonId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            quiz: quizId
+          })
+        }
+      );
+
+      if (!updateLessonResponse.ok) {
+        console.error('⚠️ Failed to link quiz to lesson');
+      } else {
+        console.log('✅ Linked quiz to lesson');
+      }
+
+      // Update UI with quizId
+      updateLesson(sectionId, lessonId, 'quizId', quizId);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Chương trình học</h2>
-        <button
-          onClick={addSection}
-          className={styles.addSectionBtn}
-        >
-          <Plus size={16} />
-          Thêm chương
-        </button>
       </div>
       {errors.sections && (
         <div className={styles.errorBox}>
@@ -447,13 +732,17 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
             {/* Section Header */}
             <div className={styles.sectionHeader}>
               <GripVertical size={16} style={{ color: '#9ca3af', cursor: 'grab' }} />
-              <input
-                type="text"
-                value={section.title}
-                onChange={(e) => updateSection(section.id || section._id, 'title', e.target.value)}
-                placeholder={`Chương ${sectionIndex + 1}...`}
-                className={styles.sectionInput}
-              />
+              <div className={styles.sectionInput} style={{ cursor: 'default', background: 'transparent', border: 'none', fontWeight: 500 }}>
+                <span style={{ fontWeight: 'bold', fontSize: '15px' }}>Chương {sectionIndex + 1}:</span> {section.title || `Chương ${sectionIndex + 1}`}
+              </div>
+              <button
+                onClick={() => handleEditSection(section)}
+                className={styles.editSectionBtn}
+                title="Chỉnh sửa chương"
+                style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#6b7280' }}
+              >
+                <Edit2 size={16} />
+              </button>
               <button
                 onClick={() => handleDeleteSection(section)}
                 className={styles.removeSectionBtn}
@@ -476,38 +765,52 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                         <FileText size={12} />
                       )}
                     </div>
-                    <input
-                      type="text"
-                      value={lesson.title}
-                      onChange={(e) => updateLesson(
-                        section.id || section._id,
-                        lesson.id || lesson._id,
-                        'title',
-                        e.target.value
-                      )}
-                      placeholder={`Bài ${lessonIndex + 1}...`}
-                      className={styles.lessonInput}
-                    />
-                    <select
-                      value={lesson.contentType}
-                      onChange={(e) => updateLesson(
-                        section.id || section._id,
-                        lesson.id || lesson._id,
-                        'contentType',
-                        e.target.value
-                      )}
-                      className={styles.lessonSelect}
+                    <div className={styles.lessonInput} style={{ cursor: 'default', background: 'transparent', border: 'none' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Bài {lessonIndex + 1}:</span> {lesson.title || `Bài ${lessonIndex + 1}`}
+                    </div>
+                    <div style={{ 
+                      padding: '6px 12px', 
+                      fontSize: '13px', 
+                      color: '#6b7280',
+                      background: '#f9fafb',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e7eb',
+                      minWidth: '80px',
+                      textAlign: 'center'
+                    }}>
+                      {lesson.contentType === 'video' ? '📹 Video' : lesson.contentType === 'material' ? '📄 Tài liệu' : '📝 Quiz'}
+                    </div>
+                    <button
+                      onClick={() => handleEditLesson(section.id || section._id, lesson)}
+                      style={{ 
+                        padding: '6px', 
+                        border: 'none', 
+                        background: 'transparent', 
+                        cursor: 'pointer', 
+                        color: '#6b7280',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="Chỉnh sửa bài học"
                     >
-                      <option value="video">Video</option>
-                      <option value="material">Tài liệu</option>
-                      <option value="quiz">Quiz</option>
-                    </select>
-                    {/* MaterialUploader for article/material upload */}
-                    {lesson.contentType === 'material' && (
-                      <div style={{ marginTop: 12, marginBottom: 12 }}>
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteLesson(section.id || section._id, lesson.id || lesson._id, lesson)}
+                      className={styles.removeLessonBtn}
+                      title="Xóa bài học"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  
+                  {/* MaterialUploader for article/material upload */}
+                  {lesson.contentType === 'material' && (
+                    <div style={{ marginTop: 12, marginBottom: 12, width: '100%' }}>
                         {!lesson.materialId && !lesson.fileName && (
                           <MaterialUploader
                             lessonTitle={lesson.title}
+                            lessonId={lesson._id || lesson.id}
                             onUploadComplete={(data) => handleMaterialUploadComplete(
                               section.id || section._id,
                               lesson.id || lesson._id,
@@ -558,14 +861,16 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                         )}
                       </div>
                     )}
+                    
                     {/* MuxUploader for video upload */}
                     {lesson.contentType === 'video' && (
-                      <div style={{ marginTop: 12, marginBottom: 12 }}>
+                      <div style={{ marginTop: 12, marginBottom: 12, width: '100%' }}>
                         {/* Upload button hoặc inline uploader - chỉ hiện khi chưa có playbackId, chưa ready và không đang processing */}
                         {!uploadingLessons[lesson.id || lesson._id] && !lesson.playbackId && lesson.status !== 'ready' && lesson.status !== 'processing' && (
                           <MuxUploader
                             lessonTitle={lesson.title}
                             sectionId={section._id || section.id}
+                            lessonId={lesson._id || lesson.id}
                             onUploadStart={() => startUpload(section.id || section._id, lesson.id || lesson._id)}
                             onUploadComplete={(data) => handleVideoUploadComplete(
                               section.id || section._id,
@@ -658,8 +963,8 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                           </div>
                         )}
                         
-                        {/* Display video info if uploaded */}
-                        {(lesson.playbackId || lesson.status === 'ready') && (
+                        {/* Display video info if uploaded - only show if video actually exists */}
+                        {lesson.playbackId && lesson.status === 'ready' && (
                           <div style={{
                             marginTop: 8,
                             padding: 12,
@@ -701,9 +1006,10 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                         )}
                       </div>
                     )}
+                    
                     {/* Upload file for document with styled box */}
                     {lesson.contentType === 'text' && (
-                      <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <div style={{ marginTop: 8, marginBottom: 8, width: '100%' }}>
                         <label
                           htmlFor={`file-upload-${section.id || section._id}-${lesson.id || lesson._id}`}
                           style={{
@@ -739,14 +1045,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                         </label>
                       </div>
                     )}
-                    <button
-                      onClick={() => handleDeleteLesson(section.id || section._id, lesson.id || lesson._id, lesson)}
-                      className={styles.removeLessonBtn}
-                      title="Xóa bài học"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  
                   {/* Quiz form for quiz lessons - now below the lesson row */}
                   {lesson.contentType === 'quiz' && (
                     <div style={{
@@ -757,113 +1056,144 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       marginTop: 8,
                       width: '100%'
                     }}>
+                      {/* Display existing questions */}
                       {(lesson.quizQuestions || []).map((q, qIdx) => (
-                        <div key={q.id || qIdx} style={{ marginBottom: 20, borderBottom: '1px solid #e5e7eb', paddingBottom: 12 }}>
-                          <div style={{ marginBottom: 8 }}>
-                            <input
-                              type="text"
-                              value={q.question || ''}
-                              placeholder={`Câu hỏi ${qIdx + 1}`}
-                              style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 14 }}
-                              onChange={e => {
-                                const updated = [...(lesson.quizQuestions || [])];
-                                updated[qIdx] = { ...q, question: e.target.value };
-                                updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                              }}
-                            />
-                          </div>
-                          <div style={{ marginBottom: 8 }}>
-                            {(q.answers || []).map((ans, ansIdx) => (
-                              <div key={ans.id || ansIdx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!ans.isCorrect}
-                                  onChange={e => {
-                                    const updated = [...(lesson.quizQuestions || [])];
-                                    const answers = [...(q.answers || [])];
-                                    answers[ansIdx] = { ...ans, isCorrect: e.target.checked };
-                                    updated[qIdx] = { ...q, answers };
-                                    updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                                  }}
-                                  style={{ marginRight: 4 }}
-                                />
-                                <input
-                                  type="text"
-                                  value={ans.text || ''}
-                                  placeholder={`Đáp án ${ansIdx + 1}`}
-                                  style={{ flex: 1, padding: 6, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
-                                  onChange={e => {
-                                    const updated = [...(lesson.quizQuestions || [])];
-                                    const answers = [...(q.answers || [])];
-                                    answers[ansIdx] = { ...ans, text: e.target.value };
-                                    updated[qIdx] = { ...q, answers };
-                                    updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: 16 }}
-                                  onClick={() => {
-                                    const updated = [...(lesson.quizQuestions || [])];
-                                    const answers = [...(q.answers || [])];
-                                    answers.splice(ansIdx, 1);
-                                    updated[qIdx] = { ...q, answers };
-                                    updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                                  }}
-                                >✕</button>
+                        <div key={qIdx} style={{ 
+                          marginBottom: 16, 
+                          padding: 12,
+                          background: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 8
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'flex-start',
+                            marginBottom: 8
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: '#1f2937' }}>
+                                Câu {qIdx + 1}: {q.question}
                               </div>
-                            ))}
-                            <button
-                              type="button"
-                              style={{ marginTop: 4, border: '1px dashed #3b82f6', background: 'white', color: '#3b82f6', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 13 }}
-                              onClick={() => {
-                                const updated = [...(lesson.quizQuestions || [])];
-                                const answers = [...(q.answers || [])];
-                                answers.push({ text: '', isCorrect: false });
-                                updated[qIdx] = { ...q, answers };
-                                updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                              }}
-                            >+ Thêm đáp án</button>
+                              <div style={{ fontSize: 13, color: '#6b7280' }}>
+                                {(q.answers || []).map((ans, ansIdx) => (
+                                  <div key={ansIdx} style={{ 
+                                    padding: '4px 0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                  }}>
+                                    <span style={{ 
+                                      color: ans.isCorrect ? '#10b981' : '#6b7280',
+                                      fontWeight: ans.isCorrect ? 600 : 400
+                                    }}>
+                                      {ans.isCorrect ? '✓' : '○'} {ans.text}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              {q.explanation && (
+                                <div style={{ 
+                                  marginTop: 8, 
+                                  fontSize: 12, 
+                                  color: '#6b7280',
+                                  fontStyle: 'italic',
+                                  padding: 8,
+                                  background: '#f9fafb',
+                                  borderRadius: 4,
+                                  border: '1px solid #e5e7eb'
+                                }}>
+                                  💡 {q.explanation}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
+                              <button
+                                type="button"
+                                onClick={() => handleEditQuizQuestion(
+                                  section.id || section._id,
+                                  lesson.id || lesson._id,
+                                  q,
+                                  qIdx
+                                )}
+                                style={{ 
+                                  padding: '6px',
+                                  border: '1px solid #3b82f6',
+                                  background: 'white',
+                                  color: '#3b82f6',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  minWidth: '32px',
+                                  height: '32px'
+                                }}
+                                title="Chỉnh sửa câu hỏi"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteQuizQuestion(
+                                  section.id || section._id,
+                                  lesson.id || lesson._id,
+                                  qIdx
+                                )}
+                                style={{ 
+                                  padding: '6px',
+                                  border: '1px solid #ef4444',
+                                  background: 'white',
+                                  color: '#ef4444',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  minWidth: '32px',
+                                  height: '32px'
+                                }}
+                                title="Xóa câu hỏi"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ marginBottom: 8 }}>
-                            <input
-                              type="text"
-                              value={q.explanation || ''}
-                              placeholder="Giải thích (tuỳ chọn)"
-                              style={{ width: '100%', padding: 6, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
-                              onChange={e => {
-                                const updated = [...(lesson.quizQuestions || [])];
-                                updated[qIdx] = { ...q, explanation: e.target.value };
-                                updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                              }}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            style={{ border: '1px solid #ef4444', background: 'white', color: '#ef4444', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 13 }}
-                            onClick={() => {
-                              const updated = [...(lesson.quizQuestions || [])];
-                              updated.splice(qIdx, 1);
-                              updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
-                            }}
-                          >Xoá câu hỏi</button>
                         </div>
                       ))}
+                      
+                      {/* Add question button */}
                       <button
                         type="button"
-                        style={{ border: '1px dashed #3b82f6', background: 'white', color: '#3b82f6', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 14 }}
-                        onClick={() => {
-                          const updated = [...(lesson.quizQuestions || [])];
-                          updated.push({ question: '', answers: [{ text: '', isCorrect: false }], explanation: '' });
-                          updateLesson(section.id || section._id, lesson.id || lesson._id, 'quizQuestions', updated);
+                        onClick={() => handleAddQuizQuestion(
+                          section.id || section._id,
+                          lesson.id || lesson._id
+                        )}
+                        style={{ 
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: '1px dashed #3b82f6',
+                          background: 'white',
+                          color: '#3b82f6',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          fontWeight: 500,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6
                         }}
-                      >+ Thêm câu hỏi</button>
+                      >
+                        <Plus size={16} />
+                        Thêm câu hỏi
+                      </button>
                     </div>
                   )}
                 </React.Fragment>
               ))}
               <button
-                onClick={() => addLesson(section.id || section._id)}
+                onClick={() => handleAddLesson(section.id || section._id)}
                 className={styles.addLessonBtn}
               >
                 <Plus size={16} />
@@ -879,7 +1209,60 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
             <p style={{ fontSize: '14px', margin: '8px 0 0 0' }}>Nhấn "Thêm chương" để bắt đầu tạo nội dung</p>
           </div>
         )}
+        
+        {/* Add Section Button - moved to bottom */}
+        <button
+          onClick={handleAddSection}
+          className={styles.addSectionBtn}
+          style={{ marginTop: sections.length > 0 ? '16px' : '0' }}
+        >
+          <Plus size={16} />
+          Thêm chương
+        </button>
       </div>
+
+      {/* Section Modal */}
+      <SectionModal
+        isOpen={sectionModalOpen}
+        mode={editingSection ? 'edit' : 'add'}
+        initialTitle={editingSection?.title || ''}
+        onSubmit={handleSectionSubmit}
+        onClose={() => {
+          setSectionModalOpen(false);
+          setEditingSection(null);
+        }}
+      />
+
+      {/* Lesson Modal */}
+      <LessonModal
+        isOpen={lessonModalOpen}
+        mode={editingLesson ? 'edit' : 'add'}
+        initialTitle={editingLesson?.title || ''}
+        initialContentType={editingLesson?.contentType || 'video'}
+        onSubmit={handleLessonSubmit}
+        onClose={() => {
+          setLessonModalOpen(false);
+          setEditingLesson(null);
+          setCurrentSectionId(null);
+        }}
+      />
+
+      {/* Quiz Question Modal */}
+      <QuizQuestionModal
+        isOpen={quizQuestionModalOpen}
+        mode={editingQuestionIndex !== null ? 'edit' : 'add'}
+        initialQuestion={editingQuestion?.question || ''}
+        initialAnswers={editingQuestion?.answers || [{ text: '', isCorrect: false }]}
+        initialExplanation={editingQuestion?.explanation || ''}
+        onSubmit={handleQuizQuestionSubmit}
+        onClose={() => {
+          setQuizQuestionModalOpen(false);
+          setEditingQuestion(null);
+          setEditingQuestionIndex(null);
+          setCurrentSectionId(null);
+          setCurrentLessonId(null);
+        }}
+      />
     </div>
   );
 };

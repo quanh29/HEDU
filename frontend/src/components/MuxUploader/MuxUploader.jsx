@@ -7,7 +7,8 @@ import { getClerkToken } from '../../utils/clerkAuth.js';
 
 const MuxUploader = ({ 
     lessonTitle, 
-    sectionId, 
+    sectionId,
+    lessonId, // Add lessonId prop
     onUploadStart,
     onUploadComplete,
     onUploadError,
@@ -167,7 +168,8 @@ const MuxUploader = ({
                 },
                 body: JSON.stringify({
                     lessonTitle: lessonTitle || '', // Backend sẽ tự tạo title tạm thời nếu trống
-                    sectionId: sectionId || 'temp-section' // Handle temporary sectionId
+                    sectionId: sectionId || 'temp-section', // Handle temporary sectionId
+                    lessonId: lessonId // Add lessonId to link video with lesson
                 })
             });
 

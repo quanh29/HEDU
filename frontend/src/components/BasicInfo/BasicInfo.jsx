@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, Trash2, Loader } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, Trash2, Loader, Save } from 'lucide-react';
 import axios from 'axios';
 import styles from './BasicInfo.module.css';
 
@@ -14,10 +14,43 @@ const BasicInfo = ({
   allCategories = [],
   loadingCategories = false,
   levels = [],
-  languages = []
+  languages = [],
+  onSave,
+  initialData
 }) => {
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailPublicId, setThumbnailPublicId] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Track changes by comparing courseData with initialData
+  useEffect(() => {
+    if (!initialData) {
+      setHasChanges(false);
+      return;
+    }
+
+    const checkForChanges = () => {
+      // Compare all fields
+      const changed = 
+        courseData.title !== initialData.title ||
+        courseData.subtitle !== initialData.subtitle ||
+        courseData.description !== initialData.description ||
+        courseData.thumbnail !== initialData.thumbnail ||
+        courseData.level !== initialData.level ||
+        courseData.language !== initialData.language ||
+        courseData.category !== initialData.category ||
+        courseData.subcategory !== initialData.subcategory ||
+        courseData.hasPractice !== initialData.hasPractice ||
+        courseData.hasCertificate !== initialData.hasCertificate ||
+        courseData.originalPrice !== initialData.originalPrice ||
+        JSON.stringify(courseData.objectives) !== JSON.stringify(initialData.objectives) ||
+        JSON.stringify(courseData.requirements) !== JSON.stringify(initialData.requirements);
+      
+      setHasChanges(changed);
+    };
+
+    checkForChanges();
+  }, [courseData, initialData]);
 
   // Get categories for selected heading
   const getSubcategoriesForHeading = (headingId) => {
@@ -485,6 +518,39 @@ const BasicInfo = ({
           </button>
         </div>
       </div>
+
+      {/* Save Button Footer */}
+      {onSave && (
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          borderTop: '1px solid #e5e7eb',
+          display: 'flex',
+          justifyContent: 'flex-end'
+        }}>
+          <button
+            onClick={onSave}
+            disabled={!hasChanges}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: hasChanges ? '#10b981' : '#9ca3af',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: hasChanges ? 'pointer' : 'not-allowed',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'background 0.2s'
+            }}
+          >
+            <Save size={16} />
+            {hasChanges ? 'Lưu thay đổi' : 'Không có thay đổi'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@ import Mux from '@mux/mux-node';
 // MongoDB models
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
+import Lesson from '../models/Lesson.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
@@ -354,7 +355,7 @@ export const getFullCourseContentService = async (courseId) => {
     
     course.categories = categories;
 
-    // Lấy sections
+    // Lấy sections với Lesson layer
     const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
     
     if (!sections || sections.length === 0) {
@@ -373,90 +374,152 @@ export const getFullCourseContentService = async (courseId) => {
 
     const sectionIds = sections.map(sec => sec._id);
     
-    // Lấy content cho từng section
-    const [videos, materials, quizzes] = await Promise.all([
-        Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-        Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-        Quiz.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean()
+    // NEW APPROACH: Lấy lessons với populated content (Video/Material/Quiz)
+    const lessons = await Lesson.find({ section: { $in: sectionIds } })
+        .populate('video')
+        .populate('material')
+        .populate('quiz')
+        .sort({ order: 1 })
+        .lean();
+
+    // FALLBACK: For backward compatibility, also get direct section→content references
+    const [directVideos, directMaterials, directQuizzes] = await Promise.all([
+        Video.find({ section: { $in: sectionIds }, lesson: { $exists: false } }).sort({ order: 1 }).lean(),
+        Material.find({ section: { $in: sectionIds }, lesson: { $exists: false } }).sort({ order: 1 }).lean(),
+        Quiz.find({ section: { $in: sectionIds }, lesson: { $exists: false } }).sort({ order: 1 }).lean()
     ]);
+
+    // Combine lesson-based content and direct content for stats
+    const lessonVideos = lessons.filter(l => l.contentType === 'video' && l.video).map(l => l.video);
+    const lessonMaterials = lessons.filter(l => l.contentType === 'material' && l.material).map(l => l.material);
+    const lessonQuizzes = lessons.filter(l => l.contentType === 'quiz' && l.quiz).map(l => l.quiz);
+
+    const allVideos = [...lessonVideos, ...directVideos];
+    const allMaterials = [...lessonMaterials, ...directMaterials];
+    const allQuizzes = [...lessonQuizzes, ...directQuizzes];
 
     const stats = {
         totalSections: sections.length,
-        totalVideos: videos.length,
-        totalMaterials: materials.length,
-        totalQuizzes: quizzes.length,
-        totalLessons: videos.length + materials.length + quizzes.length
+        totalVideos: allVideos.length,
+        totalMaterials: allMaterials.length,
+        totalQuizzes: allQuizzes.length,
+        totalLessons: lessons.length + directVideos.length + directMaterials.length + directQuizzes.length
     };
 
-    // Gom content theo từng section và populate đầy đủ
+    // Gom content theo từng section
     const sectionsWithContent = sections.map(section => {
         const sectionIdStr = section._id.toString();
         
-        // Filter và map videos cho section này
-        const sectionVideos = videos
+        // Get lessons for this section
+        const sectionLessons = lessons
+            .filter(l => l.section.toString() === sectionIdStr)
+            .map(lesson => {
+                // Extract content based on contentType
+                let content = null;
+                let contentData = {};
+
+                if (lesson.contentType === 'video' && lesson.video) {
+                    content = lesson.video;
+                    contentData = {
+                        videoId: content._id,
+                        playbackId: content.playbackId || '',
+                        assetId: content.assetId || '',
+                        uploadId: content.uploadId || '',
+                        duration: content.duration || 0,
+                        status: content.status || 'processing',
+                        contentUrl: content.contentUrl || ''
+                    };
+                } else if (lesson.contentType === 'material' && lesson.material) {
+                    content = lesson.material;
+                    contentData = {
+                        materialId: content._id,
+                        fileName: content.fileName || '',
+                        fileType: content.fileType || '',
+                        fileSize: content.fileSize || 0,
+                        publicId: content.publicId || '',
+                        contentUrl: content.contentUrl || ''
+                    };
+                } else if (lesson.contentType === 'quiz' && lesson.quiz) {
+                    content = lesson.quiz;
+                    contentData = {
+                        quizId: content._id,
+                        passingScore: content.passingScore || 70,
+                        timeLimit: content.timeLimit || null,
+                        questions: content.questions || []
+                    };
+                }
+
+                return {
+                    _id: lesson._id,
+                    title: lesson.title,
+                    description: content?.description || '',
+                    contentType: lesson.contentType,
+                    order: lesson.order || 0,
+                    ...contentData,
+                    createdAt: lesson.createdAt,
+                    updatedAt: lesson.updatedAt
+                };
+            });
+
+        // FALLBACK: Add direct content for backward compatibility
+        const fallbackVideos = directVideos
             .filter(v => v.section.toString() === sectionIdStr)
-            .map(v => {
-                return {
-                    _id: v._id,
-                    title: v.title,
-                    description: v.description || '',
-                    order: v.order || 0,
-                    duration: v.duration || 0,
-                    status: v.status || 'processing',
-                    // Không trả contentUrl cho public route
-                    createdAt: v.createdAt,
-                    updatedAt: v.updatedAt
-                };
-            });
+            .map(v => ({
+                _id: v._id,
+                title: v.title,
+                description: v.description || '',
+                contentType: 'video',
+                order: v.order || 0,
+                videoId: v._id,
+                playbackId: v.playbackId || '',
+                assetId: v.assetId || '',
+                duration: v.duration || 0,
+                status: v.status || 'processing',
+                contentUrl: v.contentUrl || '',
+                createdAt: v.createdAt,
+                updatedAt: v.updatedAt
+            }));
 
-        // Filter và map materials cho section này
-        const sectionMaterials = materials
+        const fallbackMaterials = directMaterials
             .filter(m => m.section.toString() === sectionIdStr)
-            .map(m => {
-                return {
-                    _id: m._id,
-                    title: m.title,
-                    description: m.description || '',
-                    order: m.order || 0,
-                    fileType: m.fileType || '',
-                    fileSize: m.fileSize || 0,
-                    fileName: m.fileName || '',
-                    // Không trả contentUrl cho public route
-                    createdAt: m.createdAt,
-                    updatedAt: m.updatedAt
-                };
-            });
+            .map(m => ({
+                _id: m._id,
+                title: m.title,
+                description: m.description || '',
+                contentType: 'material',
+                order: m.order || 0,
+                materialId: m._id,
+                fileName: m.fileName || '',
+                fileType: m.fileType || '',
+                fileSize: m.fileSize || 0,
+                publicId: m.publicId || '',
+                contentUrl: m.contentUrl || '',
+                createdAt: m.createdAt,
+                updatedAt: m.updatedAt
+            }));
 
-        // Filter và map quizzes cho section này
-        const sectionQuizzes = quizzes
+        const fallbackQuizzes = directQuizzes
             .filter(q => q.section.toString() === sectionIdStr)
-            .map(q => {
-                return {
-                    _id: q._id,
-                    title: q.title,
-                    description: q.description || '',
-                    order: q.order || 0,
-                    passingScore: q.passingScore || 70,
-                    timeLimit: q.timeLimit || null,
-                    // Map questions nhưng không trả correctAnswers cho public
-                    questions: (q.questions || []).map(question => ({
-                        _id: question._id,
-                        questionText: question.questionText,
-                        questionType: question.questionType || 'single-choice',
-                        options: question.options || [],
-                        points: question.points || 1
-                        // correctAnswers và explanation removed for public
-                    })),
-                    createdAt: q.createdAt,
-                    updatedAt: q.updatedAt
-                };
-            });
+            .map(q => ({
+                _id: q._id,
+                title: q.title,
+                description: q.description || '',
+                contentType: 'quiz',
+                order: q.order || 0,
+                quizId: q._id,
+                passingScore: q.passingScore || 70,
+                timeLimit: q.timeLimit || null,
+                questions: q.questions || [],
+                createdAt: q.createdAt,
+                updatedAt: q.updatedAt
+            }));
 
-        // Merge tất cả lessons và sort theo order
+        // Merge lesson-based and direct content
         const allLessons = [
-            ...sectionVideos.map(v => ({ ...v, contentType: 'video', info: v.duration ? `${v.duration} phút` : '10 phút' })),
-            ...sectionMaterials.map(m => ({ ...m, contentType: 'material', info: m.fileType || 'Tài liệu' })),
-            ...sectionQuizzes.map(q => ({ ...q, contentType: 'quiz', info: q.timeLimit ? `${q.timeLimit} phút` : 'Không giới hạn' }))
+            ...sectionLessons,
+            ...fallbackVideos,
+            ...fallbackMaterials,
+            ...fallbackQuizzes
         ].sort((a, b) => (a.order || 0) - (b.order || 0));
 
         return {
@@ -466,9 +529,6 @@ export const getFullCourseContentService = async (courseId) => {
             description: section.description || '',
             order: section.order || 0,
             lessons: allLessons,
-            videos: sectionVideos,
-            materials: sectionMaterials,
-            quizzes: sectionQuizzes,
             createdAt: section.createdAt,
             updatedAt: section.updatedAt
         };
@@ -1187,74 +1247,82 @@ export const getFullCourseDataForManagementService = async (courseId) => {
     
     course.categories = categories;
 
-    // Lấy sections với full content
+    // Lấy sections với lessons từ Lesson model
     const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
     
     if (sections && sections.length > 0) {
-        const sectionIds = sections.map(sec => sec._id);
-        
-        // Lấy tất cả content
-        const [videos, materials, quizzes] = await Promise.all([
-            Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-            Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-            Quiz.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean()
-        ]);
+        // Populate lessons cho từng section
+        const sectionsWithLessons = await Promise.all(
+            sections.map(async (section) => {
+                // Lấy tất cả lessons của section này
+                const lessons = await Lesson.find({ section: section._id })
+                    .sort({ order: 1 })
+                    .lean();
+                
+                // Populate content cho từng lesson dựa vào contentType
+                const populatedLessons = await Promise.all(
+                    lessons.map(async (lesson) => {
+                        const baseLessonData = {
+                            _id: lesson._id,
+                            title: lesson.title,
+                            contentType: lesson.contentType,
+                            order: lesson.order,
+                            description: lesson.description || '',
+                            duration: lesson.duration || 0
+                        };
 
-        // Gom lessons theo section
-        course.sections = sections.map(section => {
-            const sectionIdStr = section._id.toString();
-            
-            const sectionVideos = videos
-                .filter(v => v.section.toString() === sectionIdStr)
-                .map(v => ({
-                    _id: v._id,
-                    videoId: v._id,  // Thêm videoId để frontend có thể track
-                    contentType: 'video',
-                    title: v.title,
-                    description: v.description,
-                    order: v.order,
-                    contentUrl: v.contentUrl,
-                    playbackId: v.playbackId,
-                    assetId: v.assetId,
-                    uploadId: v.uploadId,
-                    status: v.status,
-                    duration: v.duration
-                }));
+                        // Populate content dựa vào contentType
+                        if (lesson.contentType === 'video' && lesson.video) {
+                            const video = await Video.findById(lesson.video).lean();
+                            if (video) {
+                                return {
+                                    ...baseLessonData,
+                                    videoId: video._id,
+                                    contentUrl: video.contentUrl || '',
+                                    playbackId: video.playbackId || '',
+                                    assetId: video.assetId || '',
+                                    uploadId: video.uploadId || '',
+                                    status: video.status || '',
+                                    duration: video.duration || 0
+                                };
+                            }
+                        } else if (lesson.contentType === 'material' && lesson.material) {
+                            const material = await Material.findById(lesson.material).lean();
+                            if (material) {
+                                return {
+                                    ...baseLessonData,
+                                    materialId: material._id,
+                                    contentUrl: material.contentUrl || '',
+                                    fileName: material.originalFilename || material.title || '',
+                                    publicId: material.contentUrl || ''
+                                };
+                            }
+                        } else if (lesson.contentType === 'quiz' && lesson.quiz) {
+                            const quiz = await Quiz.findById(lesson.quiz).lean();
+                            if (quiz) {
+                                return {
+                                    ...baseLessonData,
+                                    quizId: quiz._id,
+                                    questions: quiz.questions || []
+                                };
+                            }
+                        }
 
-            const sectionMaterials = materials
-                .filter(m => m.section.toString() === sectionIdStr)
-                .map(m => ({
-                    _id: m._id,
-                    materialId: m._id, // Add materialId để frontend có thể track và link
-                    contentType: 'material',
-                    title: m.title,
-                    order: m.order,
-                    contentUrl: m.contentUrl,
-                    fileName: m.originalFilename || m.title, // Include fileName
-                    publicId: m.contentUrl // publicId (same as contentUrl for Cloudinary)
-                }));
+                        // Return base lesson if content not found
+                        return baseLessonData;
+                    })
+                );
 
-            const sectionQuizzes = quizzes
-                .filter(q => q.section.toString() === sectionIdStr)
-                .map(q => ({
-                    _id: q._id,
-                    contentType: 'quiz',
-                    title: q.title,
-                    description: q.description,
-                    order: q.order,
-                    questions: q.questions
-                }));
+                return {
+                    _id: section._id,
+                    title: section.title,
+                    order: section.order,
+                    lessons: populatedLessons
+                };
+            })
+        );
 
-            const allLessons = [...sectionVideos, ...sectionMaterials, ...sectionQuizzes]
-                .sort((a, b) => a.order - b.order);
-
-            return {
-                _id: section._id,
-                title: section.title,
-                order: section.order,
-                lessons: allLessons
-            };
-        });
+        course.sections = sectionsWithLessons;
     } else {
         course.sections = [];
     }

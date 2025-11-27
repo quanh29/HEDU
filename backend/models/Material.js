@@ -4,11 +4,16 @@ const materialSchema = new mongoose.Schema({
     section: {
         type: String,
         ref: 'Section',
-        required: false, // Tạm thời không bắt buộc khi tạo material temporary
+        required: false, // Optional for backward compatibility
+    },
+    lesson: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lesson',
+        required: false, // Will be required for new structure
     },
     title: {
         type: String,
-        required: false, // Sẽ set khi link với section
+        required: false, // Sẽ set khi link với lesson
     },
     contentUrl: { // Lưu public ID của Cloudinary
         type: String,
