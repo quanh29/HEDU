@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLocation, Outlet } from 'react-router-dom';
 import styles from './Instructor.module.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -53,6 +53,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -186,7 +187,12 @@ const Instructor = ({ activeTab: propActiveTab }) => {
     if (!confirm('Bạn có chắc muốn xóa khóa học này? Hành động này không thể hoàn tác.')) return;
     try {
       setLoading(true);
-      await axios.delete(`${BASE_URL}/api/course/${courseId}`);
+      const token = await getToken();
+      await axios.delete(`${BASE_URL}/api/course/${courseId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       // Refresh data sau khi xóa
       await fetchInstructorData();
       alert('Xóa khóa học thành công!');

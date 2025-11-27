@@ -61,10 +61,35 @@ export const SocketProvider = ({ children }) => {
                 });
 
                 // Connection error
-                newSocket.on('connect_error', (error) => {
+                newSocket.on('connect_error', async (error) => {
                     console.error('❌ Socket connection error:', error.message);
                     setIsConnected(false);
                     setConnectionError(error.message);
+
+                    // Check if error is related to token expiration
+                    if (error.data?.code === 'VERIFY_FAILED' || 
+                        error.data?.code === 'INVALID_TOKEN' ||
+                        error.message.includes('JWT is expired') ||
+                        error.message.includes('Token verification failed')) {
+                        
+                        console.log('🔄 Token expired, refreshing and reconnecting...');
+                        try {
+                            // Get fresh token from Clerk
+                            const freshToken = await getToken({ skipCache: true });
+                            
+                            if (freshToken) {
+                                // Update socket auth with new token
+                                newSocket.auth.token = freshToken;
+                                console.log('✅ Token refreshed, reconnecting...');
+                                // Reconnect with new token
+                                newSocket.connect();
+                                return; // Skip incrementing reconnect attempts
+                            }
+                        } catch (tokenError) {
+                            console.error('❌ Failed to refresh token:', tokenError);
+                        }
+                    }
+
                     reconnectAttemptsRef.current++;
 
                     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
@@ -74,20 +99,41 @@ export const SocketProvider = ({ children }) => {
                 });
 
                 // Disconnection
-                newSocket.on('disconnect', (reason) => {
+                newSocket.on('disconnect', async (reason) => {
                     console.log('🔌 Socket disconnected:', reason);
                     setIsConnected(false);
 
                     if (reason === 'io server disconnect') {
-                        // Server disconnected, need manual reconnect
-                        console.log('🔄 Server initiated disconnect, attempting reconnect...');
-                        newSocket.connect();
+                        // Server disconnected, refresh token and reconnect
+                        console.log('🔄 Server initiated disconnect, refreshing token...');
+                        try {
+                            const freshToken = await getToken({ skipCache: true });
+                            if (freshToken) {
+                                newSocket.auth.token = freshToken;
+                                console.log('✅ Token refreshed, reconnecting...');
+                            }
+                            newSocket.connect();
+                        } catch (tokenError) {
+                            console.error('❌ Failed to refresh token on disconnect:', tokenError);
+                            newSocket.connect(); // Try reconnecting anyway
+                        }
                     }
                 });
 
                 // Reconnection attempt
-                newSocket.on('reconnect_attempt', (attemptNumber) => {
+                newSocket.on('reconnect_attempt', async (attemptNumber) => {
                     console.log(`🔄 Reconnection attempt ${attemptNumber}...`);
+                    
+                    // Always use fresh token on reconnection attempts
+                    try {
+                        const freshToken = await getToken({ skipCache: true });
+                        if (freshToken) {
+                            newSocket.auth.token = freshToken;
+                            console.log('✅ Token refreshed for reconnection attempt');
+                        }
+                    } catch (tokenError) {
+                        console.error('❌ Failed to refresh token on reconnect attempt:', tokenError);
+                    }
                 });
 
                 // Reconnection success
