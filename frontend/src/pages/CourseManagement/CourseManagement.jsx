@@ -3,6 +3,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import BasicInfo from '../../components/BasicInfo/BasicInfo';
 import Curriculum from '../../components/Curriculum/Curriculum';
 import LessonStatistics from '../../components/LessonStatistics/LessonStatistics';
+import { DraftBanner } from '../../components/DraftIndicator/DraftIndicator';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Save,
@@ -28,6 +29,7 @@ import {
   transformSectionForSave,
   getLessonStatistics
 } from '../../utils/courseDataMapper';
+import * as draftService from '../../services/draftService';
 
 const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const { user } = useUser();
@@ -62,6 +64,13 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const [initialData, setInitialData] = useState(null);
   const [lastSaved, setLastSaved] = useState(null);
 
+  // Draft state
+  const [draftMode, setDraftMode] = useState(false);
+  const [draftStatus, setDraftStatus] = useState(null); // draft | pending | approved | rejected
+  const [courseDraftId, setCourseDraftId] = useState(null);
+  const [changeCount, setChangeCount] = useState(0);
+  const [courseStatus, setCourseStatus] = useState(null); // MySQL course status (draft | pending | approved | rejected)
+
   // Headings and categories state
   const [headings, setHeadings] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
@@ -89,8 +98,28 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     // Wait for headings to be loaded before fetching course data
     if (isEditMode && courseId && headings.length > 0) {
       fetchCourseData();
+      checkDraftStatus(); // Check if course has draft
     }
   }, [courseId, isEditMode, headings]);
+
+  // Check draft status for course
+  const checkDraftStatus = async () => {
+    if (!courseId) return;
+    
+    try {
+      const token = await getToken();
+      const draftStatusData = await draftService.hasPendingDraft(courseId, token);
+      
+      if (draftStatusData.hasDraft) {
+        setDraftMode(true);
+        setDraftStatus(draftStatusData.status);
+        setCourseDraftId(draftStatusData.draftId);
+        console.log('📝 Course has draft:', draftStatusData);
+      }
+    } catch (error) {
+      console.error('Error checking draft status:', error);
+    }
+  };
 
   const fetchHeadingsAndCategories = async () => {
     setLoadingCategories(true);
@@ -169,15 +198,81 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     console.log('Fetching course data for ID:', courseId);
     try {
       const token = await getToken();
-      // Sử dụng API mới để fetch full course data cho management (bao gồm sections và lessons)
+      
+      // Load course basic info from MySQL (always from published)
       const url = `${import.meta.env.VITE_BASE_URL}/api/course/manage/${courseId}/full`;
-      console.log('Fetching from URL:', url);
+      console.log('Fetching basic info from URL:', url);
       const response = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       const courseInfo = response.data;
+      
+      // CRITICAL: For editing, ALWAYS work with draft
+      // Try to get draft first, if not exists, CREATE it automatically
+      let sectionsData = [];
+      let loadedFromDraft = false;
+      
+      // Check course status - if draft/pending/rejected, work with published directly
+      const status = courseInfo.course_status || courseInfo.status;
+      console.log('📝 [fetchCourseData] Course status:', status);
+      setCourseStatus(status); // Save course status to state
+      
+      if (status === 'approved') {
+        // Approved course - must use draft system
+        console.log('📝 [fetchCourseData] Course is approved - checking for draft...');
+        const draftResponse = await draftService.getSectionsWithDrafts(courseId, token, true);
+        
+        if (draftResponse.success && draftResponse.hasDraft) {
+          // Draft exists - load it
+          console.log('✅ [fetchCourseData] Draft exists! Loading draft data...');
+          sectionsData = draftResponse.sections || [];
+          loadedFromDraft = true;
+          setDraftMode(true);
+          setDraftStatus(draftResponse.draftStatus || 'draft');
+          setCourseDraftId(draftResponse.courseDraftId);
+          console.log('📊 [fetchCourseData] Loaded', sectionsData.length, 'sections from draft');
+        } else {
+          // No draft exists - AUTO-CREATE it by triggering getOrCreateDraft
+          console.log('⚠️ [fetchCourseData] No draft found. Auto-creating draft from published...');
+          
+          try {
+            // Call getOrCreateDraft to auto-copy from published
+            const createDraftResponse = await draftService.getOrCreateDraft(courseId, token);
+            
+            if (createDraftResponse.success) {
+              console.log('✅ [fetchCourseData] Draft auto-created successfully!');
+              
+              // Now fetch the newly created draft sections
+              const newDraftResponse = await draftService.getSectionsWithDrafts(courseId, token, true);
+              
+              if (newDraftResponse.success && newDraftResponse.hasDraft) {
+                sectionsData = newDraftResponse.sections || [];
+                loadedFromDraft = true;
+                setDraftMode(true);
+                setDraftStatus(newDraftResponse.draftStatus || 'draft');
+                setCourseDraftId(newDraftResponse.courseDraftId);
+                console.log('📊 [fetchCourseData] Loaded', sectionsData.length, 'sections from auto-created draft');
+              }
+            }
+          } catch (createError) {
+            console.error('❌ [fetchCourseData] Failed to auto-create draft:', createError);
+            // Fallback to published
+            console.log('📚 [fetchCourseData] Falling back to published');
+            sectionsData = courseInfo.sections || [];
+            loadedFromDraft = false;
+          }
+        }
+      } else {
+        // Draft/Pending/Rejected course - work with published directly (no draft needed)
+        console.log('📚 [fetchCourseData] Course is not approved - loading published sections directly');
+        sectionsData = courseInfo.sections || [];
+        loadedFromDraft = false;
+        setDraftMode(false);
+        setDraftStatus(null);
+        setCourseDraftId(null);
+      }
       
       console.log('Full API Response:', courseInfo);
       
@@ -257,10 +352,9 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         requirements: courseInfo.requirements
       });
       
-      // Transform sections data từ MongoDB
+      // Transform sections data từ MongoDB (from draft or published)
       console.log('🚀 [fetchCourseData] Starting section transformation...');
-      
-      const sectionsData = courseInfo.sections || [];
+      console.log('📌 [fetchCourseData] Data source:', loadedFromDraft ? 'DRAFT' : 'PUBLISHED');
       
       if (!sectionsData || sectionsData.length === 0) {
         console.warn('⚠️ [fetchCourseData] No sections data found!');
@@ -285,6 +379,10 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
               console.log(`  📝 Lesson ${lessonIndex + 1}: ${lesson.title}`);
               console.log('    - contentType:', lesson.contentType);
               console.log('    - videoId from backend:', lesson.videoId);
+              console.log('    - materialId from backend:', lesson.materialId);
+              console.log('    - quizId from backend:', lesson.quizId);
+              console.log('    - playbackId:', lesson.playbackId);
+              console.log('    - fileName:', lesson.fileName);
               console.log('    - _id:', lesson._id);
               
               const baseLesson = {
@@ -308,6 +406,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
               
               console.log('    ✅ Mapped videoId:', baseLesson.videoId);
               console.log('    ✅ Mapped materialId:', baseLesson.materialId);
+              console.log('    ✅ Mapped fileName:', baseLesson.fileName);
 
               // Transform quiz questions từ backend format sang frontend format
               if (lesson.contentType === 'quiz' && lesson.questions && lesson.questions.length > 0) {
@@ -381,6 +480,64 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     }));
   };
 
+  // Handle draft submission for approval
+  const handleSubmitDraft = async () => {
+    if (!courseId) return;
+
+    const confirmed = window.confirm(
+      'Bạn có chắc chắn muốn gửi bản nháp này để phê duyệt?\n\n' +
+      'Sau khi gửi, admin sẽ xem xét và phê duyệt các thay đổi của bạn.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      const token = await getToken();
+      await draftService.submitDraftForApproval(courseId, token);
+      
+      alert('Đã gửi bản nháp để phê duyệt!');
+      setDraftStatus('pending');
+      checkDraftStatus();
+    } catch (error) {
+      console.error('Error submitting draft:', error);
+      alert('Có lỗi khi gửi bản nháp: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle cancel draft
+  const handleCancelDraft = async () => {
+    if (!courseId) return;
+
+    const confirmed = window.confirm(
+      'Bạn có chắc chắn muốn hủy bản nháp này?\n\n' +
+      'Tất cả thay đổi chưa được phê duyệt sẽ bị xóa vĩnh viễn.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      const token = await getToken();
+      await draftService.cancelDraft(courseId, token);
+      
+      alert('Đã hủy bản nháp!');
+      setDraftMode(false);
+      setDraftStatus(null);
+      setCourseDraftId(null);
+      
+      // Reload course data
+      fetchCourseData();
+    } catch (error) {
+      console.error('Error canceling draft:', error);
+      alert('Có lỗi khi hủy bản nháp: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const removeArrayField = (field, index) => {
     if (courseData[field].length > 1) {
       setCourseData(prev => ({
@@ -405,17 +562,22 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
     try {
       const token = await getToken();
-      const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/api/section`,
-        {
-          courseId: courseId,
-          title: title,
-          order: sections.length + 1
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      // Always use draft service - backend will auto-create draft if needed
+      console.log('📝 [addSection] Adding section to draft...');
+      const response = await draftService.addSection(
+        courseId,
+        { title, order: sections.length + 1 },
+        token
       );
+
+      // Check if draft was created
+      if (response.isDraft) {
+        console.log('✅ [addSection] Section added to draft:', response.courseDraftId);
+        setDraftMode(true);
+        setDraftStatus('draft');
+        setCourseDraftId(response.courseDraftId);
+        setChangeCount(prev => prev + 1);
+      }
 
       const newSection = {
         _id: response.data._id,
@@ -425,7 +587,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         lessons: []
       };
       setSections(prev => [...prev, newSection]);
-      console.log('\u2705 Section created on server:', response.data._id);
+      console.log('\u2705 Section created:', response.data._id, '(isDraft:', response.isDraft, ')');
     } catch (error) {
       console.error('\u274c Error creating section:', error);
       alert('Kh\u00f4ng th\u1ec3 t\u1ea1o ch\u01b0\u01a1ng: ' + (error.response?.data?.message || error.message));
@@ -440,19 +602,29 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         : section
     ));
 
-    // If section exists on server, update it
+    // If section exists on server, update it in draft
     const section = sections.find(s => (s.id || s._id) === sectionId);
     if (section && section._id && !section._id.toString().startsWith('temp-')) {
       try {
         const token = await getToken();
-        await axios.put(
-          `${import.meta.env.VITE_BASE_URL}/api/section/${section._id}`,
+        // Always use draft service - backend will auto-create draft if needed
+        console.log('📝 [updateSection] Updating section in draft...');
+        const response = await draftService.updateSection(
+          section._id,
           { [field]: value },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+          token,
+          draftMode // Pass current draft mode
         );
-        console.log(`\u2705 Section ${field} updated on server`);
+        
+        // Check if draft was created
+        if (response.isDraft && !draftMode) {
+          console.log('✅ [updateSection] Draft auto-created:', response.courseDraftId);
+          setDraftMode(true);
+          setDraftStatus('draft');
+          setCourseDraftId(response.courseDraftId);
+        }
+        setChangeCount(prev => prev + 1);
+        console.log(`\u2705 Section ${field} updated (isDraft: ${response.isDraft})`);
       } catch (error) {
         console.error('\u274c Error updating section:', error);
         // Don't alert for every keystroke, just log
@@ -469,17 +641,27 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       section.id !== sectionId && section._id !== sectionId
     ));
 
-    // If section exists on server, delete it (backend will cascade delete lessons)
+    // If section exists on server, delete it in draft
     if (section && section._id && !section._id.toString().startsWith('temp-')) {
       try {
         const token = await getToken();
-        await axios.delete(
-          `${import.meta.env.VITE_BASE_URL}/api/section/${section._id}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+        // Always use draft service - backend will auto-create draft if needed
+        console.log('📝 [removeSection] Deleting section in draft...');
+        const response = await draftService.deleteSection(
+          section._id,
+          token,
+          draftMode // Pass current draft mode
         );
-        console.log('✅ Section deleted from server:', section._id);
+        
+        // Check if draft was created
+        if (response.isDraft && !draftMode) {
+          console.log('✅ [removeSection] Draft auto-created:', response.courseDraftId);
+          setDraftMode(true);
+          setDraftStatus('draft');
+          setCourseDraftId(response.courseDraftId);
+        }
+        setChangeCount(prev => prev + 1);
+        console.log('✅ Section deleted (isDraft:', response.isDraft, ')');
       } catch (error) {
         console.error('❌ Error deleting section from server:', error);
         // Section already removed from UI, just log the error
@@ -514,21 +696,30 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
 
     try {
       const token = await getToken();
-      const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/api/lesson`,
+      // Always use draft service - backend will auto-create draft if needed
+      console.log('📝 [addLesson] Adding lesson to draft...');
+      const response = await draftService.addLesson(
+        sectionId,
         {
-          sectionId: sectionId,
-          title: title,
-          contentType: contentType,
+          title,
+          contentType,
           order: (section.lessons || []).length + 1
         },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        token,
+        draftMode // Pass current draft mode
       );
 
-      // Backend returns { success, message, data: lesson }
-      const lessonData = response.data.data || response.data;
+      // Check if draft was created
+      if (response.isDraft && !draftMode) {
+        console.log('✅ [addLesson] Draft auto-created:', response.courseDraftId);
+        setDraftMode(true);
+        setDraftStatus('draft');
+        setCourseDraftId(response.courseDraftId);
+      }
+      setChangeCount(prev => prev + 1);
+
+      // Backend returns { success, message, data: lesson, isDraft, courseDraftId }
+      const lessonData = response.data || response;
       
       const newLesson = {
         _id: lessonData._id,
@@ -548,7 +739,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         }
         return s;
       }));
-      console.log('\u2705 Lesson created on server:', response.data._id);
+      console.log('\u2705 Lesson created:', lessonData._id, '(isDraft:', response.isDraft, ')');
     } catch (error) {
       console.error('\u274c Error creating lesson:', error);
       alert('Kh\u00f4ng th\u1ec3 t\u1ea1o b\u00e0i h\u1ecdc: ' + (error.response?.data?.message || error.message));
@@ -578,14 +769,24 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       if (lesson && lesson._id && !lesson._id.toString().startsWith('temp-')) {
         try {
           const token = await getToken();
-          await axios.put(
-            `${import.meta.env.VITE_BASE_URL}/api/lesson/${lesson._id}`,
+          // Always use draft service - backend will auto-create draft if needed
+          console.log('📝 [updateLesson] Updating lesson in draft...');
+          const response = await draftService.updateLesson(
+            lesson._id,
             { [field]: value },
-            {
-              headers: { Authorization: `Bearer ${token}` }
-            }
+            token,
+            draftMode // Pass current draft mode
           );
-          console.log(`\u2705 Lesson ${field} updated on server`);
+          
+          // Check if draft was created
+          if (response.isDraft && !draftMode) {
+            console.log('✅ [updateLesson] Draft auto-created:', response.courseDraftId);
+            setDraftMode(true);
+            setDraftStatus('draft');
+            setCourseDraftId(response.courseDraftId);
+          }
+          setChangeCount(prev => prev + 1);
+          console.log(`\u2705 Lesson ${field} updated (isDraft: ${response.isDraft})`);
         } catch (error) {
           console.error('\u274c Error updating lesson:', error);
           // Don't alert for every keystroke, just log
@@ -606,6 +807,38 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       }
       return section;
     }));
+    
+    // If lesson exists on server, delete it in draft
+    const section = sections.find(s => (s.id || s._id) === sectionId);
+    if (section) {
+      const lesson = section.lessons?.find(l => (l.id || l._id) === lessonId);
+      if (lesson && lesson._id && !lesson._id.toString().startsWith('temp-')) {
+        (async () => {
+          try {
+            const token = await getToken();
+            // Always use draft service - backend will auto-create draft if needed
+            console.log('📝 [removeLesson] Deleting lesson in draft...');
+            const response = await draftService.deleteLesson(
+              lesson._id,
+              token,
+              draftMode // Pass current draft mode
+            );
+            
+            // Check if draft was created
+            if (response.isDraft && !draftMode) {
+              console.log('✅ [removeLesson] Draft auto-created:', response.courseDraftId);
+              setDraftMode(true);
+              setDraftStatus('draft');
+              setCourseDraftId(response.courseDraftId);
+            }
+            setChangeCount(prev => prev + 1);
+            console.log('✅ Lesson deleted (isDraft:', response.isDraft, ')');
+          } catch (error) {
+            console.error('❌ Error deleting lesson:', error);
+          }
+        })();
+      }
+    }
   };
 
   // Form validation
@@ -888,19 +1121,55 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
           
           {!isViewMode && (
             <div className={styles.headerActions}>
-              <button
-                onClick={() => saveCourseWithStatus('pending')}
-                disabled={saving}
-                className={styles.saveButton}
-                style={{ background: '#3b82f6', color: 'white' }}
-              >
-                <Upload size={16} />
-                {saving ? 'Đang gửi...' : (isEditMode ? 'Gửi cập nhật' : 'Gửi xét duyệt')}
-              </button>
+              {draftMode && draftStatus === 'draft' ? (
+                // Course is approved and has draft changes: Show submit for update approval
+                <button
+                  onClick={handleSubmitDraft}
+                  disabled={saving}
+                  className={styles.saveButton}
+                  style={{ background: '#3b82f6', color: 'white' }}
+                >
+                  <Upload size={16} />
+                  {saving ? 'Đang gửi...' : 'Gửi duyệt cập nhật'}
+                </button>
+              ) : isEditMode && courseStatus === 'draft' ? (
+                // Course is draft: Show submit for first approval
+                <button
+                  onClick={() => saveCourseWithStatus('pending')}
+                  disabled={saving}
+                  className={styles.saveButton}
+                  style={{ background: '#3b82f6', color: 'white' }}
+                >
+                  <Upload size={16} />
+                  {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
+                </button>
+              ) : !isEditMode ? (
+                // Creating new course: Show create button
+                <button
+                  onClick={() => saveCourseWithStatus('pending')}
+                  disabled={saving}
+                  className={styles.saveButton}
+                  style={{ background: '#3b82f6', color: 'white' }}
+                >
+                  <Upload size={16} />
+                  {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
+                </button>
+              ) : null}
             </div>
           )}
         </div>
       </div>
+
+      {/* Draft Banner */}
+      {draftMode && (
+        <DraftBanner
+          courseName={courseData.title}
+          status={draftStatus}
+          changeCount={changeCount}
+          onSubmit={handleSubmitDraft}
+          onCancel={handleCancelDraft}
+        />
+      )}
 
       <div className={styles.mainContent}>
         {/* Tab Navigation */}

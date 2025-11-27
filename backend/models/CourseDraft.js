@@ -47,12 +47,10 @@ const courseDraftSchema = new mongoose.Schema({
     },
     level: {
         type: String,
-        enum: ['beginner', 'intermediate', 'expert'],
         required: true,
     },
     language: {
         type: String,
-        enum: ['vietnamese', 'english', 'chinese', 'spanish', 'french', 'german', 'japanese', 'korean', 'portuguese', 'russian', 'other'],
         required: true,
     },
     hasPractice: {
@@ -95,16 +93,9 @@ const courseDraftSchema = new mongoose.Schema({
         ref: 'QuizDraft'
     }],
     
-    // Change tracking
-    changeLog: {
-        type: Map,
-        of: mongoose.Schema.Types.Mixed,
-        default: {}
-    },
-    
     status: {
         type: String,
-        enum: ['approved', 'pending', 'rejected'],
+        enum: ['draft', 'approved', 'pending', 'rejected'],
         required: true
     },
     version: {

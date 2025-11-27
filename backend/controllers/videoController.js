@@ -1,4 +1,5 @@
 import Video from "../models/video.js";
+import VideoDraft from "../models/VideoDraft.js";
 import dotenv from 'dotenv';
 import Mux from '@mux/mux-node';
 import logger from '../utils/logger.js';
@@ -103,30 +104,37 @@ export const updateVideo = async (req, res) => {
     }
 };
 
-// Xóa video
+// Xóa video (check VideoDraft first, then Video for backward compatibility)
 export const deleteVideo = async (req, res) => {
     const { videoId } = req.params;
 
     try {
-        // Find the video first
-        const video = await Video.findById(videoId);
-        if (!video) {
-            logger.warning(`Video not found: ${videoId}`);
+        // Try to find VideoDraft first (new system)
+        let videoDraft = await VideoDraft.findById(videoId);
+        let isVideoDraft = !!videoDraft;
+        
+        // Fallback to Video for backward compatibility
+        if (!videoDraft) {
+            videoDraft = await Video.findById(videoId);
+        }
+        
+        if (!videoDraft) {
+            logger.warning(`Video/VideoDraft not found: ${videoId}`);
             return res.status(404).json({ message: 'Video not found' });
         }
 
-        logger.info(`🗑️ Deleting video: ${videoId}`);
-        logger.info(`   Title: ${video.title}`);
-        logger.info(`   Asset ID: ${video.assetId || '(none)'}`);
-        logger.info(`   Upload ID: ${video.uploadId || '(none)'}`);
-        logger.info(`   Status: ${video.status}`);
+        logger.info(`🗑️ Deleting ${isVideoDraft ? 'VideoDraft' : 'Video'}: ${videoId}`);
+        logger.info(`   Title: ${videoDraft.title}`);
+        logger.info(`   Asset ID: ${videoDraft.assetId || '(none)'}`);
+        logger.info(`   Upload ID: ${videoDraft.uploadId || '(none)'}`);
+        logger.info(`   Status: ${videoDraft.status}`);
 
         // Delete from MUX if assetId exists
-        if (video.assetId && video.assetId !== '') {
+        if (videoDraft.assetId && videoDraft.assetId !== '') {
             try {
-                logger.info(`🎬 Deleting MUX asset: ${video.assetId}`);
-                await muxVideo.assets.delete(video.assetId);
-                logger.success(`✅ MUX asset deleted: ${video.assetId}`);
+                logger.info(`🎬 Deleting MUX asset: ${videoDraft.assetId}`);
+                await muxVideo.assets.delete(videoDraft.assetId);
+                logger.success(`✅ MUX asset deleted: ${videoDraft.assetId}`);
             } catch (muxError) {
                 logger.error(`❌ Failed to delete MUX asset: ${muxError.message}`);
                 // Continue with database deletion even if MUX deletion fails
@@ -137,15 +145,21 @@ export const deleteVideo = async (req, res) => {
         }
 
         // Delete from database
-        await Video.findByIdAndDelete(videoId);
-        logger.success(`✅ Video deleted from database: ${videoId}`);
+        if (isVideoDraft) {
+            await VideoDraft.findByIdAndDelete(videoId);
+            logger.success(`✅ VideoDraft deleted from database: ${videoId}`);
+        } else {
+            await Video.findByIdAndDelete(videoId);
+            logger.success(`✅ Video deleted from database: ${videoId}`);
+        }
 
         res.status(200).json({ 
-            message: 'Video deleted successfully',
+            message: `${isVideoDraft ? 'VideoDraft' : 'Video'} deleted successfully`,
             deletedVideo: {
-                id: video._id,
-                title: video.title,
-                assetId: video.assetId
+                id: videoDraft._id,
+                title: videoDraft.title,
+                assetId: videoDraft.assetId,
+                isDraft: isVideoDraft
             }
         });
     } catch (error) {

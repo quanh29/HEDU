@@ -1,27 +1,97 @@
 import Quiz from "../models/Quiz.js";
+import QuizDraft from "../models/QuizDraft.js";
+import mongoose from 'mongoose';
 
 // Tạo quiz mới
 export const addQuiz = async (req, res) => {
-    const { section, title, description, questions, order } = req.body;
+    const { lessonId, title, description, questions, order } = req.body;
 
-    if (!section || !title || !questions || questions.length === 0) {
-        return res.status(400).json({ message: 'section, title, and questions are required' });
+    if (!lessonId || !title || !questions || questions.length === 0) {
+        return res.status(400).json({ message: 'lessonId, title, and questions are required' });
     }
 
     try {
-        const newQuiz = new Quiz({
-            section,
-            title,
-            description,
-            questions,
-            order: order || 1
+        // Check if it's a LessonDraft (draft system)
+        const LessonDraft = (await import('../models/LessonDraft.js')).default;
+        const draftLesson = await LessonDraft.findById(lessonId);
+        
+        if (draftLesson) {
+            // Create QuizDraft for draft system
+            const newQuizDraft = new QuizDraft({
+                courseDraftId: draftLesson.courseDraftId,
+                draftLessonId: draftLesson._id,
+                title,
+                description,
+                questions,
+                order: order || 1,
+                status: 'draft',
+                changeType: 'new'
+            });
+
+            await newQuizDraft.save();
+
+            // Link to lesson draft
+            draftLesson.draftQuizId = newQuizDraft._id;
+            await draftLesson.save();
+
+            // Add to CourseDraft.draftQuizzes array
+            const CourseDraft = mongoose.model('CourseDraft');
+            const courseDraft = await CourseDraft.findById(draftLesson.courseDraftId);
+            if (courseDraft) {
+                courseDraft.draftQuizzes.push(newQuizDraft._id);
+                await courseDraft.save();
+            }
+
+            console.log(`✅ Created QuizDraft ${newQuizDraft._id} for LessonDraft ${lessonId}`);
+
+            return res.status(201).json({
+                success: true,
+                isDraft: true,
+                data: newQuizDraft
+            });
+        }
+
+        // Fallback to published Lesson (old system)
+        const Lesson = (await import('../models/Lesson.js')).default;
+        const lesson = await Lesson.findById(lessonId);
+        
+        if (lesson) {
+            // Create published Quiz
+            const newQuiz = new Quiz({
+                lesson: lesson._id,
+                title,
+                description,
+                questions,
+                order: order || 1
+            });
+
+            await newQuiz.save();
+
+            // Link quiz to lesson
+            lesson.quiz = newQuiz._id;
+            await lesson.save();
+
+            console.log(`✅ Created published Quiz ${newQuiz._id} for Lesson ${lessonId}`);
+
+            return res.status(201).json({
+                success: true,
+                isDraft: false,
+                data: newQuiz
+            });
+        }
+
+        return res.status(404).json({ 
+            success: false,
+            message: 'Lesson not found' 
         });
 
-        const savedQuiz = await newQuiz.save();
-        res.status(201).json(savedQuiz);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error creating quiz', error: error.message });
+        console.error('Error creating quiz:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error creating quiz', 
+            error: error.message 
+        });
     }
 };
 
@@ -30,14 +100,35 @@ export const getQuizById = async (req, res) => {
     const { quizId } = req.params;
 
     try {
-        const quiz = await Quiz.findById(quizId);
+        // Try QuizDraft first
+        let quiz = await QuizDraft.findById(quizId);
+        let isDraft = true;
+
         if (!quiz) {
-            return res.status(404).json({ message: 'Quiz not found' });
+            // Fallback to published Quiz
+            quiz = await Quiz.findById(quizId);
+            isDraft = false;
         }
-        res.status(200).json(quiz);
+
+        if (!quiz) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Quiz not found' 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            isDraft,
+            data: quiz
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error', 
+            error: error.message 
+        });
     }
 };
 
@@ -229,9 +320,21 @@ export const updateQuiz = async (req, res) => {
     const { title, description, questions, order } = req.body;
 
     try {
-        const quiz = await Quiz.findById(quizId);
+        // Try QuizDraft first
+        let quiz = await QuizDraft.findById(quizId);
+        let isDraft = true;
+
         if (!quiz) {
-            return res.status(404).json({ message: 'Quiz not found' });
+            // Fallback to published Quiz
+            quiz = await Quiz.findById(quizId);
+            isDraft = false;
+        }
+
+        if (!quiz) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Quiz not found' 
+            });
         }
 
         if (title) quiz.title = title;
@@ -239,11 +342,26 @@ export const updateQuiz = async (req, res) => {
         if (questions) quiz.questions = questions;
         if (order) quiz.order = order;
 
+        if (isDraft && quiz.changeType === 'unchanged') {
+            quiz.changeType = 'modified';
+        }
+
         const updatedQuiz = await quiz.save();
-        res.status(200).json(updatedQuiz);
+
+        console.log(`✅ Updated ${isDraft ? 'QuizDraft' : 'Quiz'}: ${quizId}`);
+
+        res.status(200).json({
+            success: true,
+            isDraft,
+            data: updatedQuiz
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error updating quiz', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Error updating quiz', 
+            error: error.message 
+        });
     }
 };
 
@@ -252,13 +370,55 @@ export const deleteQuiz = async (req, res) => {
     const { quizId } = req.params;
 
     try {
-        const quiz = await Quiz.findByIdAndDelete(quizId);
+        // Try QuizDraft first
+        let quiz = await QuizDraft.findById(quizId);
+        let isDraft = true;
+
         if (!quiz) {
-            return res.status(404).json({ message: 'Quiz not found' });
+            // Fallback to published Quiz
+            quiz = await Quiz.findById(quizId);
+            isDraft = false;
         }
-        res.status(200).json({ message: 'Quiz deleted successfully' });
+
+        if (!quiz) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Quiz not found' 
+            });
+        }
+
+        // Remove from CourseDraft.draftQuizzes if draft
+        if (isDraft && quiz.courseDraftId) {
+            const CourseDraft = mongoose.model('CourseDraft');
+            const courseDraft = await CourseDraft.findById(quiz.courseDraftId);
+            if (courseDraft) {
+                courseDraft.draftQuizzes = courseDraft.draftQuizzes.filter(
+                    id => id.toString() !== quizId
+                );
+                await courseDraft.save();
+            }
+        }
+
+        // Delete quiz
+        if (isDraft) {
+            await QuizDraft.findByIdAndDelete(quizId);
+        } else {
+            await Quiz.findByIdAndDelete(quizId);
+        }
+
+        console.log(`✅ Deleted ${isDraft ? 'QuizDraft' : 'Quiz'}: ${quizId}`);
+
+        res.status(200).json({ 
+            success: true,
+            message: 'Quiz deleted successfully',
+            isDraft
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error deleting quiz', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Error deleting quiz', 
+            error: error.message 
+        });
     }
 };

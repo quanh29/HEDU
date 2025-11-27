@@ -42,7 +42,13 @@ const videoSchema = new mongoose.Schema({
     },
     order: {
         type: Number,
-        required: true,
+        default: 1,
+    },
+    aspectRatio: {
+        type: String,
+    },
+    max_resolution: {
+        type: String,
     },
 }, {
     timestamps: true // Tự động tạo createdAt và updatedAt

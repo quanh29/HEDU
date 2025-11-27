@@ -181,18 +181,18 @@ function CourseContent() {
 	const handleLessonClick = (lesson) => {
 		console.log('Lesson clicked:', lesson); // Debug log
 		
-		if (lesson.type === 'video' && lesson.lessonId) {
+		if (lesson.type === 'video' && lesson.videoId) {
 			// Navigate sang VideoSection với videoId
-			console.log('Navigating to video:', lesson.lessonId); // Debug log
-			navigate(`/course/${courseId}/content/video?videoId=${lesson.lessonId}`);
+			console.log('Navigating to video:', lesson.videoId); // Debug log
+			navigate(`/course/${courseId}/content/video?videoId=${lesson.videoId}`);
 		} else if (lesson.type === 'video') {
 			console.warn('Video lesson missing videoId:', lesson);
-		} else if (lesson.type === 'quiz' && lesson.lessonId) {
+		} else if (lesson.type === 'quiz' && lesson.quizId) {
 			// Navigate đến quiz với courseId
-			console.log('Navigating to quiz:', lesson.lessonId);
-			navigate(`/course/${courseId}/content/quiz?quizId=${lesson.lessonId}&view=intro`);
-		} else if (lesson.type === 'document') {
-			// Download document
+			console.log('Navigating to quiz:', lesson.quizId);
+			navigate(`/course/${courseId}/content/quiz?quizId=${lesson.quizId}&view=intro`);
+		} else if (lesson.type === 'material') {
+			// Download material (use materialId from lesson)
 			handleDocumentDownload(lesson);
 		}
 	};
@@ -201,7 +201,14 @@ function CourseContent() {
 	const handleDocumentDownload = async (lesson) => {
 		try {
 			console.log('Starting document download:', lesson);
-			console.log('Material ID:', lesson.lessonId);
+			console.log('Material ID:', lesson.materialId);
+			
+			// Validate materialId exists
+			if (!lesson.materialId) {
+				console.error('Material ID is missing:', lesson);
+				alert('Không tìm thấy ID tài liệu. Vui lòng thử lại sau.');
+				return;
+			}
 			
 			// Set downloading state
 			setDownloading(prev => ({ ...prev, [lesson.lessonId]: true }));
@@ -209,9 +216,9 @@ function CourseContent() {
 			// Lấy auth config từ Clerk hook
 			const authConfig = await getAuthConfigFromHook(getToken);
 
-			// Get signed URL from backend
+			// Get signed URL from backend using materialId
 			const response = await axios.post(
-				`${import.meta.env.VITE_BASE_URL}/api/material/${lesson.lessonId}/signed-url?courseId=${courseId}`,
+				`${import.meta.env.VITE_BASE_URL}/api/material/${lesson.materialId}/signed-url?courseId=${courseId}`,
 				{ expiresIn: 3600 }, // URL expires in 1 hour
 				{
 					headers: {
@@ -266,7 +273,7 @@ function CourseContent() {
 		switch (type) {
 			case 'video':
 				return <Video className={styles.videoIcon} />;
-			case 'document':
+			case 'material':
 				return <FileText className={styles.documentIcon} />;
 			case 'quiz':
 				return <CheckSquare className={styles.quizIcon} />;
@@ -280,7 +287,7 @@ function CourseContent() {
 		switch (lesson.type) {
 			case 'video':
 				return <span className={styles.lessonMeta}>{formatDuration(lesson.duration)}</span>;
-			case 'document':
+			case 'material':
 				return (
 					<div className={styles.documentMeta}>
 						<span className={styles.fileInfo}>{lesson.fileType?.toUpperCase()} · {lesson.fileSize}</span>
@@ -433,7 +440,7 @@ function CourseContent() {
 										<li 
 											key={lesson.lessonId || `${section.sectionId}-${lidx}`}
 											className={`${styles.lessonItem} ${
-												(lesson.type === 'video' || lesson.type === 'document' || lesson.type === 'quiz') 
+												(lesson.type === 'video' || lesson.type === 'material' || lesson.type === 'quiz') 
 												? styles.clickable 
 												: ''
 											} ${downloading[lesson.lessonId] ? styles.downloading : ''}`}

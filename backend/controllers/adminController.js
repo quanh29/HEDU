@@ -1,6 +1,6 @@
 import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
-import CourseRevision from '../models/CourseRevision.js';
+import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
 
 /**

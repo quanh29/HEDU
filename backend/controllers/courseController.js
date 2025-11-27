@@ -1,6 +1,6 @@
 // Import services
 import * as courseService from '../services/courseService.js';
-import CourseRevision from '../models/CourseRevision.js';
+import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
 import pool from '../config/mysql.js';
 
@@ -217,62 +217,33 @@ export const updateCourse = async (req, res) => {
 
         logger.info(`📝 [updateCourse] Updating course ${courseId}, currentStatus: ${currentStatus}, newStatus: ${newStatus}`);
 
-        // Nếu course đã approved và đang gửi lại để pending (chỉnh sửa nội dung)
-        // thì tạo revision thay vì update trực tiếp
+        // Nếu course đã approved và đang gửi lại để pending
+        // Giờ sử dụng draft system, không tạo CourseRevision nữa
         if (currentStatus === 'approved' && newStatus === 'pending') {
-            logger.info(`🔄 [updateCourse] Creating revision for approved course: ${courseId}`);
+            logger.info(`🔄 [updateCourse] Course is approved, changes should be in draft system`);
             
-            // Kiểm tra xem đã có revision pending chưa
-            const existingRevision = await CourseRevision.findOne({
-                courseId: courseId,
-                status: 'pending'
-            });
-
-            if (existingRevision) {
+            // Kiểm tra xem có draft không
+            const CourseDraft = (await import('../models/CourseDraft.js')).default;
+            const draft = await CourseDraft.findById(courseId);
+            
+            if (draft) {
+                // Đã có draft, không cần tạo gì cả
+                logger.info(`✅ [updateCourse] Draft exists, changes are tracked in draft system`);
+                return res.status(200).json({ 
+                    success: true,
+                    message: 'Changes are tracked in draft system. Please submit draft for approval.',
+                    isDraft: true,
+                    draftStatus: draft.status
+                });
+            } else {
+                // Chưa có draft, nên tạo draft trước
+                logger.info(`⚠️ [updateCourse] No draft found, please use draft system`);
                 return res.status(400).json({ 
-                    success: false, 
-                    message: 'A pending revision already exists for this course' 
+                    success: false,
+                    message: 'Please use draft system to edit approved courses',
+                    shouldCreateDraft: true
                 });
             }
-
-            // Tạo revision mới
-            const revision = new CourseRevision({
-                courseId: courseId,
-                title: req.body.title,
-                subtitle: req.body.subTitle,
-                instructors: [req.body.instructor_id],
-                description: req.body.des,
-                thumbnail: req.body.picture_url,
-                originalPrice: req.body.originalPrice,
-                currentPrice: req.body.currentPrice,
-                tags: req.body.categories || [],
-                level: req.body.level || 'beginner',
-                language: req.body.language || 'vietnamese',
-                hasPractice: req.body.has_practice || false,
-                hasCertificate: req.body.has_certificate || false,
-                requirements: req.body.requirements,
-                objectives: req.body.objectives,
-                sections: req.body.sections || [],
-                status: 'pending',
-                version: 1,
-                lv_id: req.body.lv_id,
-                lang_id: req.body.lang_id,
-                categories: req.body.categories,
-                picture_url: req.body.picture_url,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-
-            await revision.save();
-
-            logger.info(`✅ [updateCourse] Revision created: ${revision._id}`);
-
-            return res.status(200).json({ 
-                success: true,
-                message: 'Course revision created and pending approval',
-                revisionId: revision._id,
-                isRevision: true
-            });
         }
 
         // Nếu không phải trường hợp trên, update bình thường

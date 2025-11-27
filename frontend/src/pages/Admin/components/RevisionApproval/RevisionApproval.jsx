@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
 import styles from './RevisionApproval.module.css';
+import DraftIndicator from '../../../../components/DraftIndicator/DraftIndicator';
 import { 
   Clock, 
   CheckCircle, 
@@ -10,7 +11,11 @@ import {
   AlertCircle,
   BookOpen,
   User,
-  Calendar
+  Calendar,
+  Edit3,
+  FileText,
+  Video,
+  File
 } from 'lucide-react';
 
 const RevisionApproval = () => {
@@ -33,8 +38,9 @@ const RevisionApproval = () => {
       setError(null);
       const token = await getToken();
       
+      // Use new draft API instead of old revision API
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}/api/admin/revisions/pending`,
+        `${import.meta.env.VITE_BASE_URL}/api/course-draft/pending`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -43,18 +49,20 @@ const RevisionApproval = () => {
       );
 
       if (response.data.success) {
-        setRevisions(response.data.revisions);
+        setRevisions(response.data.data || []);
+      } else {
+        setError('Không thể tải danh sách cập nhật');
       }
     } catch (err) {
-      console.error('Error fetching pending revisions:', err);
-      setError('Không thể tải danh sách yêu cầu cập nhật');
+      console.error('Error fetching pending drafts:', err);
+      setError(err.response?.data?.message || 'Lỗi khi tải danh sách cập nhật');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (revisionId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn phê duyệt cập nhật này?')) {
+  const handleApprove = async (draftId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn phê duyệt cập nhật này?\n\nSau khi duyệt, nội dung từ bản nháp sẽ được cập nhật lên khóa học chính thức.')) {
       return;
     }
 
@@ -62,8 +70,9 @@ const RevisionApproval = () => {
       setActionLoading(true);
       const token = await getToken();
       
+      // Use new draft approve API
       await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/api/admin/revisions/${revisionId}/approve`,
+        `${import.meta.env.VITE_BASE_URL}/api/course-draft/${draftId}/approve`,
         {},
         {
           headers: {
@@ -72,19 +81,19 @@ const RevisionApproval = () => {
         }
       );
 
-      alert('Đã phê duyệt cập nhật thành công!');
+      alert('Đã phê duyệt và xuất bản cập nhật thành công! Nội dung từ bản nháp đã được cập nhật lên khóa học chính thức.');
       setShowModal(false);
       setSelectedRevision(null);
       fetchPendingRevisions();
     } catch (err) {
-      console.error('Error approving revision:', err);
+      console.error('Error approving draft:', err);
       alert('Có lỗi xảy ra khi phê duyệt: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleReject = async (revisionId) => {
+  const handleReject = async (draftId) => {
     if (!rejectReason.trim()) {
       alert('Vui lòng nhập lý do từ chối');
       return;
@@ -98,8 +107,9 @@ const RevisionApproval = () => {
       setActionLoading(true);
       const token = await getToken();
       
+      // Use new draft reject API
       await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/api/admin/revisions/${revisionId}/reject`,
+        `${import.meta.env.VITE_BASE_URL}/api/course-draft/${draftId}/reject`,
         { reason: rejectReason },
         {
           headers: {
@@ -114,7 +124,7 @@ const RevisionApproval = () => {
       setRejectReason('');
       fetchPendingRevisions();
     } catch (err) {
-      console.error('Error rejecting revision:', err);
+      console.error('Error rejecting draft:', err);
       alert('Có lỗi xảy ra khi từ chối: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
@@ -168,39 +178,42 @@ const RevisionApproval = () => {
         </div>
       ) : (
         <div className={styles.revisionList}>
-          {revisions.map((revision) => (
-            <div key={revision._id} className={styles.revisionCard}>
+          {revisions.map((draft) => (
+            <div key={draft._id} className={styles.revisionCard}>
               <div className={styles.cardHeader}>
                 <div className={styles.courseInfo}>
                   <BookOpen size={20} />
                   <div>
-                    <h3>{revision.title}</h3>
-                    <p className={styles.subtitle}>{revision.subtitle}</p>
+                    <h3>{draft.title}</h3>
+                    <p className={styles.subtitle}>{draft.subtitle}</p>
                   </div>
                 </div>
-                <span className={styles.badge}>
-                  <Clock size={14} />
-                  Chờ duyệt
-                </span>
+                <DraftIndicator status={draft.status} isDraft={true} showText={true} />
               </div>
 
               <div className={styles.cardBody}>
                 <div className={styles.infoRow}>
                   <User size={16} />
-                  <span>Giảng viên: {revision.currentCourse?.fName} {revision.currentCourse?.lName}</span>
+                  <span>Khóa học ID: {draft._id}</span>
                 </div>
                 <div className={styles.infoRow}>
                   <Calendar size={16} />
-                  <span>Gửi lúc: {new Date(revision.createdAt).toLocaleString('vi-VN')}</span>
+                  <span>Gửi lúc: {new Date(draft.submittedAt || draft.updatedAt).toLocaleString('vi-VN')}</span>
                 </div>
+                {/* Show change summary */}
                 <div className={styles.infoRow}>
-                  <span className={styles.version}>Phiên bản: {revision.version}</span>
+                  <Edit3 size={16} />
+                  <span>
+                    {draft.draftSections?.length || 0} chương, 
+                    {' '}{draft.draftLessons?.length || 0} bài học,
+                    {' '}{draft.draftVideos?.length || 0} video
+                  </span>
                 </div>
               </div>
 
               <div className={styles.cardFooter}>
                 <button 
-                  onClick={() => handleViewDetail(revision)}
+                  onClick={() => handleViewDetail(draft)}
                   className={styles.viewButton}
                 >
                   <Eye size={16} />
@@ -208,7 +221,7 @@ const RevisionApproval = () => {
                 </button>
                 <div className={styles.actions}>
                   <button 
-                    onClick={() => handleApprove(revision._id)}
+                    onClick={() => handleApprove(draft._id)}
                     className={styles.approveButton}
                     disabled={actionLoading}
                   >
@@ -216,7 +229,7 @@ const RevisionApproval = () => {
                     Phê duyệt
                   </button>
                   <button 
-                    onClick={() => handleViewDetail(revision)}
+                    onClick={() => handleViewDetail(draft)}
                     className={styles.rejectButton}
                     disabled={actionLoading}
                   >
@@ -265,10 +278,66 @@ const RevisionApproval = () => {
                   </div>
                   <div className={styles.detailItem}>
                     <label>Số chương:</label>
-                    <p>{selectedRevision.sections?.length || 0}</p>
+                    <p>{selectedRevision.draftSections?.length || 0}</p>
                   </div>
                 </div>
               </div>
+
+              {/* Change Summary */}
+              <div className={styles.section}>
+                <h3>Tổng quan thay đổi</h3>
+                <div className={styles.changesSummary}>
+                  <div className={styles.changeStat}>
+                    <div className={styles.changeNumber}>
+                      {selectedRevision.draftSections?.filter(s => s.changeType === 'new').length || 0}
+                    </div>
+                    <div className={styles.changeLabel}>Chương mới</div>
+                  </div>
+                  <div className={styles.changeStat}>
+                    <div className={styles.changeNumber}>
+                      {selectedRevision.draftLessons?.filter(l => l.changeType === 'modified').length || 0}
+                    </div>
+                    <div className={styles.changeLabel}>Bài học sửa</div>
+                  </div>
+                  <div className={styles.changeStat}>
+                    <div className={styles.changeNumber}>
+                      {selectedRevision.draftLessons?.filter(l => l.changeType === 'deleted').length || 0}
+                    </div>
+                    <div className={styles.changeLabel}>Bài học xóa</div>
+                  </div>
+                  <div className={styles.changeStat}>
+                    <div className={styles.changeNumber}>
+                      {(selectedRevision.draftVideos?.filter(v => v.changeType === 'new').length || 0) +
+                       (selectedRevision.draftMaterials?.filter(m => m.changeType === 'new').length || 0) +
+                       (selectedRevision.draftQuizzes?.filter(q => q.changeType === 'new').length || 0)}
+                    </div>
+                    <div className={styles.changeLabel}>Nội dung mới</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Change Log */}
+              {selectedRevision.changeLog && Object.keys(selectedRevision.changeLog).length > 0 && (
+                <div className={styles.section}>
+                  <h3>Lịch sử thay đổi</h3>
+                  <div className={styles.changeLog}>
+                    {Object.entries(selectedRevision.changeLog)
+                      .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
+                      .slice(0, 10)
+                      .map(([key, change]) => (
+                        <div key={key} className={styles.changeLogItem}>
+                          <div className={styles.changeLogTime}>
+                            {new Date(change.timestamp).toLocaleString('vi-VN')}
+                          </div>
+                          <div className={styles.changeLogContent}>
+                            <strong>{change.type}</strong>: {change.action}
+                            {change.details && <span className={styles.changeLogDetails}> - {change.details}</span>}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
 
               <div className={styles.section}>
                 <h3>Lý do từ chối (nếu từ chối)</h3>

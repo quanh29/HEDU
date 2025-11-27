@@ -1,5 +1,8 @@
 import Mux from '@mux/mux-node';
 import Video from '../models/video.js';
+import VideoDraft from '../models/VideoDraft.js';
+import LessonDraft from '../models/LessonDraft.js';
+import CourseDraft from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
 import { getAuth } from '@clerk/express';
 import { io } from '../server.js';
@@ -67,48 +70,110 @@ export const createDirectUpload = async (req, res) => {
         logger.success(`MUX upload created: ${upload.id}`);
         logger.debug(`Upload URL: ${upload.url}`);
 
-        // Lưu thông tin upload vào database (trạng thái pending)
-        const videoDoc = new Video({
-            section: sectionId,
-            title: lessonTitle,
-            userId: userId, // Store Clerk user ID for socket room targeting
-            uploadId: upload.id,
-            assetId: '', // Sẽ được cập nhật khi webhook nhận asset_created
-            status: 'uploading',
-            order: 0 // Sẽ được cập nhật sau
-        });
-        await videoDoc.save();
-
-        logger.success(`Video document created: ${videoDoc._id}`);
+        // Check if lesson is a draft lesson OR a regular lesson (for MySQL draft courses)
+        const lessonDraft = await LessonDraft.findById(lessonId);
         
-        // Link video với lesson
-        const Lesson = (await import('../models/Lesson.js')).default;
-        const lesson = await Lesson.findById(lessonId);
-        if (lesson) {
-            lesson.video = videoDoc._id;
-            await lesson.save();
-            logger.success(`Linked video ${videoDoc._id} to lesson ${lessonId}`);
+        if (lessonDraft) {
+            // CASE 1: Lesson is a draft (from approved course with draft system)
+            logger.info('📝 Creating video for DRAFT lesson (approved course with changes)');
+            
+            // Get course draft ID
+            const courseDraftId = lessonDraft.courseDraftId;
+            
+            // Create VideoDraft instead of Video
+            const videoDraft = new VideoDraft({
+                publishedVideoId: null, // New video, no published version yet
+                courseDraftId: courseDraftId,
+                draftLessonId: lessonId,
+                title: lessonTitle,
+                userId: userId,
+                uploadId: upload.id,
+                assetId: '', // Sẽ được cập nhật khi webhook nhận asset_created
+                status: 'uploading',
+                order: lessonDraft.order || 1,
+                changeType: 'new'
+            });
+            await videoDraft.save();
+
+            logger.success(`VideoDraft created: ${videoDraft._id}`);
+            
+            // Link video draft với lesson draft
+            lessonDraft.draftVideoId = videoDraft._id;
+            await lessonDraft.save();
+            logger.success(`Linked VideoDraft ${videoDraft._id} to LessonDraft ${lessonId}`);
+            
+            // Add to course draft's draftVideos array
+            const courseDraft = await CourseDraft.findById(courseDraftId);
+            if (courseDraft && !courseDraft.draftVideos.includes(videoDraft._id)) {
+                courseDraft.draftVideos.push(videoDraft._id);
+                await courseDraft.save();
+                logger.success(`Added VideoDraft to CourseDraft ${courseDraftId}`);
+            }
+
+            logger.info(`🔗 Draft Mapping created:`);
+            logger.info(`   VideoDraft ID: ${videoDraft._id}`);
+            logger.info(`   CourseDraft ID: ${courseDraftId}`);
+            logger.info(`   LessonDraft ID: ${lessonId}`);
+            logger.info(`   User ID: ${videoDraft.userId}`);
+            logger.info(`   Upload ID: ${upload.id}`);
+            logger.info(`   Title: ${videoDraft.title}`);
+            logger.info(`   Initial Status: ${videoDraft.status}`);
+            logger.info(`   Created At: ${videoDraft.createdAt}`);
+
+            res.status(200).json({
+                uploadUrl: upload.url,
+                uploadId: upload.id,
+                videoId: videoDraft._id,
+                assetId: '' // Tạm thời trống, sẽ có sau khi upload xong
+            });
         } else {
-            logger.warning(`Lesson ${lessonId} not found, video not linked`);
+            // CASE 2: Regular lesson (for draft/pending/rejected courses from MySQL)
+            logger.info('📚 Creating video for REGULAR lesson (MySQL draft course)');
+            
+            const Lesson = (await import('../models/Lesson.js')).default;
+            const lesson = await Lesson.findById(lessonId);
+            
+            if (!lesson) {
+                logger.error(`Lesson ${lessonId} not found (neither draft nor regular)`);
+                return res.status(404).json({ message: 'Lesson not found' });
+            }
+            
+            // Create regular Video for regular lesson
+            const video = new Video({
+                lesson: lessonId,
+                title: lessonTitle,
+                userId: userId,
+                uploadId: upload.id,
+                assetId: '', // Sẽ được cập nhật khi webhook nhận asset_created
+                status: 'uploading',
+                order: lesson.order || 1,
+                description: lessonTitle
+            });
+            await video.save();
+
+            logger.success(`Video created: ${video._id}`);
+            
+            // Link video với lesson
+            lesson.video = video._id;
+            await lesson.save();
+            logger.success(`Linked Video ${video._id} to Lesson ${lessonId}`);
+
+            logger.info(`🔗 Regular Video Mapping created:`);
+            logger.info(`   Video ID: ${video._id}`);
+            logger.info(`   Lesson ID: ${lessonId}`);
+            logger.info(`   User ID: ${video.userId}`);
+            logger.info(`   Upload ID: ${upload.id}`);
+            logger.info(`   Title: ${video.title}`);
+            logger.info(`   Initial Status: ${video.status}`);
+            logger.info(`   Created At: ${video.createdAt}`);
+
+            res.status(200).json({
+                uploadUrl: upload.url,
+                uploadId: upload.id,
+                videoId: video._id,
+                assetId: '' // Tạm thời trống, sẽ có sau khi upload xong
+            });
         }
-
-        logger.info(`🔗 Mapping created:`);
-        logger.info(`   Video ID: ${videoDoc._id}`);
-        logger.info(`   User ID: ${videoDoc.userId}`);
-        logger.info(`   Upload ID: ${upload.id}`);
-        logger.info(`   Title: ${videoDoc.title}`);
-        logger.info(`   Section: ${videoDoc.section}`);
-        logger.info(`   Lesson: ${lessonId}`);
-        logger.info(`   Initial Status: ${videoDoc.status}`);
-        logger.info(`   Initial AssetId: ${videoDoc.assetId || '(empty)'}`);
-        logger.info(`   Created At: ${videoDoc.createdAt}`);
-
-        res.status(200).json({
-            uploadUrl: upload.url,
-            uploadId: upload.id,
-            videoId: videoDoc._id,
-            assetId: '' // Tạm thời trống, sẽ có sau khi upload xong
-        });
     } catch (error) {
         logger.error('Failed to create upload URL');
         logger.error(`Error: ${error.message}`);
@@ -125,6 +190,42 @@ export const createDirectUpload = async (req, res) => {
         });
     }
 };
+
+/**
+ * Helper: Tìm video theo uploadId (hỗ trợ cả VideoDraft và Video)
+ */
+async function findVideoByUploadId(upload_id) {
+    // Try to find VideoDraft first (for approved courses with draft system)
+    let videoDraft = await VideoDraft.findOne({ uploadId: upload_id });
+    
+    if (videoDraft) {
+        logger.info(`✅ Found VideoDraft: ${videoDraft._id}`);
+        return { video: videoDraft, isDraft: true };
+    }
+    
+    // If not found, try regular Video (for MySQL draft courses)
+    let video = await Video.findOne({ uploadId: upload_id });
+    
+    if (video) {
+        logger.info(`✅ Found Video: ${video._id}`);
+        return { video: video, isDraft: false };
+    }
+    
+    // Not found
+    logger.error(`❌ Video not found for upload_id: ${upload_id}`);
+    
+    // List recent videos to help debug
+    const recentVideoDrafts = await VideoDraft.find().sort({ createdAt: -1 }).limit(3).select('_id title uploadId status');
+    const recentVideos = await Video.find().sort({ createdAt: -1 }).limit(3).select('_id title uploadId status');
+    
+    logger.info(`📋 Recent VideoDrafts:`);
+    recentVideoDrafts.forEach(v => logger.info(`   - ${v._id}: ${v.title} (${v.uploadId})`));
+    
+    logger.info(`📋 Recent Videos:`);
+    recentVideos.forEach(v => logger.info(`   - ${v._id}: ${v.title} (${v.uploadId})`));
+    
+    return { video: null, isDraft: null };
+}
 
 /**
  * Webhook từ MUX khi video upload hoàn tất
@@ -224,30 +325,14 @@ async function handleUploadComplete(data) {
     logger.info(`🔍 Searching for video with uploadId: ${upload_id}`);
 
     try {
-        // Tìm video document theo uploadId
-        const video = await Video.findOne({ uploadId: upload_id });
+        // Find video (draft or regular)
+        const { video, isDraft } = await findVideoByUploadId(upload_id);
         
         if (!video) {
-            logger.error(`❌ Video not found for upload_id: ${upload_id}`);
-            logger.error(`🔍 This could mean:`);
-            logger.error(`   1. Video was not created in database`);
-            logger.error(`   2. UploadId mismatch`);
-            logger.error(`   3. Video was deleted`);
-            
-            // List recent videos to help debug
-            const recentVideos = await Video.find().sort({ createdAt: -1 }).limit(5).select('_id title uploadId assetId status createdAt');
-            logger.info(`📋 Recent videos in database:`);
-            recentVideos.forEach(v => {
-                logger.info(`   - ${v._id}: ${v.title}`);
-                logger.info(`     uploadId: ${v.uploadId || '(empty)'}`);
-                logger.info(`     assetId: ${v.assetId || '(empty)'}`);
-                logger.info(`     status: ${v.status}`);
-                logger.info(`     created: ${v.createdAt}`);
-            });
-            return;
+            return; // Error already logged in helper
         }
 
-        logger.success(`✅ Found video: ${video._id} (${video.title})`);
+        logger.success(`✅ Found ${isDraft ? 'VideoDraft' : 'Video'}: ${video._id} (${video.title})`);
         logger.info(`   Current status: ${video.status}`);
         logger.info(`   Current assetId: ${video.assetId || '(empty)'}`);
         logger.info(`   Current uploadId: ${video.uploadId}`);
@@ -263,15 +348,15 @@ async function handleUploadComplete(data) {
 
         // Check if assetId already set (duplicate webhook)
         if (video.assetId && video.assetId !== '') {
-            logger.warning(`⚠️ AssetId already set for this video!`);
+            logger.warning(`⚠️ AssetId already set!`);
             logger.warning(`   Current assetId: ${video.assetId}`);
             logger.warning(`   New assetId: ${asset_id}`);
             
             if (video.assetId === asset_id) {
-                logger.info(`✅ Same assetId - this is a duplicate webhook, skipping update`);
+                logger.info(`✅ Same assetId - duplicate webhook, skipping`);
                 return;
             } else {
-                logger.error(`❌ Different assetId - this is wrong! Updating anyway...`);
+                logger.error(`❌ Different assetId - updating anyway...`);
             }
         }
 
@@ -283,14 +368,14 @@ async function handleUploadComplete(data) {
         video.assetId = asset_id;
         video.status = 'processing';
         
-        logger.info(`📝 Updating video:`);
+        logger.info(`📝 Updating ${isDraft ? 'VideoDraft' : 'Video'}:`);
         logger.info(`   assetId: ${oldAssetId || '(empty)'} → ${video.assetId}`);
         logger.info(`   status: ${oldStatus} → ${video.status}`);
 
         await video.save();
 
-        logger.success(`💾 Video saved successfully!`);
-        logger.success(`Updated video ${video._id}: asset_id=${asset_id}, status=processing`);
+        logger.success(`💾 ${isDraft ? 'VideoDraft' : 'Video'} saved successfully!`);
+        logger.success(`Updated ${video._id}: asset_id=${asset_id}, status=processing`);
         
         // Emit real-time update via WebSocket
         emitVideoStatusUpdate(io, video.userId, {
@@ -300,7 +385,8 @@ async function handleUploadComplete(data) {
         });
         
         // Verify update
-        const verifyVideo = await Video.findById(video._id);
+        const Model = isDraft ? VideoDraft : Video;
+        const verifyVideo = await Model.findById(video._id);
         logger.info(`🔍 Verification:`);
         logger.info(`   assetId in DB: ${verifyVideo.assetId}`);
         logger.info(`   status in DB: ${verifyVideo.status}`);
@@ -314,7 +400,7 @@ async function handleUploadComplete(data) {
             logger.error(`   Got: ${verifyVideo.assetId}`);
         }
         
-        logger.info(`✅ Video upload completed successfully!`);
+        logger.info(`✅ Upload completed successfully!`);
         
     } catch (error) {
         logger.error(`❌ Error in handleUploadComplete: ${error.message}`);
@@ -334,54 +420,65 @@ async function handleAssetReady(data) {
     logger.info(`🔍 Searching for video with assetId: ${asset_id}`);
 
     try {
-        // Tìm video document theo assetId
-        const video = await Video.findOne({ assetId: asset_id });
+        // Try VideoDraft first
+        let videoDraft = await VideoDraft.findOne({ assetId: asset_id });
+        let video = null;
+        let isDraft = true;
         
-        if (!video) {
-            logger.error(`❌ Video not found for asset_id: ${asset_id}`);
+        if (!videoDraft) {
+            // Try regular Video
+            video = await Video.findOne({ assetId: asset_id });
+            isDraft = false;
             
-            // List recent videos to help debug
-            const recentVideos = await Video.find().sort({ createdAt: -1 }).limit(3).select('_id title assetId status');
-            logger.info(`📋 Recent videos in database:`);
-            recentVideos.forEach(v => {
-                logger.info(`   - ${v._id}: ${v.title}`);
-                logger.info(`     assetId: ${v.assetId || '(empty)'}, status: ${v.status}`);
-            });
-            return;
+            if (!video) {
+                logger.error(`❌ Video not found for asset_id: ${asset_id}`);
+                
+                // List recent videos to help debug
+                const recentVideoDrafts = await VideoDraft.find().sort({ createdAt: -1 }).limit(3).select('_id title assetId status');
+                const recentVideos = await Video.find().sort({ createdAt: -1 }).limit(3).select('_id title assetId status');
+                
+                logger.info(`📋 Recent VideoDrafts:`);
+                recentVideoDrafts.forEach(v => logger.info(`   - ${v._id}: ${v.title} (${v.assetId})`))
+                
+                logger.info(`📋 Recent Videos:`);
+                recentVideos.forEach(v => logger.info(`   - ${v._id}: ${v.title} (${v.assetId})`));
+                return;
+            }
         }
-
-        logger.success(`✅ Found video: ${video._id} (${video.title})`);
-        logger.info(`   Current status: ${video.status}`);
-        logger.info(`   Current playbackId: ${video.playbackId || '(empty)'}`);
-        logger.info(`   Current duration: ${video.duration || '(empty)'}`);
-
-        // Lưu giá trị cũ để so sánh
-        const oldStatus = video.status;
-        const oldPlaybackId = video.playbackId;
-        const oldDuration = video.duration;
-
-        // Cập nhật thông tin video
-        video.status = 'ready';
-        video.duration = duration || 0; // Thời lượng video (giây)
         
-        // Lưu playback_id (dùng để phát video)
+        const targetVideo = videoDraft || video;
+        
+        logger.success(`✅ Found ${isDraft ? 'VideoDraft' : 'Video'}: ${targetVideo._id} (${targetVideo.title})`);
+        logger.info(`   Current status: ${targetVideo.status}`);
+        logger.info(`   Current playbackId: ${targetVideo.playbackId || '(empty)'}`);
+        logger.info(`   Current duration: ${targetVideo.duration || '(empty)'}`)
+
+        // Lưu giá trị cũ
+        const oldStatus = targetVideo.status;
+        const oldPlaybackId = targetVideo.playbackId;
+        const oldDuration = targetVideo.duration;
+
+        // Cập nhật thông tin
+        targetVideo.status = 'ready';
+        targetVideo.duration = duration || 0;
+        
+        // Lưu playback_id
         if (playback_ids && playback_ids.length > 0) {
-            video.playbackId = playback_ids[0].id;
+            targetVideo.playbackId = playback_ids[0].id;
             logger.info(`📹 Setting Playback ID: ${playback_ids[0].id}`);
         } else {
             logger.warning(`⚠️ No playback_ids in webhook data!`);
         }
 
-        logger.info(`📝 Attempting to save video with:`);
-        logger.info(`   status: ${oldStatus} → ${video.status}`);
-        logger.info(`   duration: ${oldDuration} → ${video.duration}`);
-        logger.info(`   playbackId: ${oldPlaybackId || '(empty)'} → ${video.playbackId || '(empty)'}`);
+        logger.info(`📝 Attempting to save ${isDraft ? 'VideoDraft' : 'Video'} with:`);
+        logger.info(`   status: ${oldStatus} → ${targetVideo.status}`);
+        logger.info(`   duration: ${oldDuration} → ${targetVideo.duration}`);
+        logger.info(`   playbackId: ${oldPlaybackId || '(empty)'} → ${targetVideo.playbackId || '(empty)'}`)
 
-        // Save to database
-        const savedVideo = await video.save();
+        // Save
+        const savedVideo = await targetVideo.save();
 
-        // Verify save
-        logger.success(`💾 Video saved successfully!`);
+        logger.success(`💾 ${isDraft ? 'VideoDraft' : 'Video'} saved successfully!`);
         logger.info(`✅ Verification after save:`);
         logger.info(`   _id: ${savedVideo._id}`);
         logger.info(`   status: ${savedVideo.status}`);
@@ -389,24 +486,25 @@ async function handleAssetReady(data) {
         logger.info(`   playbackId: ${savedVideo.playbackId}`);
         logger.info(`   updatedAt: ${savedVideo.updatedAt}`);
 
-        // Emit real-time update via WebSocket
-        emitVideoStatusUpdate(io, video.userId, {
-            videoId: video._id.toString(),
+        // Emit real-time update
+        emitVideoStatusUpdate(io, targetVideo.userId, {
+            videoId: targetVideo._id.toString(),
             status: 'ready',
-            assetId: video.assetId,
-            playbackId: video.playbackId,
-            duration: video.duration,
-            contentUrl: `https://stream.mux.com/${video.playbackId}.m3u8`,
+            assetId: targetVideo.assetId,
+            playbackId: targetVideo.playbackId,
+            duration: targetVideo.duration,
+            contentUrl: `https://stream.mux.com/${targetVideo.playbackId}.m3u8`,
         });
 
-        // Double check by querying again
-        const verifyVideo = await Video.findById(savedVideo._id);
+        // Verify
+        const Model = isDraft ? VideoDraft : Video;
+        const verifyVideo = await Model.findById(savedVideo._id);
         logger.info(`🔍 Double-check query result:`);
         logger.info(`   status: ${verifyVideo.status}`);
         logger.info(`   playbackId: ${verifyVideo.playbackId}`);
 
-        logger.success(`✅ Video ${video._id} is ready to play!`);
-        logger.info(`🎉 Video processing completed successfully!`);
+        logger.success(`✅ ${isDraft ? 'VideoDraft' : 'Video'} ${targetVideo._id} is ready to play!`);
+        logger.info(`🎉 Video processing completed successfully!`)
         
     } catch (error) {
         logger.error(`❌ Error in handleAssetReady: ${error.message}`);
@@ -424,21 +522,29 @@ async function handleAssetError(data) {
     logger.error(`Asset error - Asset ID: ${asset_id}`);
     logger.debug(`Error data: ${JSON.stringify(data)}`);
 
-    const video = await Video.findOne({ assetId : asset_id });
+    // Try VideoDraft first
+    let videoDraft = await VideoDraft.findOne({ assetId : asset_id });
+    let isDraft = true;
     
-    if (video) {
-        video.status = 'error';
-        await video.save();
-        logger.warning(`Video ${video._id} marked as error`);
+    if (!videoDraft) {
+        // Try regular Video
+        videoDraft = await Video.findOne({ assetId: asset_id });
+        isDraft = false;
+    }
+    
+    if (videoDraft) {
+        videoDraft.status = 'error';
+        await videoDraft.save();
+        logger.warning(`${isDraft ? 'VideoDraft' : 'Video'} ${videoDraft._id} marked as error`);
         
         // Emit real-time update via WebSocket
-        emitVideoStatusUpdate(io, video.userId, {
-            videoId: video._id.toString(),
+        emitVideoStatusUpdate(io, videoDraft.userId, {
+            videoId: videoDraft._id.toString(),
             status: 'error',
             error: 'Asset processing failed',
         });
     } else {
-        logger.error(`Video not found for asset_id: ${asset_id}`);
+        logger.error(`VideoDraft not found for asset_id: ${asset_id}`);
     }
 }
 
@@ -451,21 +557,29 @@ async function handleUploadError(data) {
     logger.error(`Upload error - Upload ID: ${upload_id}`);
     logger.debug(`Error data: ${JSON.stringify(data)}`);
 
-    const video = await Video.findOne({ uploadId: upload_id });
+    // Try VideoDraft first
+    let videoDraft = await VideoDraft.findOne({ uploadId: upload_id });
+    let isDraft = true;
     
-    if (video) {
-        video.status = 'error';
-        await video.save();
-        logger.warning(`Video ${video._id} marked as error`);
+    if (!videoDraft) {
+        // Try regular Video
+        videoDraft = await Video.findOne({ uploadId: upload_id });
+        isDraft = false;
+    }
+    
+    if (videoDraft) {
+        videoDraft.status = 'error';
+        await videoDraft.save();
+        logger.warning(`${isDraft ? 'VideoDraft' : 'Video'} ${videoDraft._id} marked as error`);
         
         // Emit real-time update via WebSocket
-        emitVideoStatusUpdate(io, video.userId, {
-            videoId: video._id.toString(),
+        emitVideoStatusUpdate(io, videoDraft.userId, {
+            videoId: videoDraft._id.toString(),
             status: 'error',
             error: 'Upload failed',
         });
     } else {
-        logger.error(`Video not found for upload_id: ${upload_id}`);
+        logger.error(`VideoDraft not found for upload_id: ${upload_id}`);
     }
 }
 
@@ -477,20 +591,28 @@ async function handleUploadCancelled(data) {
     
     logger.warning(`Upload cancelled - Upload ID: ${upload_id}`);
 
-    const video = await Video.findOne({ uploadId: upload_id });
+    // Try VideoDraft first
+    let videoDraft = await VideoDraft.findOne({ uploadId: upload_id });
+    let isDraft = true;
     
-    if (video) {
-        video.status = 'cancelled';
-        await video.save();
-        logger.info(`Video ${video._id} marked as cancelled`);
+    if (!videoDraft) {
+        // Try regular Video
+        videoDraft = await Video.findOne({ uploadId: upload_id });
+        isDraft = false;
+    }
+    
+    if (videoDraft) {
+        videoDraft.status = 'cancelled';
+        await videoDraft.save();
+        logger.info(`${isDraft ? 'VideoDraft' : 'Video'} ${videoDraft._id} marked as cancelled`);
         
         // Emit real-time update via WebSocket
-        emitVideoStatusUpdate(io, video.userId, {
-            videoId: video._id.toString(),
+        emitVideoStatusUpdate(io, videoDraft.userId, {
+            videoId: videoDraft._id.toString(),
             status: 'cancelled',
         });
     } else {
-        logger.error(`Video not found for upload_id: ${upload_id}`);
+        logger.error(`VideoDraft not found for upload_id: ${upload_id}`);
     }
 }
 
@@ -503,24 +625,32 @@ export const getUploadStatus = async (req, res) => {
     try {
         logger.debug(`📊 Status check for video: ${videoId}`);
         
-        const video = await Video.findById(videoId).select('status playbackId uploadId assetId title');
+        // Try VideoDraft first
+        let videoDraft = await VideoDraft.findById(videoId).select('status playbackId uploadId assetId title');
+        let isDraft = true;
         
-        if (!video) {
+        if (!videoDraft) {
+            // Try regular Video
+            videoDraft = await Video.findById(videoId).select('status playbackId uploadId assetId title');
+            isDraft = false;
+        }
+        
+        if (!videoDraft) {
             logger.warning(`❌ Video not found: ${videoId}`);
             return res.status(404).json({ message: 'Video not found' });
         }
 
         const response = {
-            videoId: video._id,
-            status: video.status,
-            assetId: video.assetId || '',
-            playbackId: video.playbackId || '',
-            uploadId: video.uploadId || ''
+            videoId: videoDraft._id,
+            status: videoDraft.status,
+            assetId: videoDraft.assetId || '',
+            playbackId: videoDraft.playbackId || '',
+            uploadId: videoDraft.uploadId || ''
         };
 
-        logger.debug(`✅ Video status: ${video.status}, Title: ${video.title}`);
-        logger.debug(`   Asset ID: ${video.assetId || '(empty)'}`);
-        logger.debug(`   Playback ID: ${video.playbackId || '(empty)'}`);
+        logger.debug(`✅ ${isDraft ? 'VideoDraft' : 'Video'} status: ${videoDraft.status}, Title: ${videoDraft.title}`);
+        logger.debug(`   Asset ID: ${videoDraft.assetId || '(empty)'}`);
+        logger.debug(`   Playback ID: ${videoDraft.playbackId || '(empty)'}`)
 
         res.status(200).json(response);
     } catch (error) {
@@ -537,29 +667,48 @@ export const getUploadStatus = async (req, res) => {
  */
 export const listAllVideos = async (req, res) => {
     try {
+        const videoDrafts = await VideoDraft.find()
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .select('_id title status uploadId assetId playbackId courseDraftId createdAt updatedAt');
+        
         const videos = await Video.find()
             .sort({ createdAt: -1 })
             .limit(20)
-            .select('_id title status uploadId assetId playbackId section createdAt updatedAt');
+            .select('_id title status uploadId assetId playbackId lesson createdAt updatedAt');
         
         const summary = {
-            total: videos.length,
+            totalDrafts: videoDrafts.length,
+            totalVideos: videos.length,
             byStatus: {},
-            videos: videos.map(v => ({
+            drafts: videoDrafts.map(v => ({
                 id: v._id,
                 title: v.title,
+                type: 'draft',
                 status: v.status,
                 uploadId: v.uploadId?.substring(0, 30) + '...',
                 assetId: v.assetId || '(empty)',
                 playbackId: v.playbackId || '(empty)',
-                section: v.section,
+                courseDraftId: v.courseDraftId,
+                createdAt: v.createdAt,
+                updatedAt: v.updatedAt
+            })),
+            videos: videos.map(v => ({
+                id: v._id,
+                title: v.title,
+                type: 'regular',
+                status: v.status,
+                uploadId: v.uploadId?.substring(0, 30) + '...',
+                assetId: v.assetId || '(empty)',
+                playbackId: v.playbackId || '(empty)',
+                lessonId: v.lesson,
                 createdAt: v.createdAt,
                 updatedAt: v.updatedAt
             }))
         };
 
         // Count by status
-        videos.forEach(v => {
+        [...videoDrafts, ...videos].forEach(v => {
             summary.byStatus[v.status] = (summary.byStatus[v.status] || 0) + 1;
         });
 
@@ -582,18 +731,24 @@ export const cancelUpload = async (req, res) => {
     try {
         logger.info(`🛑 Cancelling upload: ${uploadId}`);
         
-        // Find video by uploadId
-        const videoDoc = await Video.findOne({ uploadId });
+        // Find video by uploadId (draft or regular)
+        let videoDraftDoc = await VideoDraft.findOne({ uploadId });
+        let isDraft = true;
         
-        if (!videoDoc) {
+        if (!videoDraftDoc) {
+            videoDraftDoc = await Video.findOne({ uploadId });
+            isDraft = false;
+        }
+        
+        if (!videoDraftDoc) {
             logger.warning(`Video not found for uploadId: ${uploadId}`);
             return res.status(404).json({ message: 'Video not found' });
         }
 
-        logger.info(`   Video ID: ${videoDoc._id}`);
-        logger.info(`   Title: ${videoDoc.title}`);
-        logger.info(`   Status: ${videoDoc.status}`);
-        logger.info(`   Asset ID: ${videoDoc.assetId || '(none)'}`);
+        logger.info(`   ${isDraft ? 'VideoDraft' : 'Video'} ID: ${videoDraftDoc._id}`);
+        logger.info(`   Title: ${videoDraftDoc.title}`);
+        logger.info(`   Status: ${videoDraftDoc.status}`);
+        logger.info(`   Asset ID: ${videoDraftDoc.assetId || '(none)'}`)
 
         // Cancel upload in MUX if still in uploading state
         try {
@@ -605,22 +760,23 @@ export const cancelUpload = async (req, res) => {
         }
 
         // Delete the asset if it was created
-        if (videoDoc.assetId && videoDoc.assetId !== '') {
+        if (videoDraftDoc.assetId && videoDraftDoc.assetId !== '') {
             try {
-                await video.assets.delete(videoDoc.assetId);
-                logger.success(`✅ MUX asset deleted: ${videoDoc.assetId}`);
+                await video.assets.delete(videoDraftDoc.assetId);
+                logger.success(`✅ MUX asset deleted: ${videoDraftDoc.assetId}`);
             } catch (muxError) {
                 logger.warning(`⚠️ Could not delete MUX asset: ${muxError.message}`);
             }
         }
 
-        // Delete video document from database
-        await Video.findByIdAndDelete(videoDoc._id);
-        logger.success(`✅ Video document deleted: ${videoDoc._id}`);
+        // Delete document from database
+        const Model = isDraft ? VideoDraft : Video;
+        await Model.findByIdAndDelete(videoDraftDoc._id);
+        logger.success(`✅ ${isDraft ? 'VideoDraft' : 'Video'} document deleted: ${videoDraftDoc._id}`);
 
         res.status(200).json({ 
             message: 'Upload cancelled successfully',
-            videoId: videoDoc._id
+            videoId: videoDraftDoc._id
         });
     } catch (error) {
         logger.error(`Error cancelling upload: ${error.message}`);

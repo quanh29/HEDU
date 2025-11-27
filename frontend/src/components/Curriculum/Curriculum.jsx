@@ -673,7 +673,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
-            section: sectionId,
+            lessonId: lessonId,
             title: lesson.title || 'Quiz',
             questions: backendQuestions,
             order: lesson.order || 0
@@ -963,21 +963,24 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                           </div>
                         )}
                         
-                        {/* Display video info if uploaded - only show if video actually exists */}
-                        {lesson.playbackId && lesson.status === 'ready' && (
+                        {/* Display video info if uploaded - show if playbackId exists regardless of status */}
+                        {lesson.playbackId && (
                           <div style={{
                             marginTop: 8,
                             padding: 12,
-                            background: '#ecfdf5',
-                            border: '2px solid #10b981',
+                            background: lesson.status === 'ready' ? '#ecfdf5' : '#fef3c7',
+                            border: lesson.status === 'ready' ? '2px solid #10b981' : '2px solid #f59e0b',
                             borderRadius: 8,
                             fontSize: 13,
-                            color: '#065f46'
+                            color: lesson.status === 'ready' ? '#065f46' : '#92400e'
                           }}>
-                            <div style={{ fontWeight: 600, marginBottom: 4 }}>✓ Video đã upload thành công</div>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                              {lesson.status === 'ready' ? '✓ Video đã upload thành công' : '⏳ Video đang xử lý'}
+                            </div>
                             {lesson.playbackId && <div><strong>Playback ID:</strong> {lesson.playbackId}</div>}
-                            <div><strong>Status:</strong> {lesson.status || 'ready'}</div>
+                            <div><strong>Status:</strong> {lesson.status || 'processing'}</div>
                             {lesson.assetId && <div><strong>Asset ID:</strong> {lesson.assetId}</div>}
+                            {lesson.duration > 0 && <div><strong>Duration:</strong> {Math.floor(lesson.duration / 60)}:{String(lesson.duration % 60).padStart(2, '0')}</div>}
                             <button
                               onClick={() => handleDeleteVideo(
                                 section.id || section._id,

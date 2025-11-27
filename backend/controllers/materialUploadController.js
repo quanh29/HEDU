@@ -1,7 +1,9 @@
 import Material from '../models/Material.js';
+import MaterialDraft from '../models/MaterialDraft.js';
 import cloudinary from '../config/cloudinary.js';
 import multer from 'multer';
 import { Readable } from 'stream';
+import mongoose from 'mongoose';
 
 // Configure multer để xử lý file upload (memory storage - không lưu file local)
 const storage = multer.memoryStorage();
@@ -96,35 +98,113 @@ export const uploadMaterial = async (req, res) => {
         console.log('   Resource Type:', cloudinaryResult.resource_type);
         console.log('   Format:', cloudinaryResult.format);
 
-        // Tạo Material document tạm thời trong MongoDB
+        // Link material với lesson nếu có lessonId
+        if (lessonId) {
+            // Check if it's a LessonDraft (draft system)
+            const LessonDraft = (await import('../models/LessonDraft.js')).default;
+            const draftLesson = await LessonDraft.findById(lessonId);
+            
+            if (draftLesson) {
+                // Create MaterialDraft for draft system
+                const materialDraft = new MaterialDraft({
+                    contentUrl: cloudinaryResult.public_id,
+                    resource_type: cloudinaryResult.resource_type,
+                    originalFilename: req.file.originalname,
+                    fileSize: cloudinaryResult.bytes,
+                    format: cloudinaryResult.format,
+                    extension: fileExtension,
+                    courseDraftId: draftLesson.courseDraftId,
+                    draftLessonId: draftLesson._id,
+                    status: 'draft',
+                    changeType: 'new'
+                });
+
+                await materialDraft.save();
+
+                // Link to lesson draft
+                draftLesson.draftMaterialId = materialDraft._id;
+                draftLesson.duration = 0; // Materials don't have duration
+                await draftLesson.save();
+
+                // Add to CourseDraft.draftMaterials array
+                const CourseDraft = mongoose.model('CourseDraft');
+                const courseDraft = await CourseDraft.findById(draftLesson.courseDraftId);
+                if (courseDraft) {
+                    courseDraft.draftMaterials.push(materialDraft._id);
+                    await courseDraft.save();
+                }
+
+                console.log(`✅ Created MaterialDraft ${materialDraft._id} for LessonDraft ${lessonId}`);
+
+                return res.status(200).json({
+                    success: true,
+                    message: 'Material uploaded successfully (draft)',
+                    isDraft: true,
+                    materialId: materialDraft._id.toString(),
+                    publicId: cloudinaryResult.public_id,
+                    resourceType: cloudinaryResult.resource_type,
+                    originalFilename: req.file.originalname,
+                    fileSize: cloudinaryResult.bytes,
+                    format: cloudinaryResult.format,
+                    extension: fileExtension
+                });
+            }
+
+            // Fallback to published Lesson (old system)
+            const Lesson = (await import('../models/Lesson.js')).default;
+            const lesson = await Lesson.findById(lessonId);
+            if (lesson) {
+                // Create published Material
+                const material = new Material({
+                    contentUrl: cloudinaryResult.public_id,
+                    resource_type: cloudinaryResult.resource_type,
+                    originalFilename: req.file.originalname,
+                    fileSize: cloudinaryResult.bytes,
+                    format: cloudinaryResult.format,
+                    extension: fileExtension,
+                    isTemporary: false
+                });
+
+                await material.save();
+                
+                lesson.material = material._id;
+                lesson.duration = 0;
+                await lesson.save();
+                
+                console.log(`✅ Linked material ${material._id} to published lesson ${lessonId}`);
+
+                return res.status(200).json({
+                    success: true,
+                    message: 'Material uploaded successfully (published)',
+                    isDraft: false,
+                    materialId: material._id.toString(),
+                    publicId: cloudinaryResult.public_id,
+                    resourceType: cloudinaryResult.resource_type,
+                    originalFilename: req.file.originalname,
+                    fileSize: cloudinaryResult.bytes,
+                    format: cloudinaryResult.format,
+                    extension: fileExtension
+                });
+            }
+            
+            console.log(`⚠️ Lesson ${lessonId} not found`);
+        }
+
+        // No lessonId provided - create temporary Material
         const material = new Material({
-            contentUrl: cloudinaryResult.public_id, // Lưu publicId của Cloudinary
+            contentUrl: cloudinaryResult.public_id,
             resource_type: cloudinaryResult.resource_type,
             originalFilename: req.file.originalname,
             fileSize: cloudinaryResult.bytes,
             format: cloudinaryResult.format,
-            extension: fileExtension, // Lưu extension
-            isTemporary: true // Material tạm thời, chưa link với course
+            extension: fileExtension,
+            isTemporary: true
         });
 
         await material.save();
 
-        console.log('✅ [Material Upload] Material document created');
+        console.log('✅ [Material Upload] Temporary material created');
         console.log('   Material ID:', material._id);
-
-        // Link material với lesson nếu có lessonId
-        if (lessonId) {
-            const Lesson = (await import('../models/Lesson.js')).default;
-            const lesson = await Lesson.findById(lessonId);
-            if (lesson) {
-                lesson.material = material._id;
-                lesson.duration = 0; // Materials don't have duration
-                await lesson.save();
-                console.log(`✅ Linked material ${material._id} to lesson ${lessonId}`);
-            } else {
-                console.log(`⚠️ Lesson ${lessonId} not found, material not linked`);
-            }
-        }
 
         res.status(200).json({
             success: true,
@@ -158,8 +238,15 @@ export const deleteMaterial = async (req, res) => {
 
         console.log('🗑️ [Material Delete] Deleting material:', materialId);
 
-        // Find material in MongoDB
-        const material = await Material.findById(materialId);
+        // Try MaterialDraft first
+        let material = await MaterialDraft.findById(materialId);
+        let isDraft = true;
+
+        if (!material) {
+            // Fallback to published Material
+            material = await Material.findById(materialId);
+            isDraft = false;
+        }
 
         if (!material) {
             return res.status(404).json({
@@ -168,7 +255,7 @@ export const deleteMaterial = async (req, res) => {
             });
         }
 
-        console.log('   Found material with publicId:', material.contentUrl);
+        console.log(`   Found ${isDraft ? 'MaterialDraft' : 'Material'} with publicId:`, material.contentUrl);
 
         // Delete from Cloudinary
         try {
@@ -176,7 +263,7 @@ export const deleteMaterial = async (req, res) => {
                 material.contentUrl,
                 { 
                     resource_type: material.resource_type || 'raw',
-                    type: 'private' // Specify type for private files
+                    type: 'private'
                 }
             );
             console.log('   Cloudinary delete result:', deleteResult);
@@ -184,14 +271,31 @@ export const deleteMaterial = async (req, res) => {
             console.warn('⚠️ [Material Delete] Cloudinary delete failed, continuing with DB deletion:', cloudinaryError.message);
         }
 
-        // Delete from MongoDB
-        await Material.findByIdAndDelete(materialId);
+        // Remove from CourseDraft.draftMaterials if draft
+        if (isDraft && material.courseDraftId) {
+            const CourseDraft = mongoose.model('CourseDraft');
+            const courseDraft = await CourseDraft.findById(material.courseDraftId);
+            if (courseDraft) {
+                courseDraft.draftMaterials = courseDraft.draftMaterials.filter(
+                    id => id.toString() !== materialId
+                );
+                await courseDraft.save();
+            }
+        }
 
-        console.log('✅ [Material Delete] Material deleted successfully');
+        // Delete from MongoDB
+        if (isDraft) {
+            await MaterialDraft.findByIdAndDelete(materialId);
+        } else {
+            await Material.findByIdAndDelete(materialId);
+        }
+
+        console.log(`✅ [Material Delete] ${isDraft ? 'MaterialDraft' : 'Material'} deleted successfully`);
 
         res.status(200).json({
             success: true,
-            message: 'Material deleted successfully'
+            message: 'Material deleted successfully',
+            isDraft
         });
 
     } catch (error) {
@@ -218,11 +322,18 @@ export const generateMaterialSignedUrl = async (req, res) => {
         console.log('   Body type:', typeof req.body);
         console.log('   Headers:', req.headers['content-type']);
         
-        // Handle case when req.body is undefined or null
         const expiresIn = (req.body && req.body.expiresIn) ? parseInt(req.body.expiresIn) : 3600;
         console.log('   Expires in:', expiresIn);
 
-        const material = await Material.findById(materialId);
+        // Try MaterialDraft first
+        let material = await MaterialDraft.findById(materialId);
+        let isDraft = true;
+
+        if (!material) {
+            // Fallback to published Material
+            material = await Material.findById(materialId);
+            isDraft = false;
+        }
 
         if (!material) {
             return res.status(404).json({
@@ -231,7 +342,7 @@ export const generateMaterialSignedUrl = async (req, res) => {
             });
         }
 
-        console.log('   Material found:', {
+        console.log(`   ${isDraft ? 'MaterialDraft' : 'Material'} found:`, {
             publicId: material.contentUrl,
             resourceType: material.resource_type,
             filename: material.originalFilename,
@@ -240,31 +351,28 @@ export const generateMaterialSignedUrl = async (req, res) => {
 
         const expiresAt = Math.floor(Date.now() / 1000) + parseInt(expiresIn);
 
-        // Don't add extension again - Cloudinary publicId already includes it
-        // Just use the publicId as-is
         console.log('   Using publicId:', material.contentUrl);
         console.log('   Original filename:', material.originalFilename);
 
-        // For private raw files, use cloudinary.utils.private_download_url
-        // This is the correct method for authenticated downloads
         const signedUrl = cloudinary.utils.private_download_url(
             material.contentUrl,
             'raw',
             {
-                attachment: material.originalFilename, // Use original filename with extension
+                attachment: material.originalFilename,
                 expires_at: expiresAt,
                 resource_type: 'raw'
             }
         );
 
-        console.log('✅ [Material Signed URL] URL generated');
+        console.log(`✅ [Material Signed URL] URL generated for ${isDraft ? 'draft' : 'published'}`);
         console.log('   Signed URL:', signedUrl);
 
         res.status(200).json({
             success: true,
             signedUrl: signedUrl,
             expiresAt: expiresAt,
-            filename: material.originalFilename
+            filename: material.originalFilename,
+            isDraft
         });
 
     } catch (error) {

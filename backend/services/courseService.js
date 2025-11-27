@@ -8,7 +8,7 @@ import Lesson from '../models/Lesson.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
-import CourseRevision from '../models/CourseRevision.js';
+import CourseRevision from '../models/CourseDraft.js';
 
 /**
  * Helper functions
@@ -590,71 +590,73 @@ export const getCourseContentForEnrolledUserService = async (courseId) => {
 
     const sectionIds = sections.map(sec => sec._id.toString());
     
-    // Lấy full content
-    const [videos, materials, quizzes] = await Promise.all([
-        Video.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-        Material.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean(),
-        Quiz.find({ section: { $in: sectionIds } }).sort({ order: 1 }).lean()
-    ]);
+    // Lấy lessons với populate content
+    const lessons = await Lesson.find({ section: { $in: sectionIds } })
+        .populate('video')
+        .populate('material')
+        .populate('quiz')
+        .sort({ order: 1 })
+        .lean();
 
-    // Gom lessons với full data
-    const sectionsWithContent = sections.map((section, index) => {
+    // Gom lessons theo section
+    const sectionsWithContent = sections.map((section) => {
         const sectionIdStr = section._id.toString();
         
-        const sectionVideos = videos
-            .filter(v => v.section.toString() === sectionIdStr)
-            .map(v => ({
-                lessonId: v._id.toString(),
-                videoId: v._id.toString(), // Thêm videoId để frontend navigate
-                type: 'video',
-                title: v.title,
-                contentUrl: v.contentUrl,
-                description: v.description || '',
-                duration: v.duration || 600, // duration in seconds
-                order: v.order,
-                completed: false
-            }));
+        // Filter lessons thuộc section này
+        const sectionLessons = lessons
+            .filter(lesson => lesson.section.toString() === sectionIdStr)
+            .map(lesson => {
+                // Base lesson data
+                const lessonData = {
+                    lessonId: lesson._id.toString(),
+                    type: lesson.contentType,
+                    title: lesson.title,
+                    order: lesson.order,
+                    completed: false
+                };
 
-        const sectionMaterials = materials
-            .filter(m => m.section.toString() === sectionIdStr)
-            .map(m => ({
-                lessonId: m._id.toString(),
-                type: 'document',
-                title: m.title,
-                contentUrl: m.contentUrl,
-                fileType: getFileType(m.contentUrl),
-                fileSize: '1MB',
-                fileName: getFileName(m.contentUrl),
-                order: m.order,
-                completed: false
-            }));
+                // Add content-specific data
+                if (lesson.contentType === 'video' && lesson.video) {
+                    return {
+                        ...lessonData,
+                        videoId: lesson.video._id.toString(),
+                        contentUrl: lesson.video.contentUrl || '',
+                        description: lesson.video.description || '',
+                        duration: lesson.video.duration || 0,
+                        playbackId: lesson.video.playbackId || ''
+                    };
+                } else if (lesson.contentType === 'material' && lesson.material) {
+                    return {
+                        ...lessonData,
+                        materialId: lesson.material._id.toString(),
+                        contentUrl: lesson.material.contentUrl || '', // This is the Cloudinary public_id
+                        fileType: getFileType(lesson.material.originalFilename || lesson.material.contentUrl || ''),
+                        fileSize: lesson.material.fileSize ? `${Math.round(lesson.material.fileSize / 1024)} KB` : '1MB',
+                        fileName: lesson.material.originalFilename || getFileName(lesson.material.contentUrl || '')
+                    };
+                } else if (lesson.contentType === 'quiz' && lesson.quiz) {
+                    return {
+                        ...lessonData,
+                        quizId: lesson.quiz._id.toString(),
+                        description: lesson.quiz.description || '',
+                        questionCount: lesson.quiz.questions ? lesson.quiz.questions.length : 0,
+                        questions: lesson.quiz.questions ? lesson.quiz.questions.map(quest => ({
+                            questionText: quest.questionText,
+                            options: quest.options,
+                        })) : []
+                    };
+                }
 
-        const sectionQuizzes = quizzes
-            .filter(q => q.section.toString() === sectionIdStr)
-            .map(q => ({
-                lessonId: q._id.toString(),
-                quizId: q._id.toString(),
-                type: 'quiz',
-                title: q.title,
-                description: q.description || '',
-                questionCount: q.questions ? q.questions.length : 0,
-                questions: q.questions ? q.questions.map(quest => ({
-                    questionText: quest.questionText,
-                    options: quest.options,
-                })) : [],
-                order: q.order,
-                completed: false
-            }));
-
-        const allLessons = [...sectionVideos, ...sectionMaterials, ...sectionQuizzes]
-            .sort((a, b) => a.order - b.order);
+                // Return basic lesson if content not populated
+                return lessonData;
+            });
 
         return {
             sectionId: section._id.toString(),
             title: section.title,
             courseTitle: course.title,
             order: section.order,
-            lessons: allLessons
+            lessons: sectionLessons
         };
     });
 

@@ -9,11 +9,15 @@ import {
     getPendingRevisions,
     approveRevision,
     rejectRevision,
-    checkPendingRevision
+    checkPendingRevision,
+    getOrCreateCourseDraft
 } from "../controllers/courseRevisionController.js";
 import { protectAdmin, protectCourseOwner } from "../middleware/auth.js";
 
 const courseRevisionRouter = express.Router();
+
+// Get or create draft (auto-creates from published if needed)
+courseRevisionRouter.get("/draft/:courseId", getOrCreateCourseDraft);
 
 courseRevisionRouter.post("/", addCourseRevision);
 courseRevisionRouter.get("/course/:courseId", getCourseRevisionsById);

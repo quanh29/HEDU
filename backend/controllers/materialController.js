@@ -1,28 +1,93 @@
 import Material from "../models/Material.js";
+import MaterialDraft from "../models/MaterialDraft.js";
+import mongoose from 'mongoose';
 
 // Tạo material mới
 export const addMaterial = async (req, res) => {
-    const { section, title, contentUrl, order } = req.body;
+    const { lessonId, title, contentUrl, order } = req.body;
 
-    if (!section || !title || !contentUrl) {
-        return res.status(400).json({ message: 'section, title, and contentUrl are required' });
+    if (!lessonId || !title || !contentUrl) {
+        return res.status(400).json({ message: 'lessonId, title, and contentUrl are required' });
     }
 
     try {
-        const newMaterial = new Material({
-            section,
-            title,
-            contentUrl,
-            order: order || 1,
-            createdAt: new Date(),
-            updatedAt: new Date()
+        // Check if it's a LessonDraft (draft system)
+        const LessonDraft = (await import('../models/LessonDraft.js')).default;
+        const draftLesson = await LessonDraft.findById(lessonId);
+        
+        if (draftLesson) {
+            // Create MaterialDraft for draft system
+            const newMaterialDraft = new MaterialDraft({
+                courseDraftId: draftLesson.courseDraftId,
+                draftLessonId: draftLesson._id,
+                title,
+                contentUrl,
+                order: order || 1,
+                status: 'draft',
+                changeType: 'new'
+            });
+
+            await newMaterialDraft.save();
+
+            // Link to lesson draft
+            draftLesson.draftMaterialId = newMaterialDraft._id;
+            await draftLesson.save();
+
+            // Add to CourseDraft.draftMaterials array
+            const CourseDraft = mongoose.model('CourseDraft');
+            const courseDraft = await CourseDraft.findById(draftLesson.courseDraftId);
+            if (courseDraft) {
+                courseDraft.draftMaterials.push(newMaterialDraft._id);
+                await courseDraft.save();
+            }
+
+            console.log(`✅ Created MaterialDraft ${newMaterialDraft._id} for LessonDraft ${lessonId}`);
+
+            return res.status(201).json({
+                success: true,
+                isDraft: true,
+                data: newMaterialDraft
+            });
+        }
+
+        // Fallback to published Lesson (old system)
+        const Lesson = (await import('../models/Lesson.js')).default;
+        const lesson = await Lesson.findById(lessonId);
+        
+        if (lesson) {
+            // Create published Material (backward compatibility)
+            const newMaterial = new Material({
+                section: lesson.section,
+                title,
+                contentUrl,
+                order: order || 1,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            await newMaterial.save();
+
+            console.log(`✅ Created published Material ${newMaterial._id} for Lesson ${lessonId}`);
+
+            return res.status(201).json({
+                success: true,
+                isDraft: false,
+                data: newMaterial
+            });
+        }
+
+        return res.status(404).json({ 
+            success: false,
+            message: 'Lesson not found' 
         });
 
-        const savedMaterial = await newMaterial.save();
-        res.status(201).json(savedMaterial);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error creating material', error: error.message });
+        console.error('Error creating material:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error creating material', 
+            error: error.message 
+        });
     }
 };
 
@@ -31,14 +96,35 @@ export const getMaterialById = async (req, res) => {
     const { materialId } = req.params;
 
     try {
-        const material = await Material.findById(materialId);
+        // Try MaterialDraft first
+        let material = await MaterialDraft.findById(materialId);
+        let isDraft = true;
+
         if (!material) {
-            return res.status(404).json({ message: 'Material not found' });
+            // Fallback to published Material
+            material = await Material.findById(materialId);
+            isDraft = false;
         }
-        res.status(200).json(material);
+
+        if (!material) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Material not found' 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            isDraft,
+            data: material
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error', 
+            error: error.message 
+        });
     }
 };
 
@@ -74,21 +160,49 @@ export const updateMaterial = async (req, res) => {
     const { title, contentUrl, order } = req.body;
 
     try {
-        const material = await Material.findById(materialId);
+        // Try MaterialDraft first
+        let material = await MaterialDraft.findById(materialId);
+        let isDraft = true;
+
         if (!material) {
-            return res.status(404).json({ message: 'Material not found' });
+            // Fallback to published Material
+            material = await Material.findById(materialId);
+            isDraft = false;
+        }
+
+        if (!material) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Material not found' 
+            });
         }
 
         if (title) material.title = title;
         if (contentUrl) material.contentUrl = contentUrl;
         if (order) material.order = order;
-        material.updatedAt = new Date();
+        
+        if (!isDraft) {
+            material.updatedAt = new Date();
+        } else if (material.changeType === 'unchanged') {
+            material.changeType = 'modified';
+        }
 
         const updatedMaterial = await material.save();
-        res.status(200).json(updatedMaterial);
+
+        console.log(`✅ Updated ${isDraft ? 'MaterialDraft' : 'Material'}: ${materialId}`);
+
+        res.status(200).json({
+            success: true,
+            isDraft,
+            data: updatedMaterial
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error updating material', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Error updating material', 
+            error: error.message 
+        });
     }
 };
 
@@ -97,13 +211,55 @@ export const deleteMaterial = async (req, res) => {
     const { materialId } = req.params;
 
     try {
-        const material = await Material.findByIdAndDelete(materialId);
+        // Try MaterialDraft first
+        let material = await MaterialDraft.findById(materialId);
+        let isDraft = true;
+
         if (!material) {
-            return res.status(404).json({ message: 'Material not found' });
+            // Fallback to published Material
+            material = await Material.findById(materialId);
+            isDraft = false;
         }
-        res.status(200).json({ message: 'Material deleted successfully' });
+
+        if (!material) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Material not found' 
+            });
+        }
+
+        // Remove from CourseDraft.draftMaterials if draft
+        if (isDraft && material.courseDraftId) {
+            const CourseDraft = mongoose.model('CourseDraft');
+            const courseDraft = await CourseDraft.findById(material.courseDraftId);
+            if (courseDraft) {
+                courseDraft.draftMaterials = courseDraft.draftMaterials.filter(
+                    id => id.toString() !== materialId
+                );
+                await courseDraft.save();
+            }
+        }
+
+        // Delete material
+        if (isDraft) {
+            await MaterialDraft.findByIdAndDelete(materialId);
+        } else {
+            await Material.findByIdAndDelete(materialId);
+        }
+
+        console.log(`✅ Deleted ${isDraft ? 'MaterialDraft' : 'Material'}: ${materialId}`);
+
+        res.status(200).json({ 
+            success: true,
+            message: 'Material deleted successfully',
+            isDraft
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error deleting material', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Error deleting material', 
+            error: error.message 
+        });
     }
 };

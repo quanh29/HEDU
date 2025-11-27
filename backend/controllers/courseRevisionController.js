@@ -1,5 +1,5 @@
 // import Course from '../models/Course.js';
-import CourseRevision from '../models/CourseRevision.js';
+import CourseRevision from '../models/CourseDraft.js';
 import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
@@ -7,9 +7,57 @@ import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
 import logger from '../utils/logger.js';
+import { getOrCreateDraft, getCourseDraft } from '../utils/draftHelper.js';
 // import Section from '../models/Section.js';
 // import Lesson from '../models/Lesson.js';
 // import User from '../models/User.js';
+
+/**
+ * Get or create draft for a course
+ * Auto-creates draft from published if not exists
+ */
+export const getOrCreateCourseDraft = async (req, res) => {
+    const { courseId } = req.params;
+    const userId = req.auth?.userId;
+
+    if (!courseId) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'courseId is required' 
+        });
+    }
+
+    try {
+        console.log(`📝 [getOrCreateCourseDraft] Request for course: ${courseId}`);
+        
+        // Get or create draft
+        const draft = await getOrCreateDraft(courseId, userId);
+
+        if (!draft) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to get or create draft'
+            });
+        }
+
+        console.log(`✅ [getOrCreateCourseDraft] Returning draft: ${draft._id} (status: ${draft.status})`);
+
+        return res.status(200).json({
+            success: true,
+            hasDraft: true,
+            draftStatus: draft.status,
+            courseDraftId: draft._id,
+            data: draft,
+            message: draft.isAutoCreated ? 'Draft auto-created from published course' : 'Existing draft loaded'
+        });
+    } catch (error) {
+        console.error('❌ [getOrCreateCourseDraft] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Error getting or creating draft'
+        });
+    }
+};
 
 export const addCourseRevision = async (req, res) => {
     const { title, instructors, thumbnail, description, originalPrice, tags, sections, language, level, hasPractice, hasCertificate, requirements, objectives, subtitle, status } = req.body;
