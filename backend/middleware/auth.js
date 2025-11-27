@@ -159,7 +159,7 @@ export const protectUserAction = async (req, res, next) => {
         req.userId = userId;
         req.user = user;
         
-        logger.info(`✅ [protectUserAction] User action allowed for userId: ${userId}`);
+        // logger.info(`✅ [protectUserAction] User action allowed for userId: ${userId}`);
         next();
 
     } catch (error) {

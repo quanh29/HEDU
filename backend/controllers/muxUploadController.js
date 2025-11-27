@@ -1,6 +1,9 @@
 import Mux from '@mux/mux-node';
 import Video from '../models/video.js';
 import logger from '../utils/logger.js';
+import { getAuth } from '@clerk/express';
+import { io } from '../server.js';
+import { emitVideoStatusUpdate } from '../sockets/videoSocket.js';
 
 // Khởi tạo Mux client với destructuring
 const { video } = new Mux({
@@ -15,6 +18,18 @@ export const createDirectUpload = async (req, res) => {
     let { lessonTitle, sectionId } = req.body;
 
     try {
+        // Get userId from Clerk authentication
+        const { userId } = getAuth(req);
+        
+        if (!userId) {
+            logger.error('Unauthorized: No userId found');
+            return res.status(401).json({ 
+                message: 'Unauthorized: User must be authenticated' 
+            });
+        }
+
+        logger.info(`User ${userId} creating upload`);
+
         // Tạo lessonTitle tạm thời nếu trống
         if (!lessonTitle || lessonTitle.trim() === '') {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -55,6 +70,7 @@ export const createDirectUpload = async (req, res) => {
         const videoDoc = new Video({
             section: sectionId,
             title: lessonTitle,
+            userId: userId, // Store Clerk user ID for socket room targeting
             uploadId: upload.id,
             assetId: '', // Sẽ được cập nhật khi webhook nhận asset_created
             status: 'uploading',
@@ -65,6 +81,7 @@ export const createDirectUpload = async (req, res) => {
         logger.success(`Video document created: ${videoDoc._id}`);
         logger.info(`🔗 Mapping created:`);
         logger.info(`   Video ID: ${videoDoc._id}`);
+        logger.info(`   User ID: ${videoDoc.userId}`);
         logger.info(`   Upload ID: ${upload.id}`);
         logger.info(`   Title: ${videoDoc.title}`);
         logger.info(`   Section: ${videoDoc.section}`);
@@ -261,6 +278,13 @@ async function handleUploadComplete(data) {
         logger.success(`💾 Video saved successfully!`);
         logger.success(`Updated video ${video._id}: asset_id=${asset_id}, status=processing`);
         
+        // Emit real-time update via WebSocket
+        emitVideoStatusUpdate(io, video.userId, {
+            videoId: video._id.toString(),
+            status: 'processing',
+            assetId: asset_id,
+        });
+        
         // Verify update
         const verifyVideo = await Video.findById(video._id);
         logger.info(`🔍 Verification:`);
@@ -351,6 +375,16 @@ async function handleAssetReady(data) {
         logger.info(`   playbackId: ${savedVideo.playbackId}`);
         logger.info(`   updatedAt: ${savedVideo.updatedAt}`);
 
+        // Emit real-time update via WebSocket
+        emitVideoStatusUpdate(io, video.userId, {
+            videoId: video._id.toString(),
+            status: 'ready',
+            assetId: video.assetId,
+            playbackId: video.playbackId,
+            duration: video.duration,
+            contentUrl: `https://stream.mux.com/${video.playbackId}.m3u8`,
+        });
+
         // Double check by querying again
         const verifyVideo = await Video.findById(savedVideo._id);
         logger.info(`🔍 Double-check query result:`);
@@ -382,6 +416,13 @@ async function handleAssetError(data) {
         video.status = 'error';
         await video.save();
         logger.warning(`Video ${video._id} marked as error`);
+        
+        // Emit real-time update via WebSocket
+        emitVideoStatusUpdate(io, video.userId, {
+            videoId: video._id.toString(),
+            status: 'error',
+            error: 'Asset processing failed',
+        });
     } else {
         logger.error(`Video not found for asset_id: ${asset_id}`);
     }
@@ -402,6 +443,13 @@ async function handleUploadError(data) {
         video.status = 'error';
         await video.save();
         logger.warning(`Video ${video._id} marked as error`);
+        
+        // Emit real-time update via WebSocket
+        emitVideoStatusUpdate(io, video.userId, {
+            videoId: video._id.toString(),
+            status: 'error',
+            error: 'Upload failed',
+        });
     } else {
         logger.error(`Video not found for upload_id: ${upload_id}`);
     }
@@ -421,6 +469,12 @@ async function handleUploadCancelled(data) {
         video.status = 'cancelled';
         await video.save();
         logger.info(`Video ${video._id} marked as cancelled`);
+        
+        // Emit real-time update via WebSocket
+        emitVideoStatusUpdate(io, video.userId, {
+            videoId: video._id.toString(),
+            status: 'cancelled',
+        });
     } else {
         logger.error(`Video not found for upload_id: ${upload_id}`);
     }

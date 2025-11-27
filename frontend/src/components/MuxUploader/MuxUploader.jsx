@@ -1,7 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import * as UpChunk from '@mux/upchunk';
 import { Upload, CheckCircle, XCircle, Loader } from 'lucide-react';
 import styles from './MuxUploader.module.css';
+import { useVideoSocket } from '../../context/SocketContext.jsx';
+import { getClerkToken } from '../../utils/clerkAuth.js';
 
 const MuxUploader = ({ 
     lessonTitle, 
@@ -21,8 +23,99 @@ const MuxUploader = ({
     const [videoId, setVideoId] = useState(null);
     const fileInputRef = useRef(null);
     const uploadRef = useRef(null);
-    const pollIntervalRef = useRef(null);
     const isCancellingRef = useRef(false); // Prevent multiple cancel calls
+
+    // Setup WebSocket listener for video status updates
+    const handleVideoStatusUpdate = useCallback((data) => {
+        console.log('📡 MuxUploader received video status update:', data);
+        console.log('📌 Current videoId:', videoId);
+        console.log('📌 Received videoId:', data.videoId);
+        console.log('📌 videoId type:', typeof videoId, 'data.videoId type:', typeof data.videoId);
+        console.log('📌 Comparison result:', videoId === data.videoId);
+        console.log('📌 String comparison:', String(videoId) === String(data.videoId));
+        
+        // Only process updates for the current video (compare as strings)
+        if (!videoId || String(data.videoId) !== String(videoId)) {
+            console.log('⏭️ Ignoring update for different video');
+            console.log('   Expected:', videoId);
+            console.log('   Received:', data.videoId);
+            return;
+        }
+
+        console.log(`📹 Processing update for video ${videoId}: ${data.status}`);
+
+        switch (data.status) {
+            case 'processing':
+                updateStatus('processing');
+                console.log('🔄 Video is processing...');
+                break;
+
+            case 'ready':
+                updateStatus('success');
+                console.log('✅ Video is ready!');
+                
+                if (onUploadComplete) {
+                    onUploadComplete({
+                        videoId: data.videoId,
+                        assetId: data.assetId,
+                        playbackId: data.playbackId,
+                        contentUrl: data.contentUrl || `https://stream.mux.com/${data.playbackId}.m3u8`,
+                        status: 'ready',
+                        duration: data.duration,
+                    });
+                }
+                break;
+
+            case 'error':
+                updateStatus('error');
+                setErrorMessage(data.error || 'Processing failed');
+                console.error('❌ Video processing error:', data.error);
+                
+                if (onUploadError) {
+                    onUploadError(new Error(data.error || 'Processing failed'));
+                }
+                break;
+
+            case 'cancelled':
+                updateStatus('idle');
+                console.log('🛑 Video upload cancelled');
+                break;
+
+            default:
+                console.log(`ℹ️ Unhandled status: ${data.status}`);
+        }
+    }, [videoId, onUploadComplete, onUploadError]);
+
+    const handleVideoError = useCallback((data) => {
+        console.error('❌ Video error received:', data);
+        updateStatus('error');
+        setErrorMessage(data.message || 'An error occurred');
+        
+        if (onUploadError) {
+            onUploadError(new Error(data.message));
+        }
+    }, [onUploadError]);
+
+    // Use WebSocket hook for real-time updates
+    const { isConnected, error: socketError } = useVideoSocket(
+        handleVideoStatusUpdate,
+        handleVideoError
+    );
+
+    // Log socket connection status
+    useEffect(() => {
+        if (isConnected) {
+            console.log('✅ MuxUploader: Socket connected');
+        } else {
+            console.log('⚠️ MuxUploader: Socket disconnected');
+        }
+    }, [isConnected]);
+
+    useEffect(() => {
+        if (socketError) {
+            console.error('❌ MuxUploader: Socket error:', socketError);
+        }
+    }, [socketError]);
 
     const updateStatus = (status) => {
         setUploadStatus(status);
@@ -63,11 +156,14 @@ const MuxUploader = ({
                 onCancelRegistered(handleCancel);
             }
 
-            // Bước 1: Lấy upload URL từ backend
+            // Bước 1: Lấy upload URL từ backend với authentication
+            const token = await getClerkToken();
+            
             const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/mux/create-upload`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     lessonTitle: lessonTitle || '', // Backend sẽ tự tạo title tạm thời nếu trống
@@ -104,20 +200,23 @@ const MuxUploader = ({
                 updateProgress(prog);
             });
 
-            // Upload success
+            // Upload success - WebSocket will handle status updates
             upload.on('success', () => {
                 console.log('✅ Upload complete!');
                 console.log('📹 Video ID:', createdVideoId);
                 console.log('🎬 Asset ID:', assetId);
+                console.log('🔌 Waiting for WebSocket status updates...');
                 updateStatus('processing');
                 
-                // Poll for video status
-                if (createdVideoId) {
-                    pollVideoStatus(createdVideoId, assetId);
-                } else {
-                    console.error('❌ No videoId available for polling');
-                    updateStatus('error');
-                    setErrorMessage('Video ID not found');
+                // Notify parent that upload is complete (NOT that video is ready)
+                // WebSocket will send the 'ready' status when MUX finishes encoding
+                if (onUploadComplete) {
+                    onUploadComplete({
+                        videoId: createdVideoId,
+                        uploadId: uploadId,
+                        assetId: assetId || '',
+                        status: 'processing', // Still processing, not ready yet
+                    });
                 }
             });
 
@@ -143,77 +242,6 @@ const MuxUploader = ({
         }
     };
 
-    // Poll video status để biết khi nào video đã encode xong
-    const pollVideoStatus = async (videoId, assetId) => {
-        const maxAttempts = 120; // Poll trong 10 phút (120 * 5s)
-        let attempts = 0;
-
-        console.log(`🔄 Starting to poll video status for: ${videoId}`);
-
-        pollIntervalRef.current = setInterval(async () => {
-            attempts++;
-            console.log(`📊 Poll attempt ${attempts}/${maxAttempts} for video ${videoId}`);
-
-            try {
-                const response = await fetch(
-                    `${import.meta.env.VITE_BASE_URL}/api/mux/status/${videoId}`
-                );
-                
-                if (!response.ok) {
-                    console.error(`❌ Status check failed: ${response.status}`);
-                    throw new Error('Failed to check status');
-                }
-
-                const data = await response.json();
-                const { status, assetId: returnedAssetId, playbackId } = data;
-                
-                console.log(`📹 Video status: ${status}`, data);
-
-                if (status === 'ready') {
-                    clearInterval(pollIntervalRef.current);
-                    pollIntervalRef.current = null;
-                    console.log('✅ Video is ready!');
-                    updateStatus('success');
-                    
-                    if (onUploadComplete) {
-                        onUploadComplete({
-                            videoId,
-                            assetId: returnedAssetId || assetId,
-                            playbackId,
-                            contentUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : '',
-                            status: 'ready'
-                        });
-                    }
-                } else if (status === 'error') {
-                    clearInterval(pollIntervalRef.current);
-                    pollIntervalRef.current = null;
-                    console.error('❌ Video processing failed');
-                    updateStatus('error');
-                    setErrorMessage('Video processing failed');
-                    
-                    if (onUploadError) {
-                        onUploadError(new Error('Processing failed'));
-                    }
-                } else if (status === 'processing') {
-                    console.log('⏳ Still processing...');
-                } else if (status === 'uploading') {
-                    console.log('📤 Still uploading...');
-                }
-
-                // Timeout sau 10 phút
-                if (attempts >= maxAttempts) {
-                    clearInterval(pollIntervalRef.current);
-                    pollIntervalRef.current = null;
-                    console.error('⏰ Polling timeout');
-                    updateStatus('error');
-                    setErrorMessage('Processing timeout - video may still be processing');
-                }
-            } catch (error) {
-                console.error('Error polling status:', error);
-            }
-        }, 5000); // Poll mỗi 5 giây
-    };
-
     const handleCancel = useCallback(async () => {
         // Prevent multiple simultaneous cancel calls
         if (isCancellingRef.current) {
@@ -225,13 +253,6 @@ const MuxUploader = ({
         console.log('🛑 Cancelling upload...');
         
         try {
-            // Stop polling if it's running
-            if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
-                pollIntervalRef.current = null;
-                console.log('✅ Polling stopped');
-            }
-            
             // Abort upload if in progress
             if (uploadRef.current?.upload) {
                 try {

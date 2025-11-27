@@ -1,41 +1,129 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Plus, Trash2, GripVertical, PlayCircle, FileText, Upload } from 'lucide-react';
 import MuxUploader from '../MuxUploader/MuxUploader';
 import MaterialUploader from '../MaterialUploader/MaterialUploader';
 import styles from './Curriculum.module.css';
+import { useVideoSocket } from '../../context/SocketContext.jsx';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
   const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
   const cancelFunctionsRef = useRef({}); // Store cancel functions for each lesson: { lessonId: cancelFunction }
   const cancellingRef = useRef({}); // Track which lessons are currently being cancelled
   
+  // WebSocket listener for video status updates - handles ALL video updates for this component
+  const handleVideoStatusUpdate = useCallback((data) => {
+    console.log('📡 Curriculum received video status update:', data);
+    
+    // Find the lesson with this videoId across all sections
+    let foundSection = null;
+    let foundLesson = null;
+    
+    for (const section of sections) {
+      const lesson = (section.lessons || []).find(l => 
+        String(l.videoId) === String(data.videoId)
+      );
+      if (lesson) {
+        foundSection = section;
+        foundLesson = lesson;
+        break;
+      }
+    }
+    
+    if (!foundSection || !foundLesson) {
+      console.log('⚠️ Video not found in current sections:', data.videoId);
+      return;
+    }
+    
+    console.log('✅ Found lesson to update:', foundLesson.id || foundLesson._id, 'Status:', data.status);
+    
+    const sectionId = foundSection.id || foundSection._id;
+    const lessonId = foundLesson.id || foundLesson._id;
+    
+    // Update lesson based on status
+    switch (data.status) {
+      case 'processing':
+        console.log('🔄 Video processing...');
+        updateLesson(sectionId, lessonId, 'status', 'processing');
+        updateLesson(sectionId, lessonId, 'uploadStatus', 'processing');
+        updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+        // Keep in uploading list to show processing status
+        break;
+        
+      case 'ready':
+        console.log('✅ Video ready!');
+        updateLesson(sectionId, lessonId, 'status', 'ready');
+        updateLesson(sectionId, lessonId, 'uploadStatus', 'success');
+        updateLesson(sectionId, lessonId, 'contentUrl', data.contentUrl || '');
+        updateLesson(sectionId, lessonId, 'playbackId', data.playbackId || '');
+        updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+        updateLesson(sectionId, lessonId, 'duration', data.duration || 0);
+        updateLesson(sectionId, lessonId, 'uploadProgress', undefined);
+        // Remove from uploading list
+        setUploadingLessons(prev => {
+          const updated = { ...prev };
+          delete updated[lessonId];
+          return updated;
+        });
+        break;
+        
+      case 'error':
+        console.error('❌ Video error:', data.error);
+        updateLesson(sectionId, lessonId, 'status', 'error');
+        updateLesson(sectionId, lessonId, 'uploadStatus', 'error');
+        updateLesson(sectionId, lessonId, 'uploadError', data.error || 'Processing failed');
+        // Remove from uploading list
+        setUploadingLessons(prev => {
+          const updated = { ...prev };
+          delete updated[lessonId];
+          return updated;
+        });
+        break;
+        
+      case 'cancelled':
+        console.log('🛑 Video cancelled');
+        updateLesson(sectionId, lessonId, 'status', '');
+        updateLesson(sectionId, lessonId, 'uploadStatus', 'idle');
+        // Remove from uploading list
+        setUploadingLessons(prev => {
+          const updated = { ...prev };
+          delete updated[lessonId];
+          return updated;
+        });
+        break;
+        
+      default:
+        console.log(`ℹ️ Unhandled status: ${data.status}`);
+    }
+  }, [sections, updateLesson]);
+  
+  const handleVideoError = useCallback((data) => {
+    console.error('❌ Video error event received:', data);
+  }, []);
+  
+  // Setup WebSocket listener
+  useVideoSocket(handleVideoStatusUpdate, handleVideoError);
+  
   const handleVideoUploadComplete = (sectionId, lessonId, data) => {
     console.log('✅ Video upload complete in Curriculum:', data);
     console.log('📝 Section ID:', sectionId);
     console.log('📝 Lesson ID:', lessonId);
-    console.log('📹 Playback ID:', data.playbackId);
+    console.log('📹 Video ID:', data.videoId);
     console.log('🎬 Asset ID:', data.assetId);
     
-    // Update lesson with video data
-    updateLesson(sectionId, lessonId, 'contentUrl', data.contentUrl || '');
-    updateLesson(sectionId, lessonId, 'playbackId', data.playbackId || '');
-    updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+    // IMPORTANT: Store videoId immediately so WebSocket can find it
     updateLesson(sectionId, lessonId, 'videoId', data.videoId || '');
     updateLesson(sectionId, lessonId, 'uploadId', data.uploadId || '');
-    updateLesson(sectionId, lessonId, 'duration', data.duration || 0);
-    updateLesson(sectionId, lessonId, 'status', 'ready'); // Set to ready explicitly
+    updateLesson(sectionId, lessonId, 'assetId', data.assetId || '');
+    
+    // Set status to processing - WebSocket will update to 'ready' when encoding completes
+    updateLesson(sectionId, lessonId, 'status', 'processing');
+    updateLesson(sectionId, lessonId, 'uploadStatus', 'processing');
     updateLesson(sectionId, lessonId, 'uploadProgress', undefined);
-    updateLesson(sectionId, lessonId, 'uploadStatus', 'success'); // Set to success
     
-    console.log('✅ Lesson updated with video data');
+    console.log('✅ Lesson updated with videoId, waiting for WebSocket status updates...');
     
-    // Remove from uploading list
-    setUploadingLessons(prev => {
-      const updated = { ...prev };
-      delete updated[lessonId];
-      console.log('📋 Updated uploading lessons:', updated);
-      return updated;
-    });
+    // Keep in uploading list until WebSocket confirms 'ready' or 'error'
+    // WebSocket handler will remove it from uploadingLessons
   };
 
   const handleVideoUploadError = (sectionId, lessonId, error) => {
@@ -128,14 +216,16 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     cancelFunctionsRef.current[lessonId] = cancelFn;
   };
 
-  const handleDeleteVideo = async (sectionId, lessonId, videoId) => {
+  const handleDeleteVideo = async (sectionId, lessonId, videoId, skipConfirm = false) => {
     if (!videoId) {
       console.error('No videoId to delete');
       return;
     }
 
-    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa video này không?');
-    if (!confirmed) return;
+    if (!skipConfirm) {
+      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa video này không?');
+      if (!confirmed) return;
+    }
 
     try {
       const response = await fetch(
@@ -160,7 +250,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       console.log('✅ Video deleted successfully');
     } catch (error) {
       console.error('Error deleting video:', error);
-      alert('Có lỗi khi xóa video. Vui lòng thử lại.');
+      if (!skipConfirm) {
+        alert('Có lỗi khi xóa video. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -175,14 +267,16 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     console.log('✅ [Curriculum] Material data updated in lesson');
   };
 
-  const handleDeleteMaterial = async (sectionId, lessonId, materialId) => {
+  const handleDeleteMaterial = async (sectionId, lessonId, materialId, skipConfirm = false) => {
     if (!materialId) {
       console.error('No materialId to delete');
       return;
     }
 
-    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tài liệu này không?');
-    if (!confirmed) return;
+    if (!skipConfirm) {
+      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tài liệu này không?');
+      if (!confirmed) return;
+    }
 
     console.log('🗑️ [Curriculum] Deleting material:', materialId);
 
@@ -202,10 +296,131 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       updateLesson(sectionId, lessonId, 'fileName', '');
 
       console.log('✅ Material deleted successfully');
-      alert('Tài liệu đã được xóa thành công');
+      if (!skipConfirm) {
+        alert('Tài liệu đã được xóa thành công');
+      }
     } catch (error) {
       console.error('❌ Error deleting material:', error);
-      alert('Có lỗi khi xóa tài liệu. Vui lòng thử lại.');
+      if (!skipConfirm) {
+        alert('Có lỗi khi xóa tài liệu. Vui lòng thử lại.');
+      }
+    }
+  };
+
+  const handleDeleteLesson = async (sectionId, lessonId, lesson) => {
+    const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa bài học "${lesson.title || 'này'}" không?\n\nNội dung của bài học (video/tài liệu/quiz) cũng sẽ bị xóa.`);
+    if (!confirmed) return;
+
+    console.log('🗑️ Deleting lesson:', lessonId, 'Type:', lesson.contentType);
+
+    try {
+      // Delete content based on lesson type
+      if (lesson.contentType === 'video' && lesson.videoId) {
+        console.log('🎬 Deleting video:', lesson.videoId);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}`,
+            { method: 'DELETE' }
+          );
+          if (response.ok) {
+            console.log('✅ Video deleted');
+          }
+        } catch (error) {
+          console.error('❌ Error deleting video:', error);
+        }
+      } else if (lesson.contentType === 'material' && lesson.materialId) {
+        console.log('📄 Deleting material:', lesson.materialId);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}`,
+            { method: 'DELETE' }
+          );
+          if (response.ok) {
+            console.log('✅ Material deleted');
+          }
+        } catch (error) {
+          console.error('❌ Error deleting material:', error);
+        }
+      } else if (lesson.contentType === 'quiz' && lesson.quizId) {
+        console.log('📝 Deleting quiz:', lesson.quizId);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_BASE_URL}/api/quiz/${lesson.quizId}`,
+            { method: 'DELETE' }
+          );
+          if (response.ok) {
+            console.log('✅ Quiz deleted');
+          }
+        } catch (error) {
+          console.error('❌ Error deleting quiz:', error);
+        }
+      }
+
+      // Remove lesson from UI
+      removeLesson(sectionId, lessonId);
+      console.log('✅ Lesson deleted successfully');
+    } catch (error) {
+      console.error('❌ Error deleting lesson:', error);
+      alert('Có lỗi khi xóa bài học. Vui lòng thử lại.');
+    }
+  };
+
+  const handleDeleteSection = async (section) => {
+    const lessonCount = (section.lessons || []).length;
+    const confirmMessage = lessonCount > 0 
+      ? `Bạn có chắc chắn muốn xóa chương "${section.title || 'này'}" không?\n\nChương này có ${lessonCount} bài học. Tất cả bài học và nội dung của chúng (video/tài liệu/quiz) sẽ bị xóa.`
+      : `Bạn có chắc chắn muốn xóa chương "${section.title || 'này'}" không?`;
+    
+    const confirmed = window.confirm(confirmMessage);
+    if (!confirmed) return;
+
+    console.log('🗑️ Deleting section:', section.id || section._id, 'with', lessonCount, 'lessons');
+
+    try {
+      // Delete all lessons in the section
+      for (const lesson of (section.lessons || [])) {
+        console.log('🗑️ Deleting lesson:', lesson.id || lesson._id, 'Type:', lesson.contentType);
+        
+        // Delete content based on lesson type
+        if (lesson.contentType === 'video' && lesson.videoId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Video deleted:', lesson.videoId);
+          } catch (error) {
+            console.error('❌ Error deleting video:', error);
+          }
+        } else if (lesson.contentType === 'material' && lesson.materialId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Material deleted:', lesson.materialId);
+          } catch (error) {
+            console.error('❌ Error deleting material:', error);
+          }
+        } else if (lesson.contentType === 'quiz' && lesson.quizId) {
+          try {
+            await fetch(
+              `${import.meta.env.VITE_BASE_URL}/api/quiz/${lesson.quizId}`,
+              { method: 'DELETE' }
+            );
+            console.log('✅ Quiz deleted:', lesson.quizId);
+          } catch (error) {
+            console.error('❌ Error deleting quiz:', error);
+          }
+        }
+      }
+
+      // Remove section from UI
+      removeSection(section.id || section._id);
+      console.log('✅ Section and all lessons deleted successfully');
+    } catch (error) {
+      console.error('❌ Error deleting section:', error);
+      alert('Có lỗi khi xóa chương. Vui lòng thử lại.');
     }
   };
 
@@ -240,7 +455,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                 className={styles.sectionInput}
               />
               <button
-                onClick={() => removeSection(section.id || section._id)}
+                onClick={() => handleDeleteSection(section)}
                 className={styles.removeSectionBtn}
               >
                 <Trash2 size={16} />
@@ -346,8 +561,8 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                     {/* MuxUploader for video upload */}
                     {lesson.contentType === 'video' && (
                       <div style={{ marginTop: 12, marginBottom: 12 }}>
-                        {/* Upload button hoặc inline uploader - chỉ hiện khi chưa có playbackId và chưa ready */}
-                        {!uploadingLessons[lesson.id || lesson._id] && !lesson.playbackId && lesson.status !== 'ready' && (
+                        {/* Upload button hoặc inline uploader - chỉ hiện khi chưa có playbackId, chưa ready và không đang processing */}
+                        {!uploadingLessons[lesson.id || lesson._id] && !lesson.playbackId && lesson.status !== 'ready' && lesson.status !== 'processing' && (
                           <MuxUploader
                             lessonTitle={lesson.title}
                             sectionId={section._id || section.id}
@@ -443,25 +658,6 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                           </div>
                         )}
                         
-                        {/* Show processing message even when not in uploadingLessons */}
-                        {!uploadingLessons[lesson.id || lesson._id] && 
-                         lesson.status === 'processing' && 
-                         !lesson.playbackId && (
-                          <div style={{
-                            border: '2px solid #f59e0b',
-                            borderRadius: 8,
-                            padding: '12px 16px',
-                            background: '#fffbeb'
-                          }}>
-                            <div style={{ fontSize: 14, color: '#92400e', marginBottom: 4, fontWeight: 500 }}>
-                              ⏳ Đang xử lý video...
-                            </div>
-                            <div style={{ fontSize: 12, color: '#78350f' }}>
-                              Video đang được mã hóa bởi MUX. Vui lòng đợi...
-                            </div>
-                          </div>
-                        )}
-                        
                         {/* Display video info if uploaded */}
                         {(lesson.playbackId || lesson.status === 'ready') && (
                           <div style={{
@@ -544,10 +740,11 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                       </div>
                     )}
                     <button
-                      onClick={() => removeLesson(section.id || section._id, lesson.id || lesson._id)}
+                      onClick={() => handleDeleteLesson(section.id || section._id, lesson.id || lesson._id, lesson)}
                       className={styles.removeLessonBtn}
+                      title="Xóa bài học"
                     >
-                      
+                      <Trash2 size={16} />
                     </button>
                   </div>
                   {/* Quiz form for quiz lessons - now below the lesson row */}

@@ -5,6 +5,10 @@ import connectDB from './config/mongodb.js';
 import { clerkMiddleware } from '@clerk/express'
 import { serve } from "inngest/express";
 import { inngest, functions } from "./inngest/index.js"
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { socketAuth } from './middleware/socketAuth.js';
+import { setupVideoSocketHandlers } from './sockets/videoSocket.js';
 import courseRouter from './routes/courseRoute.js';
 import sectionRouter from './routes/sectionRoute.js';
 import videoRouter from './routes/videoRoute.js';
@@ -27,7 +31,31 @@ import paymentRouter from './routes/paymentRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
 
 const app = express();
+const server = createServer(app);
 const port = 3000;
+
+// Initialize Socket.IO with CORS configuration
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Socket.IO authentication middleware
+io.use(socketAuth);
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log(`🔌 New socket connection - User: ${socket.userId}, Socket: ${socket.id}`);
+  
+  // Setup video upload event handlers
+  setupVideoSocketHandlers(socket, io);
+});
+
+// Export io instance for use in controllers
+export { io };
 
 await connectDB();
 
@@ -72,8 +100,9 @@ app.use("/api/order", orderRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/voucher", voucherRouter);
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
+  console.log(`✅ Socket.IO server initialized`);
 });
 
 // Ngrok setup (in development only)

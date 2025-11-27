@@ -10,6 +10,11 @@ const videoSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    userId: {
+        type: String, // Clerk user ID for socket room targeting
+        required: true,
+        index: true, // Index for efficient queries
+    },
     uploadId: {
         type: String, // MUX upload ID
     },
