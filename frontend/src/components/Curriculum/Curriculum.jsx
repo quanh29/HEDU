@@ -9,7 +9,7 @@ import styles from './Curriculum.module.css';
 import { useVideoSocket } from '../../context/SocketContext.jsx';
 import { useAuth } from '@clerk/clerk-react';
 
-const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson }) => {
+const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson, draftMode }) => {
   const { getToken } = useAuth();
   const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
   const cancelFunctionsRef = useRef({}); // Store cancel functions for each lesson: { lessonId: cancelFunction }
@@ -243,9 +243,15 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       if (!confirmed) return;
     }
 
+    console.log('🗑️ [handleDeleteVideo] draftMode:', draftMode);
+    console.log('🗑️ [handleDeleteVideo] videoId:', videoId);
+
     try {
+      // Skip MUX deletion in draft mode - files will be deleted on approval
+      const skipParam = draftMode ? '?skipMuxDeletion=true' : '';
+      console.log('🗑️ [handleDeleteVideo] skipParam:', skipParam);
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/video/${videoId}`,
+        `${import.meta.env.VITE_BASE_URL}/api/video/${videoId}${skipParam}`,
         { method: 'DELETE' }
       );
 
@@ -294,11 +300,18 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       if (!confirmed) return;
     }
 
+    console.log('🗑️ [handleDeleteMaterial] draftMode:', draftMode);
+    console.log('🗑️ [handleDeleteMaterial] materialId:', materialId);
+
+    // Skip Cloudinary deletion in draft mode - files will be deleted on approval
+    const skipParam = draftMode ? '?skipCloudinaryDeletion=true' : '';
+    console.log('🗑️ [handleDeleteMaterial] skipParam:', skipParam);
+
     console.log('🗑️ [Curriculum] Deleting material:', materialId);
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/material/delete/${materialId}`,
+        `${import.meta.env.VITE_BASE_URL}/api/material/delete/${materialId}${skipParam}`,
         { method: 'DELETE' }
       );
 
@@ -334,8 +347,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       if (lesson.contentType === 'video' && lesson.videoId) {
         console.log('🎬 Deleting video:', lesson.videoId);
         try {
+          const skipParam = draftMode ? '?skipMuxDeletion=true' : '';
           const response = await fetch(
-            `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}`,
+            `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}${skipParam}`,
             { method: 'DELETE' }
           );
           if (response.ok) {
@@ -347,8 +361,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       } else if (lesson.contentType === 'material' && lesson.materialId) {
         console.log('📄 Deleting material:', lesson.materialId);
         try {
+          const skipParam = draftMode ? '?skipCloudinaryDeletion=true' : '';
           const response = await fetch(
-            `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}`,
+            `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}${skipParam}`,
             { method: 'DELETE' }
           );
           if (response.ok) {
@@ -400,8 +415,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
         // Delete content based on lesson type
         if (lesson.contentType === 'video' && lesson.videoId) {
           try {
+            const skipParam = draftMode ? '?skipMuxDeletion=true' : '';
             await fetch(
-              `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}`,
+              `${import.meta.env.VITE_BASE_URL}/api/video/${lesson.videoId}${skipParam}`,
               { method: 'DELETE' }
             );
             console.log('✅ Video deleted:', lesson.videoId);
@@ -410,8 +426,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
           }
         } else if (lesson.contentType === 'material' && lesson.materialId) {
           try {
+            const skipParam = draftMode ? '?skipCloudinaryDeletion=true' : '';
             await fetch(
-              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}`,
+              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${lesson.materialId}${skipParam}`,
               { method: 'DELETE' }
             );
             console.log('✅ Material deleted:', lesson.materialId);
@@ -492,8 +509,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
         // Delete old content based on previous type
         if (editingLesson.contentType === 'video' && editingLesson.videoId) {
           try {
+            const skipParam = draftMode ? '?skipMuxDeletion=true' : '';
             await fetch(
-              `${import.meta.env.VITE_BASE_URL}/api/video/${editingLesson.videoId}`,
+              `${import.meta.env.VITE_BASE_URL}/api/video/${editingLesson.videoId}${skipParam}`,
               { method: 'DELETE' }
             );
             console.log('✅ Old video deleted');
@@ -502,8 +520,9 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
           }
         } else if (editingLesson.contentType === 'material' && editingLesson.materialId) {
           try {
+            const skipParam = draftMode ? '?skipCloudinaryDeletion=true' : '';
             await fetch(
-              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${editingLesson.materialId}`,
+              `${import.meta.env.VITE_BASE_URL}/api/material/delete/${editingLesson.materialId}${skipParam}`,
               { method: 'DELETE' }
             );
             console.log('✅ Old material deleted');

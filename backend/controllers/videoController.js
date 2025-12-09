@@ -107,6 +107,7 @@ export const updateVideo = async (req, res) => {
 // Xóa video (check VideoDraft first, then Video for backward compatibility)
 export const deleteVideo = async (req, res) => {
     const { videoId } = req.params;
+    const { skipMuxDeletion } = req.query; // Flag to skip MUX deletion (for draft mode)
 
     try {
         // Try to find VideoDraft first (new system)
@@ -128,18 +129,23 @@ export const deleteVideo = async (req, res) => {
         logger.info(`   Asset ID: ${videoDraft.assetId || '(none)'}`);
         logger.info(`   Upload ID: ${videoDraft.uploadId || '(none)'}`);
         logger.info(`   Status: ${videoDraft.status}`);
+        logger.info(`   Skip MUX Deletion: ${skipMuxDeletion === 'true'}`);
 
-        // Delete from MUX if assetId exists
-        if (videoDraft.assetId && videoDraft.assetId !== '') {
+        // Delete from MUX only if NOT in draft mode (skipMuxDeletion !== 'true')
+        let muxDeleted = false;
+        if (skipMuxDeletion !== 'true' && videoDraft.assetId && videoDraft.assetId !== '') {
             try {
                 logger.info(`🎬 Deleting MUX asset: ${videoDraft.assetId}`);
                 await muxVideo.assets.delete(videoDraft.assetId);
                 logger.success(`✅ MUX asset deleted: ${videoDraft.assetId}`);
+                muxDeleted = true;
             } catch (muxError) {
                 logger.error(`❌ Failed to delete MUX asset: ${muxError.message}`);
                 // Continue with database deletion even if MUX deletion fails
                 logger.warning('⚠️ Continuing with database deletion...');
             }
+        } else if (skipMuxDeletion === 'true') {
+            logger.info('⏭️ Skipping MUX deletion (draft mode - will delete on approval)');
         } else {
             logger.info('ℹ️ No MUX asset to delete (no assetId)');
         }
@@ -159,7 +165,8 @@ export const deleteVideo = async (req, res) => {
                 id: videoDraft._id,
                 title: videoDraft.title,
                 assetId: videoDraft.assetId,
-                isDraft: isVideoDraft
+                isDraft: isVideoDraft,
+                muxDeleted: muxDeleted
             }
         });
     } catch (error) {

@@ -1,5 +1,6 @@
 import CourseDraft from '../models/CourseDraft.js';
 import { getCourseDraft } from '../utils/draftHelper.js';
+import Mux from '@mux/mux-node';
 
 /**
  * Submit draft for approval
@@ -134,6 +135,54 @@ export const cancelDraft = async (req, res) => {
         const MaterialDraft = (await import('../models/MaterialDraft.js')).default;
         const QuizDraft = (await import('../models/QuizDraft.js')).default;
 
+        // Get all draft videos and materials to delete their files
+        const draftVideos = await VideoDraft.find({ courseDraftId: courseId });
+        const draftMaterials = await MaterialDraft.find({ courseDraftId: courseId });
+
+        console.log(`🗑️ [Cancel Draft] Found ${draftVideos.length} draft videos and ${draftMaterials.length} draft materials to delete`);
+
+        // Delete MUX assets for draft videos
+        if (draftVideos.length > 0) {
+            const { video: muxVideo } = new Mux({
+                tokenId: process.env.MUX_TOKEN_ID,
+                tokenSecret: process.env.MUX_SECRET_KEY
+            });
+
+            for (const video of draftVideos) {
+                if (video.assetId) {
+                    try {
+                        await muxVideo.assets.delete(video.assetId);
+                        console.log(`   ✅ [MUX] Deleted draft asset: ${video.assetId}`);
+                    } catch (err) {
+                        console.error(`   ❌ [MUX] Failed to delete draft asset ${video.assetId}:`, err.message);
+                    }
+                }
+            }
+        }
+
+        // Delete Cloudinary files for draft materials
+        if (draftMaterials.length > 0) {
+            const cloudinary = (await import('../config/cloudinary.js')).default;
+
+            for (const material of draftMaterials) {
+                if (material.contentUrl) {
+                    try {
+                        await cloudinary.uploader.destroy(
+                            material.contentUrl,
+                            { 
+                                resource_type: material.resource_type || 'raw',
+                                type: 'private'
+                            }
+                        );
+                        console.log(`   ✅ [Cloudinary] Deleted draft file: ${material.contentUrl}`);
+                    } catch (err) {
+                        console.error(`   ❌ [Cloudinary] Failed to delete draft file ${material.contentUrl}:`, err.message);
+                    }
+                }
+            }
+        }
+
+        // Delete draft documents from MongoDB
         await SectionDraft.deleteMany({ courseDraftId: courseId });
         await LessonDraft.deleteMany({ courseDraftId: courseId });
         await VideoDraft.deleteMany({ courseDraftId: courseId });
@@ -277,7 +326,64 @@ export const approveDraft = async (req, res) => {
 
         // Track old assets for cleanup
         const oldMuxAssets = new Set();
-        const oldCloudinaryFiles = new Set();
+        const oldCloudinaryFiles = []; // Array of {publicId, resourceType}
+
+        // STEP 1: Delete published sections that are NOT in draft (user deleted them)
+        const draftPublishedSectionIds = draftSections
+            .filter(ds => ds.publishedSectionId)
+            .map(ds => ds.publishedSectionId.toString());
+        
+        const allPublishedSections = await Section.find({ course_id: courseId });
+        console.log(`🔍 [Cleanup] Found ${allPublishedSections.length} published sections, ${draftPublishedSectionIds.length} in draft`);
+        
+        for (const publishedSection of allPublishedSections) {
+            const sectionIdStr = publishedSection._id.toString();
+            if (!draftPublishedSectionIds.includes(sectionIdStr)) {
+                // This section was deleted in draft - delete it and all its content
+                console.log(`🗑️ [Cleanup] Deleting removed section: ${publishedSection.title} (${sectionIdStr})`);
+                
+                // Find all lessons in this section
+                const lessonsToDelete = await Lesson.find({ section: publishedSection._id });
+                console.log(`   Found ${lessonsToDelete.length} lessons to delete`);
+                
+                for (const lesson of lessonsToDelete) {
+                    // Delete video if exists
+                    if (lesson.video) {
+                        const video = await Video.findById(lesson.video);
+                        if (video && video.assetId) {
+                            console.log(`   🎥 Marking video asset for deletion: ${video.assetId}`);
+                            oldMuxAssets.add(video.assetId);
+                        }
+                        await Video.findByIdAndDelete(lesson.video);
+                    }
+                    
+                    // Delete material if exists
+                    if (lesson.material) {
+                        const material = await Material.findById(lesson.material);
+                        if (material && material.contentUrl) {
+                            console.log(`   📄 Marking material for deletion: ${material.contentUrl}`);
+                            oldCloudinaryFiles.push({
+                                publicId: material.contentUrl,
+                                resourceType: material.resource_type || 'raw'
+                            });
+                        }
+                        await Material.findByIdAndDelete(lesson.material);
+                    }
+                    
+                    // Delete quiz if exists
+                    if (lesson.quiz) {
+                        await Quiz.findByIdAndDelete(lesson.quiz);
+                    }
+                    
+                    // Delete lesson
+                    await Lesson.findByIdAndDelete(lesson._id);
+                }
+                
+                // Delete section
+                await Section.findByIdAndDelete(publishedSection._id);
+                console.log(`   ✅ Section deleted`);
+            }
+        }
 
         // Process each section
         for (const draftSection of draftSections) {
@@ -318,6 +424,54 @@ export const approveDraft = async (req, res) => {
             }).sort({ order: 1 });
 
             console.log(`📝 [Section ${publishedSection._id}] Found ${draftLessons.length} draft lessons`);
+
+            // STEP 2: Delete published lessons NOT in draft for this section (user deleted them)
+            const draftPublishedLessonIds = draftLessons
+                .filter(dl => dl.publishedLessonId)
+                .map(dl => dl.publishedLessonId.toString());
+            
+            const allPublishedLessons = await Lesson.find({ section: publishedSection._id });
+            console.log(`🔍 [Section ${publishedSection._id}] ${allPublishedLessons.length} published lessons, ${draftPublishedLessonIds.length} in draft`);
+            
+            for (const publishedLesson of allPublishedLessons) {
+                const lessonIdStr = publishedLesson._id.toString();
+                if (!draftPublishedLessonIds.includes(lessonIdStr)) {
+                    // This lesson was deleted in draft - delete it and its content
+                    console.log(`🗑️ [Lesson] Deleting removed lesson: ${publishedLesson.title} (${lessonIdStr})`);
+                    
+                    // Delete video if exists
+                    if (publishedLesson.video) {
+                        const video = await Video.findById(publishedLesson.video);
+                        if (video && video.assetId) {
+                            console.log(`   🎥 Marking video asset for deletion: ${video.assetId}`);
+                            oldMuxAssets.add(video.assetId);
+                        }
+                        await Video.findByIdAndDelete(publishedLesson.video);
+                    }
+                    
+                    // Delete material if exists
+                    if (publishedLesson.material) {
+                        const material = await Material.findById(publishedLesson.material);
+                        if (material && material.contentUrl) {
+                            console.log(`   📄 Marking material for deletion: ${material.contentUrl}`);
+                            oldCloudinaryFiles.push({
+                                publicId: material.contentUrl,
+                                resourceType: material.resource_type || 'raw'
+                            });
+                        }
+                        await Material.findByIdAndDelete(publishedLesson.material);
+                    }
+                    
+                    // Delete quiz if exists
+                    if (publishedLesson.quiz) {
+                        await Quiz.findByIdAndDelete(publishedLesson.quiz);
+                    }
+                    
+                    // Delete lesson
+                    await Lesson.findByIdAndDelete(publishedLesson._id);
+                    console.log(`   ✅ Lesson deleted`);
+                }
+            }
 
             const publishedLessonIds = [];
 
@@ -367,14 +521,89 @@ export const approveDraft = async (req, res) => {
                         publishedLesson.description = draftLesson.description;
                         publishedLesson.duration = draftLesson.duration;
                         publishedLesson.isFreePreview = draftLesson.isFreePreview;
+                        
+                        // Check if content type changed - delete old content
+                        if (publishedLesson.contentType !== draftLesson.contentType) {
+                            console.log(`🔄 [Lesson] Content type changed: ${publishedLesson.contentType} → ${draftLesson.contentType}`);
+                            
+                            // Delete old content based on old type
+                            if (publishedLesson.contentType === 'video' && publishedLesson.video) {
+                                const oldVideo = await Video.findById(publishedLesson.video);
+                                if (oldVideo && oldVideo.assetId) {
+                                    console.log(`   🗑️ Marking old video for deletion: ${oldVideo.assetId}`);
+                                    oldMuxAssets.add(oldVideo.assetId);
+                                }
+                                await Video.findByIdAndDelete(publishedLesson.video);
+                                publishedLesson.video = null;
+                            } else if (publishedLesson.contentType === 'material' && publishedLesson.material) {
+                                const oldMaterial = await Material.findById(publishedLesson.material);
+                                if (oldMaterial && oldMaterial.contentUrl) {
+                                    console.log(`   🗑️ Marking old material for deletion: ${oldMaterial.contentUrl}`);
+                                    oldCloudinaryFiles.push({
+                                        publicId: oldMaterial.contentUrl,
+                                        resourceType: oldMaterial.resource_type || 'raw'
+                                    });
+                                }
+                                await Material.findByIdAndDelete(publishedLesson.material);
+                                publishedLesson.material = null;
+                            } else if (publishedLesson.contentType === 'quiz' && publishedLesson.quiz) {
+                                await Quiz.findByIdAndDelete(publishedLesson.quiz);
+                                publishedLesson.quiz = null;
+                            }
+                            
+                            publishedLesson.contentType = draftLesson.contentType;
+                        }
+                        
                         await publishedLesson.save();
                     }
                 }
 
                 publishedLessonIds.push(publishedLesson._id);
 
-                // Process Video
+                // Fetch draft content once for reuse
                 const draftVideo = await VideoDraft.findOne({ draftLessonId: draftLesson._id });
+                const draftMaterials = await MaterialDraft.find({ draftLessonId: draftLesson._id });
+                const draftQuiz = await QuizDraft.findOne({ draftLessonId: draftLesson._id });
+
+                // STEP 3: Handle deleted content within the same lesson
+                // If draft has no video but published has video, delete it
+                if (!draftVideo && publishedLesson.video) {
+                    console.log(`🗑️ [Video] Video was deleted from lesson ${publishedLesson._id}`);
+                    const oldVideo = await Video.findById(publishedLesson.video);
+                    if (oldVideo && oldVideo.assetId) {
+                        console.log(`   🗑️ Marking MUX asset for deletion: ${oldVideo.assetId}`);
+                        oldMuxAssets.add(oldVideo.assetId);
+                    }
+                    await Video.findByIdAndDelete(publishedLesson.video);
+                    publishedLesson.video = null;
+                    await publishedLesson.save();
+                }
+                
+                // If draft has no material but published has material, delete it
+                if (draftMaterials.length === 0 && publishedLesson.material) {
+                    console.log(`🗑️ [Material] Material was deleted from lesson ${publishedLesson._id}`);
+                    const oldMaterial = await Material.findById(publishedLesson.material);
+                    if (oldMaterial && oldMaterial.contentUrl) {
+                        console.log(`   🗑️ Marking Cloudinary file for deletion: ${oldMaterial.contentUrl}`);
+                        oldCloudinaryFiles.push({
+                            publicId: oldMaterial.contentUrl,
+                            resourceType: oldMaterial.resource_type || 'raw'
+                        });
+                    }
+                    await Material.findByIdAndDelete(publishedLesson.material);
+                    publishedLesson.material = null;
+                    await publishedLesson.save();
+                }
+                
+                // If draft has no quiz but published has quiz, delete it
+                if (!draftQuiz && publishedLesson.quiz) {
+                    console.log(`🗑️ [Quiz] Quiz was deleted from lesson ${publishedLesson._id}`);
+                    await Quiz.findByIdAndDelete(publishedLesson.quiz);
+                    publishedLesson.quiz = null;
+                    await publishedLesson.save();
+                }
+
+                // Process Video
                 if (draftVideo) {
                     console.log(`🎥 [Video] Processing video for lesson ${publishedLesson._id}`);
                     
@@ -443,7 +672,6 @@ export const approveDraft = async (req, res) => {
                 }
 
                 // Process Materials
-                const draftMaterials = await MaterialDraft.find({ draftLessonId: draftLesson._id });
                 console.log(`📄 [Materials] Found ${draftMaterials.length} draft materials`);
 
                 if (draftMaterials.length > 0 && draftLesson.contentType === 'material') {
@@ -456,7 +684,10 @@ export const approveDraft = async (req, res) => {
                         if (oldMaterial && oldMaterial.contentUrl !== draftMaterial.contentUrl) {
                             // Material file changed, mark old Cloudinary file for deletion
                             console.log(`🗑️ [Material] Marking old Cloudinary file for deletion: ${oldMaterial.contentUrl}`);
-                            oldCloudinaryFiles.add(oldMaterial.contentUrl);
+                            oldCloudinaryFiles.push({
+                                publicId: oldMaterial.contentUrl,
+                                resourceType: oldMaterial.resource_type || 'raw'
+                            });
                         }
                     }
 
@@ -503,31 +734,33 @@ export const approveDraft = async (req, res) => {
                 }
 
                 // Process Quiz
-                const draftQuiz = await QuizDraft.findOne({ draftLessonId: draftLesson._id });
                 if (draftQuiz) {
                     console.log(`❓ [Quiz] Processing quiz for lesson ${publishedLesson._id}`);
 
                     // Update or create published quiz
                     let publishedQuiz;
-                    if (draftQuiz.publishedQuizId && draftQuiz.changeType !== 'new') {
+                    
+                    // Try to find existing quiz by publishedQuizId OR by lesson.quiz
+                    if (draftQuiz.publishedQuizId) {
                         publishedQuiz = await Quiz.findById(draftQuiz.publishedQuizId);
-                        if (publishedQuiz) {
-                            publishedQuiz.title = draftQuiz.title;
-                            publishedQuiz.questions = draftQuiz.questions;
-                            publishedQuiz.passingScore = draftQuiz.passingScore;
-                            publishedQuiz.timeLimit = draftQuiz.timeLimit;
-                            await publishedQuiz.save();
-                        } else {
-                            publishedQuiz = new Quiz({
-                                lesson: publishedLesson._id,
-                                title: draftQuiz.title,
-                                questions: draftQuiz.questions,
-                                passingScore: draftQuiz.passingScore,
-                                timeLimit: draftQuiz.timeLimit
-                            });
-                            await publishedQuiz.save();
-                        }
+                    } else if (publishedLesson.quiz) {
+                        // Fallback: check if lesson already has a quiz
+                        publishedQuiz = await Quiz.findById(publishedLesson.quiz);
+                    }
+                    
+                    if (publishedQuiz) {
+                        // Update existing quiz
+                        console.log(`   🔄 Updating existing quiz: ${publishedQuiz._id}`);
+                        publishedQuiz.lesson = publishedLesson._id;
+                        publishedQuiz.title = draftQuiz.title;
+                        publishedQuiz.questions = draftQuiz.questions;
+                        publishedQuiz.passingScore = draftQuiz.passingScore;
+                        publishedQuiz.timeLimit = draftQuiz.timeLimit;
+                        await publishedQuiz.save();
+                        console.log(`   ✅ Quiz updated: ${publishedQuiz._id}`);
                     } else {
+                        // Create new quiz
+                        console.log(`   ➕ Creating new quiz`);
                         publishedQuiz = new Quiz({
                             lesson: publishedLesson._id,
                             title: draftQuiz.title,
@@ -536,11 +769,12 @@ export const approveDraft = async (req, res) => {
                             timeLimit: draftQuiz.timeLimit
                         });
                         await publishedQuiz.save();
+                        console.log(`   ✅ New quiz created: ${publishedQuiz._id}`);
                     }
 
                     publishedLesson.quiz = publishedQuiz._id;
                     await publishedLesson.save();
-                    console.log(`✅ [Quiz] Quiz saved: ${publishedQuiz._id}`);
+                    console.log(`✅ [Quiz] Quiz linked to lesson: ${publishedQuiz._id}`);
                 }
             }
 
@@ -567,10 +801,9 @@ export const approveDraft = async (req, res) => {
         // Delete old MUX assets
         if (oldMuxAssets.size > 0) {
             console.log(`🗑️ [Cleanup] Deleting ${oldMuxAssets.size} old MUX assets`);
-            const Mux = (await import('@mux/mux-node')).default;
             const { video: muxVideo } = new Mux({
                 tokenId: process.env.MUX_TOKEN_ID,
-                tokenSecret: process.env.MUX_TOKEN_SECRET
+                tokenSecret: process.env.MUX_SECRET_KEY
             });
 
             for (const assetId of oldMuxAssets) {
@@ -584,21 +817,24 @@ export const approveDraft = async (req, res) => {
         }
 
         // Delete old Cloudinary files
-        if (oldCloudinaryFiles.size > 0) {
-            console.log(`🗑️ [Cleanup] Deleting ${oldCloudinaryFiles.size} old Cloudinary files`);
+        if (oldCloudinaryFiles.length > 0) {
+            console.log(`🗑️ [Cleanup] Deleting ${oldCloudinaryFiles.length} old Cloudinary files`);
             const cloudinary = (await import('../config/cloudinary.js')).default;
 
-            for (const fileUrl of oldCloudinaryFiles) {
+            for (const file of oldCloudinaryFiles) {
                 try {
-                    // Extract public_id from Cloudinary URL
-                    const urlParts = fileUrl.split('/');
-                    const fileName = urlParts[urlParts.length - 1];
-                    const publicId = fileName.split('.')[0];
-                    
-                    await cloudinary.uploader.destroy(`course-materials/${publicId}`);
-                    console.log(`✅ [Cloudinary] Deleted file: ${fileUrl}`);
+                    // contentUrl is already the public_id, not a full URL
+                    // Use the stored resource_type for correct deletion
+                    const deleteResult = await cloudinary.uploader.destroy(
+                        file.publicId,
+                        { 
+                            resource_type: file.resourceType,
+                            type: 'private'
+                        }
+                    );
+                    console.log(`✅ [Cloudinary] Deleted file: ${file.publicId} (${file.resourceType}), result:`, deleteResult.result);
                 } catch (err) {
-                    console.error(`❌ [Cloudinary] Failed to delete file ${fileUrl}:`, err.message);
+                    console.error(`❌ [Cloudinary] Failed to delete file ${file.publicId}:`, err.message);
                 }
             }
         }
@@ -653,7 +889,7 @@ export const approveDraft = async (req, res) => {
                 approvedAt: draft.approvedAt,
                 sectionsProcessed: draftSections.length,
                 oldMuxAssetsDeleted: oldMuxAssets.size,
-                oldCloudinaryFilesDeleted: oldCloudinaryFiles.size
+                oldCloudinaryFilesDeleted: oldCloudinaryFiles.length
             }
         });
 

@@ -16,7 +16,40 @@ export const addQuiz = async (req, res) => {
         const draftLesson = await LessonDraft.findById(lessonId);
         
         if (draftLesson) {
-            // Create QuizDraft for draft system
+            let quizDraft;
+            
+            // Check if lesson already has a quiz draft
+            if (draftLesson.draftQuizId) {
+                // Update existing QuizDraft
+                quizDraft = await QuizDraft.findById(draftLesson.draftQuizId);
+                
+                if (quizDraft) {
+                    console.log(`🔄 Updating existing QuizDraft ${quizDraft._id}`);
+                    quizDraft.title = title;
+                    quizDraft.description = description;
+                    quizDraft.questions = questions;
+                    quizDraft.order = order || quizDraft.order;
+                    
+                    // Update changeType if it was 'unchanged'
+                    if (quizDraft.changeType === 'unchanged') {
+                        quizDraft.changeType = 'modified';
+                    }
+                    
+                    await quizDraft.save();
+                    
+                    console.log(`✅ Updated QuizDraft ${quizDraft._id} for LessonDraft ${lessonId}`);
+                    
+                    return res.status(200).json({
+                        success: true,
+                        isDraft: true,
+                        updated: true,
+                        data: quizDraft
+                    });
+                }
+            }
+            
+            // Create new QuizDraft if not exists
+            console.log(`➕ Creating new QuizDraft for LessonDraft ${lessonId}`);
             const newQuizDraft = new QuizDraft({
                 courseDraftId: draftLesson.courseDraftId,
                 draftLessonId: draftLesson._id,
@@ -47,6 +80,7 @@ export const addQuiz = async (req, res) => {
             return res.status(201).json({
                 success: true,
                 isDraft: true,
+                updated: false,
                 data: newQuizDraft
             });
         }

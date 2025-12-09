@@ -235,8 +235,10 @@ export const uploadMaterial = async (req, res) => {
 export const deleteMaterial = async (req, res) => {
     try {
         const { materialId } = req.params;
+        const { skipCloudinaryDeletion } = req.query; // Flag to skip Cloudinary deletion (for draft mode)
 
         console.log('🗑️ [Material Delete] Deleting material:', materialId);
+        console.log('   Skip Cloudinary Deletion:', skipCloudinaryDeletion === 'true');
 
         // Try MaterialDraft first
         let material = await MaterialDraft.findById(materialId);
@@ -257,18 +259,24 @@ export const deleteMaterial = async (req, res) => {
 
         console.log(`   Found ${isDraft ? 'MaterialDraft' : 'Material'} with publicId:`, material.contentUrl);
 
-        // Delete from Cloudinary
-        try {
-            const deleteResult = await cloudinary.uploader.destroy(
-                material.contentUrl,
-                { 
-                    resource_type: material.resource_type || 'raw',
-                    type: 'private'
-                }
-            );
-            console.log('   Cloudinary delete result:', deleteResult);
-        } catch (cloudinaryError) {
-            console.warn('⚠️ [Material Delete] Cloudinary delete failed, continuing with DB deletion:', cloudinaryError.message);
+        // Delete from Cloudinary only if NOT in draft mode (skipCloudinaryDeletion !== 'true')
+        let cloudinaryDeleted = false;
+        if (skipCloudinaryDeletion !== 'true' && material.contentUrl) {
+            try {
+                const deleteResult = await cloudinary.uploader.destroy(
+                    material.contentUrl,
+                    { 
+                        resource_type: material.resource_type || 'raw',
+                        type: 'private'
+                    }
+                );
+                console.log('   Cloudinary delete result:', deleteResult);
+                cloudinaryDeleted = true;
+            } catch (cloudinaryError) {
+                console.warn('⚠️ [Material Delete] Cloudinary delete failed, continuing with DB deletion:', cloudinaryError.message);
+            }
+        } else if (skipCloudinaryDeletion === 'true') {
+            console.log('⏭️ Skipping Cloudinary deletion (draft mode - will delete on approval)');
         }
 
         // Remove from CourseDraft.draftMaterials if draft
@@ -295,7 +303,8 @@ export const deleteMaterial = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Material deleted successfully',
-            isDraft
+            isDraft,
+            cloudinaryDeleted
         });
 
     } catch (error) {

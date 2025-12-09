@@ -1228,6 +1228,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
               updateLesson={updateLesson}
               removeLesson={removeLesson}
               readOnly={isViewMode}
+              draftMode={draftMode}
             />
           </>
         )}

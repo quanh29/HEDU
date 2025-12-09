@@ -66,7 +66,7 @@ function App() {
           <Route path='/instructor/view-course/:courseId' element={<CreateUpdateCourse mode="view"/>}/>
           <Route path='/instructor/update-course/:courseId' element={<CreateUpdateCourse/>}/>
           
-          <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/>
+          {/* <Route path='/update-course/:courseId' element={<CreateUpdateCourse/>}/> */}
           
           {/* Admin Routes - Completely separate, no Navbar/Footer */}
           <Route path='/login-admin' element={<AdminLogin/>}/>
