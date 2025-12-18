@@ -1,4 +1,4 @@
-import pool from '../config/mysql.js';
+import * as voucherService from '../services/voucherService.js';
 
 /**
  * Validate voucher code
@@ -15,21 +15,14 @@ export const validateVoucher = async (req, res) => {
   }
 
   try {
-    const [voucherResult] = await pool.query(
-      `SELECT voucher_code, voucher_type, amount, expire_at, created_at
-       FROM Vouchers
-       WHERE voucher_code = ?`,
-      [voucherCode]
-    );
+    const voucher = await voucherService.getVoucherByCode(voucherCode);
 
-    if (voucherResult.length === 0) {
+    if (!voucher) {
       return res.status(404).json({ 
         valid: false, 
         message: 'Mã giảm giá không hợp lệ' 
       });
     }
-
-    const voucher = voucherResult[0];
 
     // Check expiration
     if (voucher.expire_at && new Date(voucher.expire_at) < new Date()) {
@@ -64,12 +57,7 @@ export const validateVoucher = async (req, res) => {
  */
 export const getActiveVouchers = async (req, res) => {
   try {
-    const [vouchers] = await pool.query(
-      `SELECT voucher_code, voucher_type, amount, expire_at, created_at
-       FROM Vouchers
-       WHERE expire_at IS NULL OR expire_at > NOW()
-       ORDER BY created_at DESC`
-    );
+    const vouchers = await voucherService.getActiveVouchers();
 
     res.json({ vouchers });
 
