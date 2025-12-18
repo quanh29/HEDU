@@ -9,7 +9,7 @@ import {
 import { 
     getVideoPlayback, 
     getVideoThumbnail 
-} from '../controllers/videoPlaybackController.js';
+} from '../controllers/videoController.js';
 import { protectEnrolledUser } from '../middleware/auth.js';
 
 const videoRouter = express.Router();

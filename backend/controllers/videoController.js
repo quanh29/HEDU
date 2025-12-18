@@ -1,14 +1,11 @@
 import Video from "../models/video.js";
 import VideoDraft from "../models/VideoDraft.js";
 import dotenv from 'dotenv';
-import Mux from '@mux/mux-node';
+import * as videoService from '../services/videoService.js';
 import logger from '../utils/logger.js';
+import * as videoPlaybackService from '../services/videoPlaybackService.js';
 
-// Khởi tạo Mux client
-const { video: muxVideo } = new Mux({
-    tokenId: process.env.MUX_TOKEN_ID,
-    tokenSecret: process.env.MUX_SECRET_KEY
-});
+
 
 // Tạo video mới
 export const addVideo = async (req, res) => {
@@ -136,7 +133,7 @@ export const deleteVideo = async (req, res) => {
         if (skipMuxDeletion !== 'true' && videoDraft.assetId && videoDraft.assetId !== '') {
             try {
                 logger.info(`🎬 Deleting MUX asset: ${videoDraft.assetId}`);
-                await muxVideo.assets.delete(videoDraft.assetId);
+                await videoService.deleteMuxAsset(videoDraft.assetId);
                 logger.success(`✅ MUX asset deleted: ${videoDraft.assetId}`);
                 muxDeleted = true;
             } catch (muxError) {
@@ -176,5 +173,70 @@ export const deleteVideo = async (req, res) => {
             message: 'Error deleting video', 
             error: error.message 
         });
+    }
+};
+
+/**
+ * GET /api/videos/playback/:videoId
+ * Return signed playback URL and token (protected)
+ */
+export const getVideoPlayback = async (req, res) => {
+    const { videoId } = req.params;
+
+    try {
+        const data = await videoPlaybackService.getPlaybackForVideo(videoId);
+        if (!data) {
+            return res.status(404).json({ success: false, message: 'Video not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                videoId: data.video._id,
+                title: data.video.title,
+                description: data.video.description,
+                playbackId: data.playbackId,
+                playbackUrl: data.playbackUrl,
+                token: data.token,
+                expiresIn: data.expiresIn
+            }
+        });
+    } catch (error) {
+        logger.error('Error getting video playback: ' + (error.message || error));
+        res.status(500).json({ success: false, message: 'Error generating video playback URL', error: error.message });
+    }
+};
+
+/**
+ * GET /api/videos/thumbnail/:videoId
+ * Return signed thumbnail URL and token (protected)
+ */
+export const getVideoThumbnail = async (req, res) => {
+    const { videoId } = req.params;
+    const { width, height, time } = req.query;
+
+    try {
+        const params = {};
+        if (width) params.width = width;
+        if (height) params.height = height;
+        if (time) params.time = time;
+
+        const data = await videoPlaybackService.getThumbnailForVideo(videoId, params);
+        if (!data) {
+            return res.status(404).json({ success: false, message: 'Video not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                videoId: data.video._id,
+                thumbnailUrl: data.thumbnailUrl,
+                token: data.token,
+                expiresIn: data.expiresIn
+            }
+        });
+    } catch (error) {
+        logger.error('Error getting video thumbnail: ' + (error.message || error));
+        res.status(500).json({ success: false, message: 'Error generating thumbnail URL', error: error.message });
     }
 };
