@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
-import { Clock, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight, DollarSign, X } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, RefreshCw, DollarSign, X } from 'lucide-react';
 import styles from './RefundHistory.module.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 
@@ -83,6 +83,13 @@ function RefundHistory() {
           color: '#3b82f6',
           bgColor: '#dbeafe'
         };
+      case 'withdrawn':
+        return {
+          label: 'Đã thu hồi',
+          icon: XCircle,
+          color: '#6b7280',
+          bgColor: '#f3f4f6'
+        };
       default:
         return {
           label: status,
@@ -112,6 +119,9 @@ function RefundHistory() {
 
   const filteredRefunds = refunds.filter(refund => {
     if (filter === 'all') return true;
+    if (filter === 'approved') {
+      return refund.status === 'approved' || refund.status === 'completed';
+    }
     return refund.status === filter;
   });
 
@@ -119,7 +129,8 @@ function RefundHistory() {
     total: refunds.length,
     pending: refunds.filter(r => r.status === 'pending').length,
     approved: refunds.filter(r => r.status === 'approved' || r.status === 'completed').length,
-    rejected: refunds.filter(r => r.status === 'rejected').length
+    rejected: refunds.filter(r => r.status === 'rejected').length,
+    withdrawn: refunds.filter(r => r.status === 'withdrawn').length
   };
 
   const handleRefundClick = (refund) => {
@@ -133,6 +144,43 @@ function RefundHistory() {
   const getStatusClass = (status) => {
     const statusInfo = getStatusInfo(status);
     return statusInfo.color;
+  };
+
+  const handleWithdrawRefund = async (refundId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn thu hồi yêu cầu hoàn tiền này?\n\nSau khi thu hồi, bạn sẽ không thể hoàn tiền cho khóa học này nữa.')) {
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.put(
+        `${import.meta.env.VITE_BASE_URL}/api/refund/withdraw/${refundId}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        // Update local state
+        setRefunds(prevRefunds =>
+          prevRefunds.map(refund =>
+            refund._id === refundId
+              ? { ...refund, status: 'withdrawn', processedDate: new Date().toISOString() }
+              : refund
+          )
+        );
+        // Close modal if open
+        if (selectedRefund?._id === refundId) {
+          setSelectedRefund(null);
+        }
+        // Show success message
+        alert('Đã thu hồi yêu cầu hoàn tiền thành công!');
+      }
+    } catch (error) {
+      console.error('Error withdrawing refund:', error);
+      alert(error.response?.data?.message || 'Không thể thu hồi yêu cầu hoàn tiền. Vui lòng thử lại sau.');
+    }
   };
 
   if (loading) {
@@ -177,46 +225,6 @@ function RefundHistory() {
         </div>
       ) : (
         <>
-          {/* Stats Cards */}
-          <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: '#dbeafe' }}>
-                <RefreshCw size={24} style={{ color: '#3b82f6' }} />
-              </div>
-              <div className={styles.statContent}>
-                <h3 className={styles.statNumber}>{stats.total}</h3>
-                <p className={styles.statLabel}>Tổng yêu cầu</p>
-              </div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: '#fef3c7' }}>
-                <Clock size={24} style={{ color: '#f59e0b' }} />
-              </div>
-              <div className={styles.statContent}>
-                <h3 className={styles.statNumber}>{stats.pending}</h3>
-                <p className={styles.statLabel}>Đang xử lý</p>
-              </div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: '#dcfce7' }}>
-                <CheckCircle size={24} style={{ color: '#10b981' }} />
-              </div>
-              <div className={styles.statContent}>
-                <h3 className={styles.statNumber}>{stats.approved}</h3>
-                <p className={styles.statLabel}>Đã duyệt</p>
-              </div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: '#fecaca' }}>
-                <XCircle size={24} style={{ color: '#ef4444' }} />
-              </div>
-              <div className={styles.statContent}>
-                <h3 className={styles.statNumber}>{stats.rejected}</h3>
-                <p className={styles.statLabel}>Từ chối</p>
-              </div>
-            </div>
-          </div>
-
           {/* Filters */}
           <div className={styles.filters}>
             <button 
@@ -243,6 +251,12 @@ function RefundHistory() {
             >
               Từ chối ({stats.rejected})
             </button>
+            <button 
+              className={`${styles.filterBtn} ${filter === 'withdrawn' ? styles.active : ''}`}
+              onClick={() => setFilter('withdrawn')}
+            >
+              Đã thu hồi ({stats.withdrawn})
+            </button>
           </div>
 
           <div className={styles.tableContainer}>
@@ -253,7 +267,7 @@ function RefundHistory() {
                   <th>Ngày yêu cầu</th>
                   <th>Số tiền</th>
                   <th>Trạng thái</th>
-                  <th>Chi tiết</th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -278,12 +292,25 @@ function RefundHistory() {
                         </div>
                       </td>
                       <td>
-                        <button
-                          className={styles.detailButton}
-                          onClick={() => handleRefundClick(refund)}
-                        >
-                          Xem chi tiết
-                        </button>
+                        <div className={styles.actionButtons}>
+                          <button
+                            className={styles.detailButton}
+                            onClick={() => handleRefundClick(refund)}
+                          >
+                            Xem chi tiết
+                          </button>
+                          {refund.status === 'pending' && (
+                            <button
+                              className={styles.withdrawButton}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleWithdrawRefund(refund._id);
+                              }}
+                            >
+                              Thu hồi
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -349,8 +376,15 @@ function RefundHistory() {
                 <>
                   <div className={styles.divider}></div>
                   <div className={styles.adminNoteSection}>
-                    <h3 className={styles.sectionTitle}>Ghi chú từ quản trị viên</h3>
-                    <p className={styles.adminNoteText}>
+                    <h3 className={styles.sectionTitle}>
+                      {selectedRefund.status === 'rejected' ? 'Lý do từ chối' : 'Ghi chú từ quản trị viên'}
+                    </h3>
+                    <p 
+                      className={styles.adminNoteText}
+                      style={{
+                        borderLeftColor: selectedRefund.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                      }}
+                    >
                       {selectedRefund.adminNote}
                     </p>
                   </div>
@@ -368,6 +402,17 @@ function RefundHistory() {
                   </span>
                 </div>
               </div>
+
+              {selectedRefund.status === 'pending' && (
+                <div className={styles.modalActions}>
+                  <button
+                    className={styles.withdrawModalButton}
+                    onClick={() => handleWithdrawRefund(selectedRefund._id)}
+                  >
+                    Thu hồi yêu cầu hoàn tiền
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

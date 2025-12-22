@@ -5,7 +5,7 @@ import logger from '../utils/logger.js';
 
 export const protectAdmin = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId } = req.auth();
 
         const user = await clerkClient.users.getUser(userId);
 
@@ -22,7 +22,7 @@ export const protectAdmin = async (req, res, next) => {
 
 export const protectUser = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId } = req.auth();
 
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -44,14 +44,14 @@ export const protectUser = async (req, res, next) => {
 
 export const protectEnrolledUser = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId } = req.auth();
         
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Unauthorized - Please login' });
         }
 
-        // Get courseId from params or query
-        let courseId = req.params.courseId || req.query.courseId;
+        // Get courseId from params, query, or body
+        let courseId = req.params.courseId || req.query.courseId || req.body.courseId;
         console.log('🔐 [protectEnrolledUser] userId:', userId, 'courseId:', courseId);
         
         if (!courseId) {
@@ -84,7 +84,7 @@ export const protectEnrolledUser = async (req, res, next) => {
 
 export const protectCourseOwner = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId } = req.auth();
         
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Unauthorized - Please login' });
@@ -136,7 +136,7 @@ export const protectCourseOwner = async (req, res, next) => {
  */
 export const protectUserAction = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId } = req.auth();
         
         if (!userId) {
             return res.status(401).json({ 

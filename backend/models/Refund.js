@@ -32,7 +32,7 @@ const refundSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'completed'],
+    enum: ['pending', 'approved', 'rejected', 'completed', 'withdrawn'],
     default: 'pending',
     index: true
   },
@@ -60,6 +60,10 @@ const refundSchema = new mongoose.Schema({
   // Original payment transaction ID for reference
   originalTransactionId: {
     type: String
+  },
+  adminNote: {
+    type: String,
+    maxlength: 2000
   }
 }, {
   timestamps: true

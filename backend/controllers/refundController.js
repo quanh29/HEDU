@@ -432,3 +432,51 @@ export const getRefundStats = async (req, res) => {
     });
   }
 };
+
+// Withdraw refund request (User can cancel their own pending request)
+export const withdrawRefund = async (req, res) => {
+  try {
+    const userId = req.auth.userId;
+    const { refundId } = req.params;
+
+    const refund = await Refund.findOne({
+      _id: refundId,
+      userId: userId
+    });
+
+    if (!refund) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy yêu cầu hoàn tiền'
+      });
+    }
+
+    if (refund.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể thu hồi yêu cầu hoàn tiền đang chờ xử lý'
+      });
+    }
+
+    // Update status to withdrawn
+    refund.status = 'withdrawn';
+    refund.processedDate = new Date();
+    refund.adminNote = 'Yêu cầu đã được thu hồi bởi người dùng';
+    
+    await refund.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã thu hồi yêu cầu hoàn tiền thành công',
+      data: refund
+    });
+
+  } catch (error) {
+    console.error('Error withdrawing refund:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi thu hồi yêu cầu hoàn tiền',
+      error: error.message
+    });
+  }
+};
