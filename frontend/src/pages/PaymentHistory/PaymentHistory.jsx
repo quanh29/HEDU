@@ -83,7 +83,7 @@ const PaymentHistory = () => {
 
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
-    fetchOrderDetails(order.order_id);
+    fetchOrderDetails(order.orderId);
   };
 
   const closeModal = () => {
@@ -213,17 +213,17 @@ const PaymentHistory = () => {
               <tbody>
                 {payments.map((payment) => (
                   <tr
-                    key={payment.payment_id}
+                    key={payment.orderId}
                     className={styles.paymentRow}
                   >
-                    <td>{formatDate(payment.created_at)}</td>
+                    <td>{formatDate(payment.createdAt)}</td>
                     <td>
                       <div className={styles.methodCell}>
                         <CreditCard size={16} />
-                        <span>{getMethodText(payment.method)}</span>
+                        <span>Ví MoMo</span>
                       </div>
                     </td>
-                    <td className={styles.totalCell}>{formatCurrency(payment.total)}</td>
+                    <td className={styles.totalCell}>{formatCurrency(payment.totalAmount)}</td>
                     <td>
                       <button
                         className={styles.detailButton}
@@ -304,7 +304,7 @@ const PaymentHistory = () => {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Chi tiết đơn hàng</h2>
               <p className={styles.modalOrderId}>
-                Mã đơn hàng: #{selectedOrder.order_id}
+                Mã đơn hàng: #{selectedOrder.orderId}
               </p>
             </div>
 
@@ -318,18 +318,18 @@ const PaymentHistory = () => {
                 <div className={styles.orderInfo}>
                   <div className={styles.infoGroup}>
                     <label>Phương thức thanh toán:</label>
-                    <span>{getMethodText(selectedOrder.method)}</span>
+                    <span>Ví MoMo</span>
                   </div>
                   
                   <div className={styles.infoGroup}>
                     <label>Thời gian:</label>
-                    <span>{formatDate(selectedOrder.created_at)}</span>
+                    <span>{formatDate(selectedOrder.createdAt)}</span>
                   </div>
 
-                  {orderDetails.order.voucher_code && (
+                  {orderDetails.order.voucherCode && (
                     <div className={styles.infoGroup}>
                       <label>Mã giảm giá:</label>
-                      <span className={styles.voucherCode}>{orderDetails.order.voucher_code}</span>
+                      <span className={styles.voucherCode}>{orderDetails.order.voucherCode}</span>
                     </div>
                   )}
                 </div>
@@ -340,15 +340,10 @@ const PaymentHistory = () => {
                   <h3 className={styles.sectionTitle}>Khóa học đã mua</h3>
                   {orderDetails.items.map((item) => (
                     <div 
-                      key={item.course_id} 
+                      key={item.courseId} 
                       className={styles.courseItem}
-                      onClick={() => handleCourseClick(item.course_id)}
+                      onClick={() => handleCourseClick(item.courseId)}
                     >
-                      <img
-                        src={item.picture_url || '/default-course.png'}
-                        alt={item.title}
-                        className={styles.courseThumbnail}
-                      />
                       <div className={styles.courseInfo}>
                         <h4 className={styles.courseTitle}>{item.title}</h4>
                         <p className={styles.coursePrice}>{formatCurrency(item.price)}</p>
@@ -374,7 +369,7 @@ const PaymentHistory = () => {
                   <div className={`${styles.summaryRow} ${styles.totalRow}`}>
                     <span>Tổng cộng:</span>
                     <span className={styles.totalAmount}>
-                      {formatCurrency(selectedOrder.total)}
+                      {formatCurrency(selectedOrder.totalAmount)}
                     </span>
                   </div>
                 </div>

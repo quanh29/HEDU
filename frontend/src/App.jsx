@@ -21,6 +21,7 @@ import { CartProvider } from './context/CartContext.jsx'
 import Checkout from './pages/Checkout/Checkout.jsx'
 import PaymentStatus from './pages/PaymentStatus/PaymentStatus.jsx'
 import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
+import RefundHistory from './pages/RefundHistory/RefundHistory.jsx'
 
 function App() {
   const location = useLocation();
@@ -55,6 +56,9 @@ function App() {
           {/* Payment History Route */}
           <Route path='/payment-history' element={<PaymentHistory/>}/>
           
+          {/* Refund History Route */}
+          <Route path='/refund-history' element={<RefundHistory/>}/>
+          
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>
             <Route index element={<Navigate to="/instructor/dashboard" replace />} />
@@ -74,6 +78,7 @@ function App() {
           <Route path='/admin/dashboard' element={<Admin/>}/>
           <Route path='/admin/courses' element={<Admin/>}/>
           <Route path='/admin/revisions' element={<Admin/>}/>
+          <Route path='/admin/refunds' element={<Admin/>}/>
           <Route path='/admin/users' element={<Admin/>}/>
           <Route path='/admin/statistics' element={<Admin/>}/>
           <Route path='/admin/support' element={<Admin/>}/>

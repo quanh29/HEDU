@@ -1,5 +1,5 @@
+import Order from '../models/Order.js';
 import pool from '../config/mysql.js';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Create order from user's cart
@@ -17,7 +17,7 @@ export const createOrderFromCart = async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // 1. Get user's cart
+    // 1. Get user's cart (MySQL)
     const [cartResult] = await connection.query(
       'SELECT cart_id FROM Carts WHERE user_id = ?',
       [userId]
@@ -30,7 +30,7 @@ export const createOrderFromCart = async (req, res) => {
 
     const cartId = cartResult[0].cart_id;
 
-    // 2. Get cart items with course details
+    // 2. Get cart items with course details (MySQL)
     const [cartItems] = await connection.query(
       `SELECT cd.course_id, c.currentPrice as price, c.title, c.course_status
        FROM CartDetail cd
@@ -53,7 +53,7 @@ export const createOrderFromCart = async (req, res) => {
       });
     }
 
-    // 4. Validate voucher if provided
+    // 4. Validate voucher if provided (MySQL)
     let validatedVoucher = null;
     if (voucherCode) {
       const [voucherResult] = await connection.query(
@@ -91,29 +91,29 @@ export const createOrderFromCart = async (req, res) => {
 
     const totalAmount = Math.max(0, subtotal - discount);
 
-    // 6. Create Order
-    const orderId = uuidv4();
-    await connection.query(
-      `INSERT INTO Orders (order_id, user_id, order_status, voucher_code)
-       VALUES (?, ?, 'pending', ?)`,
-      [orderId, userId, voucherCode || null]
-    );
-
-    // 7. Create OrderDetail records
-    for (const item of cartItems) {
-      await connection.query(
-        `INSERT INTO OrderDetail (order_id, course_id, price)
-         VALUES (?, ?, ?)`,
-        [orderId, item.course_id, item.price]
-      );
-    }
-
-    // Commit transaction
     await connection.commit();
+    connection.release();
+
+    // 6. Create Order in MongoDB
+    const order = new Order({
+      userId,
+      orderStatus: 'pending',
+      voucherCode: voucherCode || null,
+      items: cartItems.map(item => ({
+        courseId: item.course_id,
+        price: parseFloat(item.price),
+        title: item.title
+      })),
+      subtotal,
+      discount,
+      totalAmount
+    });
+
+    await order.save();
 
     res.status(201).json({
       success: true,
-      orderId,
+      orderId: order._id.toString(),
       totalAmount,
       subtotal,
       discount,
@@ -128,13 +128,10 @@ export const createOrderFromCart = async (req, res) => {
   } catch (error) {
     if (connection) {
       await connection.rollback();
+      connection.release();
     }
     console.error('Error creating order:', error);
     res.status(500).json({ message: 'Lỗi khi tạo đơn hàng' });
-  } finally {
-    if (connection) {
-      connection.release();
-    }
   }
 };
 
@@ -143,13 +140,8 @@ export const createOrderFromCart = async (req, res) => {
  * @param {string} orderId 
  * @param {string} status - 'pending' | 'success' | 'failed'
  */
-export const updateOrderStatus = async (orderId, status, connection = null) => {
-  const useConnection = connection || pool;
-  
-  await useConnection.query(
-    'UPDATE Orders SET order_status = ? WHERE order_id = ?',
-    [status, orderId]
-  );
+export const updateOrderStatus = async (orderId, status) => {
+  await Order.findByIdAndUpdate(orderId, { orderStatus: status });
 };
 
 /**
@@ -161,32 +153,29 @@ export const getOrderDetails = async (req, res) => {
   const { orderId } = req.params;
 
   try {
-    // Get order
-    const [orderResult] = await pool.query(
-      `SELECT o.order_id, o.order_status, o.voucher_code, o.user_id
-       FROM Orders o
-       WHERE o.order_id = ? AND o.user_id = ?`,
-      [orderId, userId]
-    );
+    // Get order from MongoDB
+    const order = await Order.findById(orderId);
 
-    if (orderResult.length === 0) {
+    if (!order) {
       return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
     }
 
-    const order = orderResult[0];
-
-    // Get order items
-    const [orderItems] = await pool.query(
-      `SELECT od.course_id, od.price, c.title, c.picture_url
-       FROM OrderDetail od
-       JOIN Courses c ON od.course_id = c.course_id
-       WHERE od.order_id = ?`,
-      [orderId]
-    );
+    // Verify order belongs to user
+    if (order.userId !== userId) {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
 
     res.json({
-      order,
-      items: orderItems
+      order: {
+        orderId: order._id,
+        orderStatus: order.orderStatus,
+        voucherCode: order.voucherCode,
+        subtotal: order.subtotal,
+        discount: order.discount,
+        totalAmount: order.totalAmount,
+        createdAt: order.createdAt
+      },
+      items: order.items
     });
 
   } catch (error) {
@@ -208,73 +197,36 @@ export const getOrderHistory = async (req, res) => {
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // Get total count of successful payments
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total
-       FROM Orders o
-       LEFT JOIN Payments p ON o.order_id = p.order_id
-       WHERE o.user_id = ? AND p.payment_status = 'success'`,
-      [userId]
-    );
-
-    const totalRecords = countResult[0].total;
+    // Get total count of orders with successful payments from MongoDB
+    const totalRecords = await Order.countDocuments({ 
+      userId, 
+      orderStatus: 'success' 
+    });
+    
     const totalPages = Math.ceil(totalRecords / limitNum);
 
-    // Get only orders with successful payments (with pagination)
-    const [orders] = await pool.query(
-      `SELECT o.order_id, o.order_status, o.voucher_code,
-              p.payment_id, p.payment_status, p.method, p.amount, p.created_at
-       FROM Orders o
-       LEFT JOIN Payments p ON o.order_id = p.order_id
-       WHERE o.user_id = ? AND p.payment_status = 'success'
-       ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [userId, limitNum, offset]
-    );
+    // Get orders with successful payments (with pagination)
+    const orders = await Order.find({ 
+      userId, 
+      orderStatus: 'success' 
+    })
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limitNum)
+      .lean();
 
-    // For each order, calculate subtotal and get voucher discount
-    const ordersWithDetails = await Promise.all(
-      orders.map(async (order) => {
-        // Get subtotal from OrderDetail
-        const [orderDetails] = await pool.query(
-          `SELECT SUM(price) as subtotal, COUNT(*) as course_count
-           FROM OrderDetail
-           WHERE order_id = ?`,
-          [order.order_id]
-        );
-
-        const subtotal = parseFloat(orderDetails[0]?.subtotal || 0);
-        const courseCount = orderDetails[0]?.course_count || 0;
-
-        // Get voucher discount if applicable
-        let discount = 0;
-        if (order.voucher_code) {
-          const [voucherResult] = await pool.query(
-            `SELECT voucher_type, amount FROM Vouchers WHERE voucher_code = ?`,
-            [order.voucher_code]
-          );
-
-          if (voucherResult.length > 0) {
-            const voucher = voucherResult[0];
-            if (voucher.voucher_type === 'percentage') {
-              discount = subtotal * (voucher.amount / 100);
-            } else if (voucher.voucher_type === 'absolute') {
-              discount = voucher.amount;
-            }
-          }
-        }
-
-        const total = order.amount || (subtotal - discount);
-
-        return {
-          ...order,
-          subtotal,
-          discount,
-          total,
-          course_count: courseCount
-        };
-      })
-    );
+    // Format orders with payment details
+    const ordersWithDetails = orders.map(order => ({
+      orderId: order._id,
+      orderStatus: order.orderStatus,
+      voucherCode: order.voucherCode,
+      subtotal: order.subtotal,
+      discount: order.discount,
+      totalAmount: order.totalAmount,
+      courseCount: order.items.length,
+      createdAt: order.createdAt,
+      items: order.items
+    }));
 
     res.json({ 
       orders: ordersWithDetails,

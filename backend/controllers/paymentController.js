@@ -1,3 +1,5 @@
+import Payment from '../models/Payment.js';
+import Order from '../models/Order.js';
 import pool from '../config/mysql.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -27,77 +29,40 @@ export const initiateMoMoPayment = async (req, res) => {
   const { userId } = req;
   const { orderId } = req.body;
 
-  let connection;
-
   try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
+    // 1. Validate order exists and belongs to user (MongoDB)
+    const order = await Order.findById(orderId);
 
-    // 1. Validate order exists and belongs to user
-    const [orderResult] = await connection.query(
-      `SELECT o.order_id, o.order_status, o.user_id, o.voucher_code
-       FROM Orders o
-       WHERE o.order_id = ? AND o.user_id = ?`,
-      [orderId, userId]
-    );
-
-    if (orderResult.length === 0) {
-      await connection.rollback();
+    if (!order) {
       return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
     }
 
-    const order = orderResult[0];
+    if (order.userId !== userId) {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
 
-    if (order.order_status !== 'pending') {
-      await connection.rollback();
+    if (order.orderStatus !== 'pending') {
       return res.status(400).json({ message: 'Đơn hàng đã được xử lý' });
     }
 
-    // 2. Calculate subtotal from OrderDetail
-    const [orderItems] = await connection.query(
-      'SELECT SUM(price) as total FROM OrderDetail WHERE order_id = ?',
-      [orderId]
-    );
-
-    const subtotal = parseFloat(orderItems[0].total);
-
-    if (subtotal <= 0) {
-      await connection.rollback();
-      return res.status(400).json({ message: 'Số tiền không hợp lệ' });
-    }
-
-    // 3. Apply voucher discount if exists
-    let discount = 0;
-    if (order.voucher_code) {
-      const [voucherResult] = await connection.query(
-        `SELECT voucher_type, amount FROM Vouchers WHERE voucher_code = ?`,
-        [order.voucher_code]
-      );
-
-      if (voucherResult.length > 0) {
-        const voucher = voucherResult[0];
-        if (voucher.voucher_type === 'percentage') {
-          discount = subtotal * (voucher.amount / 100);
-        } else if (voucher.voucher_type === 'absolute') {
-          discount = voucher.amount;
-        }
-      }
-    }
-
-    const totalAmount = Math.max(0, Math.round(subtotal - discount));
+    // 2. Use pre-calculated totalAmount from order
+    const totalAmount = Math.round(order.totalAmount);
 
     if (totalAmount <= 0) {
-      await connection.rollback();
       return res.status(400).json({ message: 'Số tiền không hợp lệ' });
     }
 
-    // 4. Create Payment record
-    const paymentId = uuidv4();
-    await connection.query(
-      `INSERT INTO Payments (payment_id, user_id, order_id, payment_status, method, amount)
-       VALUES (?, ?, ?, 'pending', 'momo', ?)`,
-      [paymentId, userId, orderId, totalAmount]
-    );
+    // 4. Create Payment record in MongoDB
+    const payment = new Payment({
+      userId,
+      orderId,
+      paymentStatus: 'pending',
+      method: 'momo',
+      amount: totalAmount
+    });
+
+    await payment.save();
+    const paymentId = payment._id.toString();
 
     // 5. Prepare MoMo payment request
     const partnerCode = process.env.MOMO_PARTNER_CODE;
@@ -161,10 +126,12 @@ export const initiateMoMoPayment = async (req, res) => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    await connection.commit();
-
     // 7. Return payment URL to client
     if (momoResponse.data.resultCode === 0) {
+      // Update payment with MoMo request details
+      payment.momoRequestId = requestId;
+      await payment.save();
+
       res.json({
         success: true,
         paymentUrl: momoResponse.data.payUrl,
@@ -174,7 +141,11 @@ export const initiateMoMoPayment = async (req, res) => {
       });
     } else {
       // MoMo API error
-      await updatePaymentStatus(paymentId, 'failed');
+      payment.paymentStatus = 'failed';
+      payment.momoResultCode = momoResponse.data.resultCode;
+      payment.momoMessage = momoResponse.data.message;
+      await payment.save();
+      
       await updateOrderStatus(orderId, 'failed');
       
       res.status(400).json({
@@ -184,15 +155,8 @@ export const initiateMoMoPayment = async (req, res) => {
     }
 
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
-    }
     console.error('Error initiating MoMo payment:', error);
     res.status(500).json({ message: 'Lỗi khi khởi tạo thanh toán' });
-  } finally {
-    if (connection) {
-      connection.release();
-    }
   }
 };
 
@@ -249,40 +213,42 @@ export const handleMoMoCallback = async (req, res) => {
     const decodedData = JSON.parse(Buffer.from(extraData, 'base64').toString());
     const { paymentId, userId } = decodedData;
 
-    let connection = await pool.getConnection();
-    await connection.beginTransaction();
+    // 3. Update payment status based on resultCode in MongoDB
+    const payment = await Payment.findById(paymentId);
+    
+    if (!payment) {
+      console.error('Payment not found:', paymentId);
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    // Store MoMo transaction details
+    payment.momoTransactionId = transId.toString();
+    payment.momoRequestId = requestId;
+    payment.momoResultCode = resultCode;
+    payment.momoMessage = message;
+
+    let connection;
 
     try {
-      // 3. Update payment status based on resultCode
       if (resultCode === 0) {
         // Payment successful
-        await connection.query(
-          'UPDATE Payments SET payment_status = ? WHERE payment_id = ?',
-          ['success', paymentId]
-        );
-        await connection.query(
-          'UPDATE Orders SET order_status = ? WHERE order_id = ?',
-          ['success', orderId]
-        );
+        payment.paymentStatus = 'success';
+        await payment.save();
 
-        // 4. Get order items for enrollment
-        const [orderItems] = await connection.query(
-          'SELECT course_id FROM OrderDetail WHERE order_id = ?',
-          [orderId]
-        );
+        // Update order status in MongoDB
+        await updateOrderStatus(orderId, 'success');
 
-        await connection.commit();
-        connection.release();
+        // 4. Get order items for enrollment from MongoDB
+        const order = await Order.findById(orderId);
+        const orderItems = order.items;
 
         // 5. Create enrollments for each course (MongoDB - async)
-        // Import enrollmentController dynamically to avoid circular dependency
         const { createEnrollment } = await import('./enrollmentController.js');
         
         for (const item of orderItems) {
           try {
-            // Create enrollment request object
             const enrollReq = {
-              body: { courseId: item.course_id, userId },
+              body: { courseId: item.courseId, userId },
               userId
             };
             const enrollRes = {
@@ -291,12 +257,11 @@ export const handleMoMoCallback = async (req, res) => {
             };
             await createEnrollment(enrollReq, enrollRes);
           } catch (enrollError) {
-            console.error(`Error creating enrollment for course ${item.course_id}:`, enrollError);
-            // Continue with other enrollments even if one fails
+            console.error(`Error creating enrollment for course ${item.courseId}:`, enrollError);
           }
         }
 
-        // 6. Clear user's cart
+        // 6. Clear user's cart (MySQL)
         const [cartResult] = await pool.query(
           'SELECT cart_id FROM Carts WHERE user_id = ?',
           [userId]
@@ -309,25 +274,17 @@ export const handleMoMoCallback = async (req, res) => {
 
       } else {
         // Payment failed
-        await connection.query(
-          'UPDATE Payments SET payment_status = ? WHERE payment_id = ?',
-          ['failed', paymentId]
-        );
-        await connection.query(
-          'UPDATE Orders SET order_status = ? WHERE order_id = ?',
-          ['failed', orderId]
-        );
+        payment.paymentStatus = 'failed';
+        await payment.save();
 
-        await connection.commit();
-        connection.release();
+        // Update order status in MongoDB
+        await updateOrderStatus(orderId, 'failed');
       }
 
       // 7. Respond to MoMo
       res.status(204).end();
 
     } catch (error) {
-      await connection.rollback();
-      connection.release();
       throw error;
     }
 
@@ -392,34 +349,29 @@ export const handleMoMoReturn = async (req, res) => {
     const decodedData = JSON.parse(Buffer.from(extraData, 'base64').toString());
     const { paymentId } = decodedData;
 
-    // Get payment status from database
-    const [paymentResult] = await pool.query(
-      `SELECT p.payment_id, p.payment_status, p.amount, p.order_id,
-              o.order_status
-       FROM Payments p
-       JOIN Orders o ON p.order_id = o.order_id
-       WHERE p.payment_id = ?`,
-      [paymentId]
-    );
+    // Get payment status from MongoDB
+    const payment = await Payment.findById(paymentId);
 
-    if (paymentResult.length === 0) {
+    if (!payment) {
       return res.status(404).json({ 
         success: false, 
         message: 'Payment not found' 
       });
     }
 
-    const payment = paymentResult[0];
+    // Get order status from MongoDB
+    const order = await Order.findById(payment.orderId);
+    const orderStatus = order ? order.orderStatus : null;
 
     res.json({
       success: resultCode === '0',
       resultCode,
       message,
       paymentId,
-      orderId,
+      orderId: payment.orderId,
       amount: payment.amount,
-      paymentStatus: payment.payment_status,
-      orderStatus: payment.order_status
+      paymentStatus: payment.paymentStatus,
+      orderStatus
     });
 
   } catch (error) {
@@ -437,10 +389,7 @@ export const handleMoMoReturn = async (req, res) => {
  * @param {string} status - 'pending' | 'success' | 'failed'
  */
 export const updatePaymentStatus = async (paymentId, status) => {
-  await pool.query(
-    'UPDATE Payments SET payment_status = ? WHERE payment_id = ?',
-    [status, paymentId]
-  );
+  await Payment.findByIdAndUpdate(paymentId, { paymentStatus: status });
 };
 
 /**
@@ -452,20 +401,33 @@ export const getPaymentDetails = async (req, res) => {
   const { paymentId } = req.params;
 
   try {
-    const [paymentResult] = await pool.query(
-      `SELECT p.payment_id, p.payment_status, p.method, p.amount, p.created_at,
-              p.order_id, o.order_status
-       FROM Payments p
-       JOIN Orders o ON p.order_id = o.order_id
-       WHERE p.payment_id = ? AND p.user_id = ?`,
-      [paymentId, userId]
-    );
+    // Get payment from MongoDB
+    const payment = await Payment.findById(paymentId);
 
-    if (paymentResult.length === 0) {
+    if (!payment) {
       return res.status(404).json({ message: 'Không tìm thấy thông tin thanh toán' });
     }
 
-    res.json(paymentResult[0]);
+    // Verify payment belongs to user
+    if (payment.userId !== userId) {
+      return res.status(403).json({ message: 'Không có quyền truy cập' });
+    }
+
+    // Get order status from MongoDB
+    const order = await Order.findById(payment.orderId);
+    const orderStatus = order ? order.orderStatus : null;
+
+    res.json({
+      paymentId: payment._id,
+      paymentStatus: payment.paymentStatus,
+      method: payment.method,
+      amount: payment.amount,
+      createdAt: payment.createdAt,
+      orderId: payment.orderId,
+      orderStatus,
+      momoTransactionId: payment.momoTransactionId,
+      momoResultCode: payment.momoResultCode
+    });
 
   } catch (error) {
     console.error('Error fetching payment details:', error);

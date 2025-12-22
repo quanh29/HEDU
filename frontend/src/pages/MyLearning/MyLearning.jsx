@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import styles from './MyLearning.module.css';
 import EnrolledCard from '../../components/EnrolledCard/EnrolledCard';
 import TabSwitch from '../../components/TabSwitch/TabSwitch';
@@ -16,6 +17,9 @@ function MyLearning() {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [refundReason, setRefundReason] = useState('');
 
   // Redirect to login if not signed in (after Clerk loads)
   useEffect(() => {
@@ -76,8 +80,8 @@ function MyLearning() {
               lastAccessed: new Date(enrollment.enrolledAt).toLocaleDateString('vi-VN'),
               duration: course.duration || 'Chưa xác định',
               rating: course.rating || 0,
-              enrollmentId: enrollment.enrollmentId,
-              courseId: enrollment.courseId
+              enrollmentId: enrollment._id || enrollment.enrollmentId,
+              courseId: course.course_id
             };
           }).filter(course => course !== null); // Remove null entries
 
@@ -143,6 +147,73 @@ function MyLearning() {
 
   const getProgressColor = (progress) => {
     return '#10b981'; // Green
+  };
+
+  const handleRequestRefund = async (course) => {
+    console.log('Opening refund modal for course:', course);
+    
+    if (!course.enrollmentId || !course.courseId) {
+      toast.error('Không thể xác định thông tin khóa học. Vui lòng thử lại.');
+      console.error('Missing enrollmentId or courseId:', { enrollmentId: course.enrollmentId, courseId: course.courseId });
+      return;
+    }
+    
+    setSelectedCourse(course);
+    setRefundReason('');
+    setShowRefundModal(true);
+  };
+
+  const handleSubmitRefund = async () => {
+    if (!refundReason.trim()) {
+      toast.error('Vui lòng nhập lý do hoàn tiền');
+      return;
+    }
+
+    if (refundReason.trim().length < 10) {
+      toast.error('Lý do hoàn tiền phải có ít nhất 10 ký tự');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      console.log('Sending refund request with data:', {
+        enrollmentId: selectedCourse.enrollmentId,
+        courseId: selectedCourse.courseId,
+        reason: refundReason.trim()
+      });
+      
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/refund/request`,
+        {
+          enrollmentId: selectedCourse.enrollmentId,
+          courseId: selectedCourse.courseId,
+          reason: refundReason.trim()
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      console.log('Refund request response:', response.data);
+      
+      if (response.data.success) {
+        toast.success('Yêu cầu hoàn tiền đã được gửi thành công!');
+        setShowRefundModal(false);
+        setSelectedCourse(null);
+        setRefundReason('');
+      }
+    } catch (error) {
+      console.error('Error requesting refund:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Không thể gửi yêu cầu hoàn tiền. Vui lòng thử lại sau.';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleCloseRefundModal = () => {
+    setShowRefundModal(false);
+    setSelectedCourse(null);
+    setRefundReason('');
   };
 
   // Loading state
@@ -239,6 +310,7 @@ function MyLearning() {
               course={course}
               onContinueLearning={handleContinueLearning}
               getProgressColor={getProgressColor}
+              onRequestRefund={handleRequestRefund}
             />
           ))
         ) : (
@@ -247,6 +319,77 @@ function MyLearning() {
           </div>
         )}
       </div>
+
+      {/* Refund Modal */}
+      {showRefundModal && selectedCourse && (
+        <div className={styles.modalOverlay} onClick={handleCloseRefundModal}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Yêu cầu hoàn tiền</h2>
+              <button className={styles.closeButton} onClick={handleCloseRefundModal}>
+                ✕
+              </button>
+            </div>
+
+            <div className={styles.modalContent}>
+              <div className={styles.courseInfoBox}>
+                <img 
+                  src={selectedCourse.image} 
+                  alt={selectedCourse.title}
+                  className={styles.courseImage}
+                />
+                <div className={styles.courseDetails}>
+                  <h3 className={styles.courseTitle}>{selectedCourse.title}</h3>
+                  <p className={styles.courseInstructor}>Giảng viên: {selectedCourse.instructor}</p>
+                </div>
+              </div>
+
+              <div className={styles.refundNotice}>
+                <p>⚠️ <strong>Lưu ý quan trọng:</strong></p>
+                <ul>
+                  <li>Yêu cầu hoàn tiền sẽ được xem xét và xử lý trong vòng 7-14 ngày làm việc</li>
+                  <li>Sau khi yêu cầu được chấp nhận, bạn sẽ không còn quyền truy cập khóa học này</li>
+                  <li>Vui lòng mô tả rõ lý do để chúng tôi xử lý nhanh chóng hơn</li>
+                </ul>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="refundReason" className={styles.label}>
+                  Lý do hoàn tiền <span className={styles.required}>*</span>
+                </label>
+                <textarea
+                  id="refundReason"
+                  className={styles.textarea}
+                  placeholder="Vui lòng mô tả lý do bạn muốn hoàn tiền (tối thiểu 10 ký tự)..."
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  rows={5}
+                  maxLength={500}
+                />
+                <div className={styles.charCount}>
+                  {refundReason.length}/500 ký tự
+                </div>
+              </div>
+
+              <div className={styles.modalActions}>
+                <button 
+                  className={styles.cancelButton} 
+                  onClick={handleCloseRefundModal}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  className={styles.submitButton} 
+                  onClick={handleSubmitRefund}
+                  disabled={!refundReason.trim() || refundReason.trim().length < 10}
+                >
+                  Gửi yêu cầu
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

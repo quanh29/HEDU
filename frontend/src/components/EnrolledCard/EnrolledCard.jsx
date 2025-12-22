@@ -1,19 +1,67 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styles from './EnrolledCard.module.css';
 import { useNavigate } from 'react-router-dom';
+import { MoreVertical } from 'lucide-react';
 
-function EnrolledCard({ course, onContinueLearning, getProgressColor }) {
+function EnrolledCard({ course, onContinueLearning, getProgressColor, onRequestRefund }) {
   const navigate = useNavigate();
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const handleViewCourse = () => {
     // Navigate using only the course id
     navigate(`/course/${encodeURIComponent(course.id)}`);
   };
 
+  const handleRefundRequest = () => {
+    setShowMenu(false);
+    if (onRequestRefund) {
+      onRequestRefund(course);
+    }
+  };
+
   return (
     <div className={styles.courseCard}>
-      <div className={styles.courseImage}>
-        <img src={course.image} alt={course.title} />
+      <div className={styles.courseHeader}>
+        <div className={styles.courseImage}>
+          <img src={course.image} alt={course.title} />
+        </div>
+        <div className={styles.menuContainer} ref={menuRef}>
+          <button 
+            className={styles.menuButton}
+            onClick={() => setShowMenu(!showMenu)}
+            aria-label="More options"
+          >
+            <MoreVertical size={20} />
+          </button>
+          {showMenu && (
+            <div className={styles.menuDropdown}>
+              <button 
+                className={styles.menuItem}
+                onClick={handleRefundRequest}
+              >
+                Yêu cầu hoàn tiền
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className={styles.courseContent}>
         <h3 className={styles.courseTitle}>{course.title}</h3>

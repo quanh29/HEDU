@@ -31,6 +31,7 @@ import cartRouter from './routes/cartRoute.js';
 import orderRouter from './routes/orderRoute.js';
 import paymentRouter from './routes/paymentRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
+import refundRouter from './routes/refundRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -103,6 +104,7 @@ app.use("/api/cart", cartRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/voucher", voucherRouter);
+app.use("/api/refund", refundRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
