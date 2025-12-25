@@ -8,8 +8,7 @@ const paymentSchema = new mongoose.Schema({
     },
     orderId: {
         type: String,
-        required: true,
-        index: true
+        required: true
     },
     paymentStatus: {
         type: String,

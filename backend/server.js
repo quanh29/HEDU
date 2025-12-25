@@ -2,9 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import connectDB from './config/mongodb.js';
-import { clerkMiddleware } from '@clerk/express'
-import { serve } from "inngest/express";
-import { inngest, functions } from "./inngest/index.js"
+import { clerkMiddleware } from '@clerk/express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { socketAuth } from './middleware/socketAuth.js';
@@ -32,6 +30,7 @@ import orderRouter from './routes/orderRoute.js';
 import paymentRouter from './routes/paymentRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
 import refundRouter from './routes/refundRoute.js';
+import userRouter from './routes/userRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -66,7 +65,8 @@ await connectDB();
 app.use(cors());
 app.use(clerkMiddleware());
 
-// Webhook route TRƯỚC express.json() để xử lý raw body
+// Webhook routes TRƯỚC express.json() để xử lý raw body
+app.use('/api/user/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/mux/webhook', express.raw({ type: 'application/json' }));
 
 // Sau đó mới parse JSON cho các routes khác
@@ -80,7 +80,7 @@ app.use('/uploads', express.static('uploads'));
 app.get('/', (req, res) => {
   res.send('Server is Live!');
 });
-app.use("/api/inngest", serve({ client: inngest, functions }));
+// app.use("/api/inngest", serve({ client: inngest, functions }));
 
 app.use("/api/course", courseRouter);
 app.use("/api/section", sectionRouter);
@@ -105,6 +105,7 @@ app.use("/api/order", orderRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/voucher", voucherRouter);
 app.use("/api/refund", refundRouter);
+app.use("/api/user", userRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

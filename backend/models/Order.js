@@ -25,8 +25,7 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'success', 'failed'],
     default: 'pending',
-    required: true,
-    index: true
+    required: true
   },
   voucherCode: {
     type: String,
