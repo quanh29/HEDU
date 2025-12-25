@@ -1,4 +1,5 @@
 import Order from '../models/Order.js';
+import Payment from '../models/Payment.js';
 import pool from '../config/mysql.js';
 
 /**
@@ -227,6 +228,14 @@ export const getOrderHistory = async (req, res) => {
       createdAt: order.createdAt,
       items: order.items
     }));
+    
+    // find each order's payment info from payment collection and assign its method to the order
+    for (let orderDetail of ordersWithDetails) {
+      const payment = await Payment.findOne({ orderId: orderDetail.orderId });
+      if (payment) {
+        orderDetail.paymentMethod = payment.method;
+      }
+    }
 
     res.json({ 
       orders: ordersWithDetails,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
-import { Receipt, Calendar, CreditCard, ChevronLeft, ChevronRight, ShoppingBag, X } from 'lucide-react';
+import { Receipt, Calendar, CreditCard, ChevronLeft, ChevronRight, ShoppingBag, X, Wallet } from 'lucide-react';
 import styles from './PaymentHistory.module.css';
 
 const PaymentHistory = () => {
@@ -128,12 +128,28 @@ const PaymentHistory = () => {
   // Translate payment method
   const getMethodText = (method) => {
     const methodMap = {
-      'momo': 'Ví MoMo',
+      'momo': 'MoMo',
+      'wallet': 'Ví Nội Bộ',
       'card': 'Thẻ tín dụng',
       'banking': 'Chuyển khoản',
       'cash': 'Tiền mặt'
     };
     return methodMap[method] || method;
+  };
+
+  // Get payment method icon
+  const getMethodIcon = (method) => {
+    switch (method) {
+      case 'wallet':
+        return <Wallet size={16} />;
+      case 'momo':
+        // return MoMo logo image and size it appropriately
+        return <img src="src/assets/MOMO-Logo-App.png" alt="MoMo" style={{ width: 16, height: 16 }} />;
+      case 'card':
+      case 'banking':
+      default:
+        return <CreditCard size={16} />;
+    }
   };
 
   // Get status CSS class
@@ -219,8 +235,8 @@ const PaymentHistory = () => {
                     <td>{formatDate(payment.createdAt)}</td>
                     <td>
                       <div className={styles.methodCell}>
-                        <CreditCard size={16} />
-                        <span>Ví MoMo</span>
+                        {getMethodIcon(payment.paymentMethod)}
+                        <span>{getMethodText(payment.paymentMethod)}</span>
                       </div>
                     </td>
                     <td className={styles.totalCell}>{formatCurrency(payment.totalAmount)}</td>
@@ -318,7 +334,7 @@ const PaymentHistory = () => {
                 <div className={styles.orderInfo}>
                   <div className={styles.infoGroup}>
                     <label>Phương thức thanh toán:</label>
-                    <span>Ví MoMo</span>
+                    <span>{getMethodText(orderDetails.order.paymentMethod || selectedOrder.paymentMethod)}</span>
                   </div>
                   
                   <div className={styles.infoGroup}>
