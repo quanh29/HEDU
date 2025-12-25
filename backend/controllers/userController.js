@@ -1,5 +1,7 @@
 import { Webhook } from 'svix';
 import User from '../models/User.js';
+import Wallet from '../models/Wallet.js';
+import { v4 as uuidv4 } from 'uuid';
 
 // Handle Clerk webhook for user events
 export const handleClerkWebhook = async (req, res) => {
@@ -75,6 +77,19 @@ export const handleClerkWebhook = async (req, res) => {
         userData,
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
+
+      // Create wallet for new user
+      if (eventType === 'user.created') {
+        const walletExists = await Wallet.findOne({ user_id: id });
+        if (!walletExists) {
+          await Wallet.create({
+            _id: uuidv4(),
+            user_id: id,
+            balance: 0
+          });
+          console.log(`✅ Wallet created for user: ${user.email}`);
+        }
+      }
 
       console.log(`✅ User ${eventType === 'user.created' ? 'created' : 'updated'}:`, user.email);
 
