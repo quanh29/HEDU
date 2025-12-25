@@ -22,6 +22,7 @@ import Checkout from './pages/Checkout/Checkout.jsx'
 import PaymentStatus from './pages/PaymentStatus/PaymentStatus.jsx'
 import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
 import RefundHistory from './pages/RefundHistory/RefundHistory.jsx'
+import Wallet from './pages/Wallet/Wallet.jsx'
 
 function App() {
   const location = useLocation();
@@ -58,6 +59,9 @@ function App() {
           
           {/* Refund History Route */}
           <Route path='/refund-history' element={<RefundHistory/>}/>
+          
+          {/* Wallet Route */}
+          <Route path='/wallet' element={<Wallet/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

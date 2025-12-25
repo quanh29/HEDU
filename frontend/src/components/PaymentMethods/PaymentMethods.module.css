@@ -118,6 +118,30 @@
   object-fit: contain;
 }
 
+.walletIconSvg {
+  color: #1E3A5F;
+  flex-shrink: 0;
+}
+
+.walletBalanceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.walletLabel {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.walletBalance {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1E3A5F;
+  margin: 0;
+}
+
 .momoIcon {
   width: 20px;
   height: 20px;

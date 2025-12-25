@@ -31,6 +31,7 @@ import paymentRouter from './routes/paymentRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
 import refundRouter from './routes/refundRoute.js';
 import userRouter from './routes/userRoute.js';
+import walletRouter from './routes/walletRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -68,6 +69,7 @@ app.use(clerkMiddleware());
 // Webhook routes TRƯỚC express.json() để xử lý raw body
 app.use('/api/user/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/mux/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/wallet/momo/callback', express.raw({ type: 'application/json' }));
 
 // Sau đó mới parse JSON cho các routes khác
 app.use(express.json());
@@ -106,6 +108,7 @@ app.use("/api/payment", paymentRouter);
 app.use("/api/voucher", voucherRouter);
 app.use("/api/refund", refundRouter);
 app.use("/api/user", userRouter);
+app.use("/api/wallet", walletRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

@@ -18,6 +18,8 @@ const Checkout = () => {
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [voucherType, setVoucherType] = useState(null);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(true);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -28,7 +30,34 @@ const Checkout = () => {
     if (isLoaded && cartItems.length === 0) {
       navigate('/');
     }
+
+    // Fetch wallet balance
+    if (isLoaded && isSignedIn) {
+      fetchWalletBalance();
+    }
   }, [isLoaded, isSignedIn, cartItems, navigate]);
+
+  const fetchWalletBalance = async () => {
+    try {
+      setWalletLoading(true);
+      const token = await window.Clerk.session.getToken();
+      
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/wallet`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWalletBalance(data.data.balance || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
 
   const handleApplyVoucher = (code, amount, type) => {
     setVoucherDiscount(amount);
@@ -62,6 +91,47 @@ const Checkout = () => {
   const handleCheckout = async () => {
     if (!selectedPayment) {
       alert('Vui lòng chọn phương thức thanh toán!');
+      return;
+    }
+
+    // Check wallet balance if wallet payment is selected
+    if (selectedPayment === 'wallet') {
+      const total = calculateTotal();
+      if (walletBalance < total) {
+        alert(`Số dư không đủ! Bạn cần thêm ${new Intl.NumberFormat('vi-VN').format(total - walletBalance)} ₫ để thanh toán.`);
+        return;
+      }
+
+      try {
+        // Get Clerk token
+        const token = await window.Clerk.session.getToken();
+        
+        // Create order and pay with wallet
+        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/payment/wallet/pay`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            voucherCode: appliedVoucher || null
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          alert(errorData.message || 'Lỗi khi thanh toán');
+          return;
+        }
+
+        const data = await response.json();
+        alert('Thanh toán thành công!');
+        clearCart();
+        navigate('/my-learning');
+      } catch (error) {
+        console.error('Error during wallet payment:', error);
+        alert('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
+      }
       return;
     }
 
@@ -128,9 +198,8 @@ const Checkout = () => {
         } else {
           alert('Không thể khởi tạo thanh toán MoMo. Vui lòng thử lại.');
         }
-
       } catch (error) {
-        console.error('Error during checkout:', error);
+        console.error('Error during MoMo payment:', error);
         alert('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
       }
     }
@@ -167,12 +236,21 @@ const Checkout = () => {
             <PaymentMethods
               selectedPayment={selectedPayment}
               onSelectPayment={setSelectedPayment}
+              walletBalance={walletBalance}
+              walletLoading={walletLoading}
             />
+
+            {selectedPayment === 'wallet' && walletBalance < calculateTotal() && (
+              <div className={styles.warningBox}>
+                ⚠️ Số dư không đủ để thanh toán. Vui lòng nạp thêm{' '}
+                {new Intl.NumberFormat('vi-VN').format(calculateTotal() - walletBalance)} ₫
+              </div>
+            )}
 
             <button
               className={styles.checkoutButton}
               onClick={handleCheckout}
-              disabled={!selectedPayment || cartItems.length === 0}
+              disabled={!selectedPayment || cartItems.length === 0 || (selectedPayment === 'wallet' && walletBalance < calculateTotal())}
             >
               Thanh Toán Ngay
             </button>

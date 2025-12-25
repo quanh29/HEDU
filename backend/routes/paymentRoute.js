@@ -5,6 +5,7 @@ import {
   handleMoMoReturn,
   getPaymentDetails
 } from '../controllers/paymentController.js';
+import { payWithWallet } from '../controllers/walletController.js';
 import { protectUserAction } from '../middleware/auth.js';
 
 const paymentRouter = express.Router();
@@ -20,6 +21,9 @@ paymentRouter.use(protectUserAction);
 
 // Initiate MoMo payment
 paymentRouter.post('/momo/initiate', initiateMoMoPayment);
+
+// Pay with wallet
+paymentRouter.post('/wallet/pay', payWithWallet);
 
 // Get payment details
 paymentRouter.get('/:paymentId', getPaymentDetails);

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import momoLogo from '../../assets/MOMO-Logo-App.png';
 import cardLogo from '../../assets/card.png';
 import bankLogo from '../../assets/bank.png';
+import { Wallet } from 'lucide-react';
 import styles from './PaymentMethods.module.css';
 
-const PaymentMethods = ({ selectedPayment, onSelectPayment }) => {
+const PaymentMethods = ({ selectedPayment, onSelectPayment, walletBalance, walletLoading }) => {
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
     cardName: '',
@@ -108,6 +109,43 @@ const PaymentMethods = ({ selectedPayment, onSelectPayment }) => {
             <p className={styles.walletText}>
               Bạn sẽ được chuyển đến trang thanh toán của Ví MoMo
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Internal Wallet */}
+      <div
+        className={`${styles.paymentOption} ${selectedPayment === 'wallet' ? styles.selected : ''}`}
+        onClick={() => handleSelectPayment('wallet')}
+      >
+        <input
+          type="radio"
+          name="payment"
+          id="paymentWallet"
+          value="wallet"
+          checked={selectedPayment === 'wallet'}
+          onChange={() => {}}
+        />
+        <Wallet size={32} className={styles.walletIconSvg} />
+        <label htmlFor="paymentWallet">Ví Nội Bộ</label>
+      </div>
+
+      {selectedPayment === 'wallet' && (
+        <div className={styles.paymentDetails}>
+          <div className={styles.walletInfo}>
+            <Wallet size={24} className={styles.walletIcon} />
+            <div className={styles.walletBalanceInfo}>
+              {walletLoading ? (
+                <p className={styles.walletText}>Đang tải số dư...</p>
+              ) : (
+                <>
+                  <p className={styles.walletLabel}>Số dư hiện tại:</p>
+                  <p className={styles.walletBalance}>
+                    {new Intl.NumberFormat('vi-VN').format(walletBalance || 0)} ₫
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
