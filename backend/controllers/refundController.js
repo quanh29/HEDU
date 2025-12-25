@@ -2,6 +2,7 @@ import Refund from '../models/Refund.js';
 import Enrollment from '../models/Enrollment.js';
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
+import Earning from '../models/Earning.js';
 import pool from '../config/mysql.js';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -299,6 +300,30 @@ export const processRefund = async (req, res) => {
       } catch (enrollmentError) {
         console.error('Error deleting enrollment:', enrollmentError);
         refund.adminNote = (refund.adminNote || '') + '\n⚠️ Cảnh báo: Không thể xóa enrollment tự động. Vui lòng xóa thủ công.';
+      }
+
+      // Update earning status to refunded
+      try {
+        const earningUpdate = await Earning.updateMany(
+          {
+            order_id: refund.orderId.toString(),
+            course_id: refund.courseId,
+            status: 'pending'
+          },
+          {
+            status: 'refunded',
+            updated_at: new Date()
+          }
+        );
+        
+        if (earningUpdate.modifiedCount > 0) {
+          console.log(`✅ Updated ${earningUpdate.modifiedCount} earning(s) to refunded for course ${refund.courseId}`);
+        } else {
+          console.log(`⚠️ No pending earnings found for course ${refund.courseId} in order ${refund.orderId}`);
+        }
+      } catch (earningError) {
+        console.error('Error updating earning status:', earningError);
+        refund.adminNote = (refund.adminNote || '') + '\n⚠️ Cảnh báo: Không thể cập nhật earning status. Vui lòng xử lý thủ công.';
       }
     }
 

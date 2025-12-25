@@ -1,5 +1,6 @@
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
+import Earning from '../models/Earning.js';
 import pool from '../config/mysql.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -261,7 +262,39 @@ export const handleMoMoCallback = async (req, res) => {
           }
         }
 
-        // 6. Clear user's cart (MySQL)
+        // 6. Create earning records for each course
+        for (const item of orderItems) {
+          try {
+            // Get instructor_id from MySQL
+            const [courseResult] = await pool.query(
+              'SELECT instructor_id FROM Courses WHERE course_id = ?',
+              [item.courseId]
+            );
+
+            if (courseResult.length > 0) {
+              const instructorId = courseResult[0].instructor_id;
+              const amount = item.price;
+              const platformFee = amount * 0.1; // 10% platform fee
+              const netAmount = amount - platformFee;
+
+              await Earning.create({
+                instructor_id: instructorId,
+                course_id: item.courseId,
+                order_id: orderId,
+                amount: amount,
+                net_amount: netAmount,
+                status: 'pending',
+                clearance_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days later
+              });
+
+              console.log(`✅ Earning created for instructor ${instructorId}, course ${item.courseId}`);
+            }
+          } catch (earningError) {
+            console.error(`Error creating earning for course ${item.courseId}:`, earningError);
+          }
+        }
+
+        // 7. Clear user's cart (MySQL)
         const [cartResult] = await pool.query(
           'SELECT cart_id FROM Carts WHERE user_id = ?',
           [userId]
@@ -281,7 +314,7 @@ export const handleMoMoCallback = async (req, res) => {
         await updateOrderStatus(orderId, 'failed');
       }
 
-      // 7. Respond to MoMo
+      // 8. Respond to MoMo
       res.status(204).end();
 
     } catch (error) {

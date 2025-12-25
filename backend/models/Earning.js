@@ -1,10 +1,6 @@
 import mongoose from "mongoose";
 
 const EarningSchema = new mongoose.Schema({
-    _id: {
-        type: String,
-        required: true,
-    },
     instructor_id: {
         type: String,
         required: true
@@ -31,14 +27,6 @@ const EarningSchema = new mongoose.Schema({
         required: true
     },
     clearance_date:{
-        type: Date,
-        required: true
-    },
-    created_at: {
-        type: Date,
-        required: true
-    },
-    updated_at: {
         type: Date,
         required: true
     }
