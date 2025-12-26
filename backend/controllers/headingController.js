@@ -1,47 +1,42 @@
-import pool from '../config/mysql.js';
+import Heading from '../models/Heading.js';
+import Category from '../models/Category.js';
+import HeadingCategory from '../models/HeadingCategory.js';
 
 // Get all headings with their categories
 export const getAllHeadingsWithCategories = async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                h.heading_id,
-                h.title,
-                h.sub_title,
-                c.category_id,
-                c.title as category_title
-            FROM headings h
-            LEFT JOIN heading_category hc ON h.heading_id = hc.heading_id
-            LEFT JOIN categories c ON hc.category_id = c.category_id
-            ORDER BY h.heading_id, c.title
-        `;
+        // Get all headings
+        const headings = await Heading.find().lean();
         
-        const [rows] = await pool.query(query);
+        // Get all heading-category mappings
+        const headingCategories = await HeadingCategory.find()
+            .populate('category_id', 'title')
+            .lean();
         
         // Group categories by heading
         const headingsMap = {};
         
-        rows.forEach(row => {
-            if (!headingsMap[row.heading_id]) {
-                headingsMap[row.heading_id] = {
-                    heading_id: row.heading_id,
-                    title: row.title,
-                    sub_title: row.sub_title,
-                    categories: []
-                };
-            }
-            
-            if (row.category_id) {
-                headingsMap[row.heading_id].categories.push({
-                    category_id: row.category_id,
-                    title: row.category_title
+        headings.forEach(heading => {
+            headingsMap[heading._id] = {
+                heading_id: heading._id,
+                title: heading.title,
+                sub_title: heading.sub_title,
+                categories: []
+            };
+        });
+        
+        headingCategories.forEach(hc => {
+            if (headingsMap[hc.heading_id] && hc.category_id) {
+                headingsMap[hc.heading_id].categories.push({
+                    category_id: hc.category_id._id || hc.category_id,
+                    title: hc.category_id.title || ''
                 });
             }
         });
         
-        const headings = Object.values(headingsMap);
+        const result = Object.values(headingsMap);
         
-        res.status(200).json(headings);
+        res.status(200).json(result);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -51,8 +46,15 @@ export const getAllHeadingsWithCategories = async (req, res) => {
 // Get all categories
 export const getAllCategories = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM categories ORDER BY title');
-        res.status(200).json(rows);
+        const categories = await Category.find().sort({ title: 1 }).lean();
+        
+        // Convert _id to category_id for compatibility
+        const result = categories.map(cat => ({
+            category_id: cat._id,
+            title: cat.title
+        }));
+        
+        res.status(200).json(result);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

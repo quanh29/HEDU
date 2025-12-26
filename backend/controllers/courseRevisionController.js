@@ -349,16 +349,20 @@ export const approveRevision = async (req, res) => {
 
         // Cập nhật categories
         if (revision.categories && revision.categories.length > 0) {
+            // Import Labeling model nếu chưa có
+            const { default: Labeling } = await import('../models/Labeling.js');
+            
             // Xóa categories cũ
-            await pool.query('DELETE FROM Labeling WHERE course_id = ?', [courseId]);
+            await Labeling.deleteMany({ course_id: courseId });
             
             // Thêm categories mới
-            const categoryValues = revision.categories.map(catId => [catId, courseId]);
-            if (categoryValues.length > 0) {
-                await pool.query(
-                    'INSERT INTO Labeling (category_id, course_id) VALUES ?',
-                    [categoryValues]
-                );
+            const labelings = revision.categories.map(catId => ({
+                category_id: catId,
+                course_id: courseId
+            }));
+            
+            if (labelings.length > 0) {
+                await Labeling.insertMany(labelings);
             }
         }
 
