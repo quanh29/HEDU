@@ -1,23 +1,20 @@
-import pool from '../config/mysql.js';
+import Voucher from '../models/Voucher.js';
 
 export const getVoucherByCode = async (voucherCode) => {
-  const [rows] = await pool.query(
-    `SELECT voucher_code, voucher_type, amount, expire_at, created_at
-     FROM Vouchers
-     WHERE voucher_code = ?`,
-    [voucherCode]
-  );
-
-  return rows.length ? rows[0] : null;
+  const voucher = await Voucher.findOne({ voucher_code: voucherCode }).lean();
+  return voucher;
 };
 
 export const getActiveVouchers = async () => {
-  const [vouchers] = await pool.query(
-    `SELECT voucher_code, voucher_type, amount, expire_at, created_at
-     FROM Vouchers
-     WHERE expire_at IS NULL OR expire_at > NOW()
-     ORDER BY created_at DESC`
-  );
+  const vouchers = await Voucher.find({
+    $or: [
+      { expire_at: { $exists: false } },
+      { expire_at: null },
+      { expire_at: { $gt: new Date() } }
+    ]
+  })
+  .sort({ createdAt: -1 })
+  .lean();
 
   return vouchers;
 };

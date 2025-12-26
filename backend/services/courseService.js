@@ -1,4 +1,3 @@
-import pool from '../config/mysql.js';
 import { v4 as uuidv4 } from 'uuid';
 import Mux from '@mux/mux-node';
 // MongoDB models
@@ -9,6 +8,12 @@ import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
 import CourseRevision from '../models/CourseDraft.js';
+import User from '../models/User.js';
+import Category from '../models/Category.js';
+import Language from '../models/Language.js';
+import Level from '../models/Level.js';
+import Labeling from '../models/Labeling.js';
+import Rating from '../models/Rating.js';
 
 /**
  * Helper functions
@@ -20,6 +25,64 @@ function getFileType(url) {
 
 function getFileName(url) {
     return url.split('/').pop() || 'document';
+}
+
+/**
+ * Helper: Tính toán rating và reviewCount từ collection Ratings
+ */
+async function calculateCourseRatings(courseId) {
+    const ratings = await Rating.find({ course_id: courseId }).lean();
+    
+    if (ratings.length === 0) {
+        return {
+            rating: 0,
+            reviewCount: 0
+        };
+    }
+    
+    const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = totalRating / ratings.length;
+    
+    return {
+        rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
+        reviewCount: ratings.length
+    };
+}
+
+/**
+ * Helper: Tính toán ratings cho nhiều courses cùng lúc
+ */
+async function calculateMultipleCoursesRatings(courseIds) {
+    const ratings = await Rating.find({ course_id: { $in: courseIds } }).lean();
+    
+    // Group ratings by course_id
+    const ratingsMap = {};
+    courseIds.forEach(id => {
+        ratingsMap[id] = {
+            rating: 0,
+            reviewCount: 0,
+            ratings: []
+        };
+    });
+    
+    ratings.forEach(r => {
+        if (ratingsMap[r.course_id]) {
+            ratingsMap[r.course_id].ratings.push(r.rating);
+        }
+    });
+    
+    // Calculate averages
+    Object.keys(ratingsMap).forEach(courseId => {
+        const courseRatings = ratingsMap[courseId].ratings;
+        if (courseRatings.length > 0) {
+            const total = courseRatings.reduce((sum, r) => sum + r, 0);
+            ratingsMap[courseId].rating = Math.round((total / courseRatings.length) * 10) / 10;
+            ratingsMap[courseId].reviewCount = courseRatings.length;
+        }
+        delete ratingsMap[courseId].ratings; // Clean up
+    });
+    
+    return ratingsMap;
 }
 
 /**
@@ -64,45 +127,71 @@ async function deleteVideosWithMuxAssets(videoIds) {
  * Service: Lấy thông tin course theo ID (chỉ approved courses)
  */
 export const getCourseByIdService = async (courseId) => {
-    // Lấy thông tin course từ MySQL - chỉ lấy khóa học đã duyệt (approved)
-    const [rows] = await pool.query('SELECT * FROM Courses WHERE course_id = ? AND course_status = ?', [courseId, 'approved']);
+    // Lấy thông tin course từ MongoDB - chỉ lấy khóa học đã duyệt (approved)
+    const course = await Course.findOne({ _id: courseId, course_status: 'approved' }).lean();
     
-    if (rows.length === 0) {
+    if (!course) {
         return null;
     }
     
-    const course = rows[0];
+    // Calculate ratings from Ratings collection
+    const { rating, reviewCount } = await calculateCourseRatings(courseId);
     
-    // Lấy requirements và objectives từ MongoDB
-    const mongoCourse = await Course.findById(courseId).lean();
-    if (mongoCourse) {
-        course.requirements = mongoCourse.requirements;
-        course.objectives = mongoCourse.objectives;
-    }
-    
-    return course;
+    // Convert MongoDB field names to MySQL format for compatibility
+    return {
+        course_id: course._id,
+        title: course.title,
+        subTitle: course.sub_title,
+        des: course.description,
+        originalPrice: course.original_price,
+        currentPrice: course.current_price,
+        instructor_id: course.instructor_id,
+        lv_id: course.level_id,
+        lang_id: course.lang_id,
+        has_practice: course.has_practice,
+        has_certificate: course.has_certificate,
+        picture_url: course.thumbnail_url,
+        course_status: course.course_status,
+        requirements: course.requirements,
+        objectives: course.objectives,
+        rating: rating,
+        reviewCount: reviewCount
+    };
 };
 
 /**
  * Service: Lấy thông tin course theo ID (không phân biệt status - cho management)
  */
 export const getCourseByIdForManagementService = async (courseId) => {
-    const [rows] = await pool.query('SELECT * FROM Courses WHERE course_id = ?', [courseId]);
+    const course = await Course.findById(courseId).lean();
     
-    if (rows.length === 0) {
+    if (!course) {
         return null;
     }
     
-    const course = rows[0];
+    // Calculate ratings from Ratings collection
+    const { rating, reviewCount } = await calculateCourseRatings(courseId);
     
-    // Lấy requirements và objectives từ MongoDB
-    const mongoCourse = await Course.findById(courseId).lean();
-    if (mongoCourse) {
-        course.requirements = mongoCourse.requirements;
-        course.objectives = mongoCourse.objectives;
-    }
-    
-    return course;
+    // Convert MongoDB field names to MySQL format for compatibility
+    return {
+        course_id: course._id,
+        title: course.title,
+        subTitle: course.sub_title,
+        des: course.description,
+        originalPrice: course.original_price,
+        currentPrice: course.current_price,
+        instructor_id: course.instructor_id,
+        lv_id: course.level_id,
+        lang_id: course.lang_id,
+        has_practice: course.has_practice,
+        has_certificate: course.has_certificate,
+        picture_url: course.thumbnail_url,
+        course_status: course.course_status,
+        requirements: course.requirements,
+        objectives: course.objectives,
+        rating: rating,
+        reviewCount: reviewCount
+    };
 };
 
 /**
@@ -113,122 +202,207 @@ export const searchCoursesService = async (filters) => {
     const limit = 12;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT DISTINCT c.*, u.fName, u.lName FROM Courses c JOIN Users u ON c.instructor_id = u.user_id';
-    let whereClauses = ['c.course_status = ?']; // Chỉ lấy khóa học đã duyệt
-    let params = ['approved'];
-    let joinLabeling = false;
-
+    // Build MongoDB query
+    let query = { course_status: 'approved' }; // Chỉ lấy khóa học đã duyệt
+    
     // Title search
     if (title) {
         const keywords = title.trim().split('-').filter(Boolean);
         if (keywords.length > 0) {
-            const titleClauses = keywords.map(() => 'c.title LIKE ?');
-            whereClauses.push(`(${titleClauses.join(' OR ')})`);
-            params.push(...keywords.map(kw => `%${kw}%`));
+            query.$or = keywords.map(kw => ({
+                title: { $regex: kw, $options: 'i' }
+            }));
         }
     }
 
-    // Category search
-    if (category) {
-        if (!joinLabeling) {
-            query += ` JOIN Labeling l ON c.course_id = l.course_id`;
-            joinLabeling = true;
-        }
-        query += ` JOIN Categories cat ON l.category_id = cat.category_id`;
-        whereClauses.push('cat.title = ?');
-        params.push(category);
-    }
-
+    // Practice and Certificate filters
     if (prac !== undefined) {
-        whereClauses.push('c.has_practice = ?');
-        params.push(prac === 'true' ? 1 : 0);
+        query.has_practice = prac === 'true';
     }
     if (cert !== undefined) {
-        whereClauses.push('c.has_certificate = ?');
-        params.push(cert === 'true' ? 1 : 0);
+        query.has_certificate = cert === 'true';
     }
 
-    // Tag search
-    if (tag) {
-        const tags = tag.split(',');
-        if (!joinLabeling) {
-            query += ` JOIN Labeling l ON c.course_id = l.course_id`;
-            joinLabeling = true;
-        }
-        if (!query.includes('JOIN Categories cat')) {
-            query += ` JOIN Categories cat ON l.category_id = cat.category_id`;
-        }
-        whereClauses.push(`cat.title IN (?)`);
-        params.push(tags);
-    }
-
+    // Level filter
     if (level && level !== 'all') {
-        query += ` JOIN Levels lv ON c.lv_id = lv.lv_id`;
-        whereClauses.push('lv.title = ?');
-        params.push(level);
+        const levelDoc = await Level.findOne({ title: level }).lean();
+        if (levelDoc) {
+            query.level_id = levelDoc._id;
+        }
     }
 
+    // Language filter
     if (language) {
-        query += ` JOIN Languages lg ON c.lang_id = lg.lang_id`;
-        whereClauses.push('lg.title = ?');
-        params.push(language);
+        const langDoc = await Language.findOne({ title: language }).lean();
+        if (langDoc) {
+            query.lang_id = langDoc._id;
+        }
     }
 
+    // Price filter
     if (price) {
         switch (price) {
             case 'free':
-                whereClauses.push('c.currentPrice = 0');
+                query.current_price = 0;
                 break;
             case 'paid':
-                whereClauses.push('c.currentPrice > 0');
+                query.current_price = { $gt: 0 };
                 break;
             case 'under-500k':
-                whereClauses.push('c.currentPrice < 500000');
+                query.current_price = { $lt: 500000 };
                 break;
             case '500k-1m':
-                whereClauses.push('c.currentPrice BETWEEN 500000 AND 1000000');
+                query.current_price = { $gte: 500000, $lte: 1000000 };
                 break;
             case 'over-1m':
-                whereClauses.push('c.currentPrice > 1000000');
+                query.current_price = { $gt: 1000000 };
                 break;
         }
     }
 
-    if (whereClauses.length > 0) {
-        query += ' WHERE ' + whereClauses.join(' AND ');
+    // Category or Tag filter
+    let filteredCourseIds = null;
+    if (category || tag) {
+        const categoryQuery = {};
+        
+        if (category) {
+            const categoryDoc = await Category.findOne({ title: category }).lean();
+            if (categoryDoc) {
+                categoryQuery.category_id = categoryDoc._id;
+            }
+        }
+        
+        if (tag) {
+            const tags = tag.split(',');
+            const categoryDocs = await Category.find({ title: { $in: tags } }).lean();
+            if (categoryDocs.length > 0) {
+                categoryQuery.category_id = { $in: categoryDocs.map(c => c._id) };
+            }
+        }
+        
+        // Get course IDs from Labeling
+        const labelings = await Labeling.find(categoryQuery).lean();
+        filteredCourseIds = labelings.map(l => l.course_id);
+        
+        if (filteredCourseIds.length > 0) {
+            query._id = { $in: filteredCourseIds };
+        } else {
+            // No courses match category/tag filter
+            return [];
+        }
     }
 
-    // Sorting
-    let orderBy = '';
-    switch (sort) {
-        case 'rating':
-            orderBy = 'c.rating DESC';
-            break;
-        case 'price-asc':
-            orderBy = 'c.currentPrice ASC';
-            break;
-        case 'price-desc':
-            orderBy = 'c.currentPrice DESC';
-            break;
-        case 'newest':
-            orderBy = 'c.course_id DESC';
-            break;
-        default:
-            break;
+    // Sorting logic
+    let courses;
+    let needsRatingSort = sort === 'rating';
+    
+    if (needsRatingSort) {
+        // Nếu sort theo rating: query tất cả courses mà không skip/limit
+        courses = await Course.find(query).lean();
+        
+        // Calculate ratings for all courses
+        const courseIds = courses.map(c => c._id);
+        const ratingsMap = await calculateMultipleCoursesRatings(courseIds);
+        
+        // Populate instructor information
+        const instructorIds = [...new Set(courses.map(c => c.instructor_id))];
+        const instructors = await User.find({ _id: { $in: instructorIds } }).lean();
+        const instructorMap = {};
+        instructors.forEach(inst => {
+            instructorMap[inst._id] = inst;
+        });
+        
+        // Map courses với ratings
+        let coursesWithRatings = courses.map(c => {
+            const instructor = instructorMap[c.instructor_id] || {};
+            const courseRatings = ratingsMap[c._id] || { rating: 0, reviewCount: 0 };
+            
+            return {
+                course_id: c._id,
+                title: c.title,
+                subTitle: c.sub_title,
+                des: c.description,
+                rating: courseRatings.rating,
+                reviewCount: courseRatings.reviewCount,
+                originalPrice: c.original_price,
+                currentPrice: c.current_price,
+                instructor_id: c.instructor_id,
+                lv_id: c.level_id,
+                lang_id: c.lang_id,
+                has_practice: c.has_practice,
+                has_certificate: c.has_certificate,
+                picture_url: c.thumbnail_url,
+                course_status: c.course_status,
+                instructors: [{ fullName: instructor.full_name || 'Giảng viên' }]
+            };
+        });
+        
+        // Sort by rating in memory
+        coursesWithRatings.sort((a, b) => b.rating - a.rating);
+        
+        // Apply pagination
+        return coursesWithRatings.slice(offset, offset + limit);
+        
+    } else {
+        // Sort khác: sort trong database như bình thường
+        let sortOption = {};
+        switch (sort) {
+            case 'price-asc':
+                sortOption = { current_price: 1 };
+                break;
+            case 'price-desc':
+                sortOption = { current_price: -1 };
+                break;
+            case 'newest':
+                sortOption = { createdAt: -1 };
+                break;
+            default:
+                sortOption = { _id: -1 };
+        }
+
+        // Execute query with sort and pagination
+        courses = await Course.find(query)
+            .sort(sortOption)
+            .skip(offset)
+            .limit(limit)
+            .lean();
+
+        // Populate instructor information
+        const instructorIds = [...new Set(courses.map(c => c.instructor_id))];
+        const instructors = await User.find({ _id: { $in: instructorIds } }).lean();
+        const instructorMap = {};
+        instructors.forEach(inst => {
+            instructorMap[inst._id] = inst;
+        });
+
+        // Calculate ratings for all courses
+        const courseIds = courses.map(c => c._id);
+        const ratingsMap = await calculateMultipleCoursesRatings(courseIds);
+
+        return courses.map(c => {
+            const instructor = instructorMap[c.instructor_id] || {};
+            const courseRatings = ratingsMap[c._id] || { rating: 0, reviewCount: 0 };
+            
+            return {
+                course_id: c._id,
+                title: c.title,
+                subTitle: c.sub_title,
+                des: c.description,
+                rating: courseRatings.rating,
+                reviewCount: courseRatings.reviewCount,
+                originalPrice: c.original_price,
+                currentPrice: c.current_price,
+                instructor_id: c.instructor_id,
+                lv_id: c.level_id,
+                lang_id: c.lang_id,
+                has_practice: c.has_practice,
+                has_certificate: c.has_certificate,
+                picture_url: c.thumbnail_url,
+                course_status: c.course_status,
+                instructors: [{ fullName: instructor.full_name || 'Giảng viên' }]
+            };
+        });
     }
-    if (orderBy) {
-        query += ` ORDER BY ${orderBy}`;
-    }
-
-    query += ' LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-
-    const [courses] = await pool.query(query, params);
-
-    return courses.map(c => ({
-        ...c,
-        instructors: [{ fullName: `${c.fName} ${c.lName}` }]
-    }));
 };
 
 /**
@@ -242,10 +416,7 @@ export const createCourseService = async (courseData) => {
         sections
     } = courseData;
 
-    const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
-
         const course_id = uuidv4();
         
         console.log('🆕 [createCourseService] Creating course:', {
@@ -255,29 +426,36 @@ export const createCourseService = async (courseData) => {
             sectionsCount: sections?.length || 0
         });
         
-        // Lưu vào MySQL
-        const courseQuery = `INSERT INTO Courses (course_id, title, subTitle, des, originalPrice, currentPrice, instructor_id, lv_id, lang_id, has_practice, has_certificate, picture_url, course_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        await connection.query(courseQuery, [course_id, title, subTitle, des, originalPrice, currentPrice, instructor_id, lv_id, lang_id, has_practice, has_certificate, picture_url, course_status]);
-
-        // Lưu categories vào Labeling
-        if (categories && categories.length > 0) {
-            for (const category_id of categories) {
-                const labelingQuery = `INSERT INTO Labeling (category_id, course_id) VALUES (?, ?)`;
-                await connection.query(labelingQuery, [category_id, course_id]);
-            }
-        }
-
-        await connection.commit();
-
-        // Lưu requirements và objectives vào MongoDB
+        // Lưu vào MongoDB
         const mongoCourse = new Course({
             _id: course_id,
-            requirements,
-            objectives
+            title: title,
+            sub_title: subTitle || '',
+            description: des || '',
+            original_price: originalPrice || 0,
+            current_price: currentPrice || 0,
+            instructor_id: instructor_id,
+            level_id: lv_id || 'L1',
+            lang_id: lang_id || 'lang1',
+            has_practice: has_practice || false,
+            has_certificate: has_certificate || false,
+            thumbnail_url: picture_url || '',
+            course_status: course_status,
+            requirements: requirements || [],
+            objectives: objectives || []
         });
         await mongoCourse.save();
         
         console.log('✅ [createCourseService] MongoDB Course created');
+
+        // Lưu categories vào Labeling
+        if (categories && categories.length > 0) {
+            const labelings = categories.map(category_id => ({
+                category_id,
+                course_id
+            }));
+            await Labeling.insertMany(labelings);
+        }
 
         // Tạo sections và lessons nếu có
         if (sections && sections.length > 0) {
@@ -290,11 +468,8 @@ export const createCourseService = async (courseData) => {
 
         return { course_id, status: course_status };
     } catch (error) {
-        await connection.rollback();
         console.error('❌ [createCourseService] Error:', error);
         throw error;
-    } finally {
-        connection.release();
     }
 };
 
@@ -302,58 +477,62 @@ export const createCourseService = async (courseData) => {
  * Service: Lấy full course content (public - approved only)
  */
 export const getFullCourseContentService = async (courseId) => {
-    // Lấy course từ MySQL
-    const [courseRows] = await pool.query(`
-        SELECT c.*, 
-               u.user_id as instructor_user_id, 
-               u.fName, 
-               u.lName, 
-               u.ava as avaUrl, 
-               u.headline,
-               lv.title as level_title,
-               lg.title as language_title
-        FROM Courses c 
-        JOIN Users u ON c.instructor_id = u.user_id 
-        LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
-        LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
-        WHERE c.course_id = ? AND c.course_status = ?`, [courseId, 'approved']);
+    // Lấy course từ MongoDB
+    const mongoCourse = await Course.findOne({ _id: courseId, course_status: 'approved' }).lean();
 
-    if (courseRows.length === 0) {
+    if (!mongoCourse) {
         return null;
     }
 
-    const course = courseRows[0];
+    // Get instructor info
+    const instructor = await User.findById(mongoCourse.instructor_id).lean();
     
-    // Lấy requirements và objectives từ MongoDB
-    const mongoCourse = await Course.findById(courseId).lean();
-    if (mongoCourse) {
-        course.requirements = mongoCourse.requirements;
-        course.objectives = mongoCourse.objectives;
-    }
+    // Get level and language info
+    const [level, language] = await Promise.all([
+        Level.findById(mongoCourse.level_id).lean(),
+        Language.findById(mongoCourse.lang_id).lean()
+    ]);
     
-    // Map field names
-    course.thumbnail = course.picture_url;
-    course.description = course.des;
-    course.hasPractice = course.has_practice === 1;
-    course.hasCertificate = course.has_certificate === 1;
-    course.level = course.level_title;
-    course.language = course.language_title;
-    
-    course.instructors = [{
-        _id: course.instructor_user_id,
-        fullName: `${course.fName} ${course.lName}`,
-        avaUrl: course.avaUrl,
-        headline: course.headline || '',
-    }];
+    // Calculate ratings from Ratings collection
+    const { rating, reviewCount } = await calculateCourseRatings(courseId);
+
+    // Map to expected format
+    const course = {
+        course_id: mongoCourse._id,
+        title: mongoCourse.title,
+        subTitle: mongoCourse.sub_title,
+        des: mongoCourse.description,
+        thumbnail: mongoCourse.thumbnail_url,
+        description: mongoCourse.description,
+        originalPrice: mongoCourse.original_price,
+        currentPrice: mongoCourse.current_price,
+        rating: rating,
+        reviewCount: reviewCount,
+        hasPractice: mongoCourse.has_practice,
+        hasCertificate: mongoCourse.has_certificate,
+        course_status: mongoCourse.course_status,
+        level: level?.title || '',
+        language: language?.title || '',
+        requirements: mongoCourse.requirements,
+        objectives: mongoCourse.objectives,
+        instructor_id: mongoCourse.instructor_id,
+        instructors: [{
+            _id: mongoCourse.instructor_id,
+            fullName: instructor ? instructor.full_name : '',
+            avaUrl: instructor?.profile_image_url || '',
+            headline: instructor?.headline || '',
+        }]
+    };
 
     // Lấy categories
-    const [categories] = await pool.query(`
-        SELECT cat.category_id, cat.title 
-        FROM Labeling l 
-        JOIN Categories cat ON l.category_id = cat.category_id 
-        WHERE l.course_id = ?`, [courseId]);
+    const labelings = await Labeling.find({ course_id: courseId }).lean();
+    const categoryIds = labelings.map(l => l.category_id);
+    const categories = await Category.find({ _id: { $in: categoryIds } }).lean();
     
-    course.categories = categories;
+    course.categories = categories.map(cat => ({
+        category_id: cat._id,
+        title: cat.title
+    }));
 
     // Lấy sections với Lesson layer
     const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
@@ -422,12 +601,7 @@ export const getFullCourseContentService = async (courseId) => {
                     content = lesson.video;
                     contentData = {
                         videoId: content._id,
-                        playbackId: content.playbackId || '',
-                        assetId: content.assetId || '',
-                        uploadId: content.uploadId || '',
-                        duration: content.duration || 0,
-                        status: content.status || 'processing',
-                        contentUrl: content.contentUrl || ''
+                        duration: content.duration || 0
                     };
                 } else if (lesson.contentType === 'material' && lesson.material) {
                     content = lesson.material;
@@ -436,8 +610,6 @@ export const getFullCourseContentService = async (courseId) => {
                         fileName: content.fileName || '',
                         fileType: content.fileType || '',
                         fileSize: content.fileSize || 0,
-                        publicId: content.publicId || '',
-                        contentUrl: content.contentUrl || ''
                     };
                 } else if (lesson.contentType === 'quiz' && lesson.quiz) {
                     content = lesson.quiz;
@@ -445,7 +617,6 @@ export const getFullCourseContentService = async (courseId) => {
                         quizId: content._id,
                         passingScore: content.passingScore || 70,
                         timeLimit: content.timeLimit || null,
-                        questions: content.questions || []
                     };
                 }
 
@@ -471,11 +642,7 @@ export const getFullCourseContentService = async (courseId) => {
                 contentType: 'video',
                 order: v.order || 0,
                 videoId: v._id,
-                playbackId: v.playbackId || '',
-                assetId: v.assetId || '',
                 duration: v.duration || 0,
-                status: v.status || 'processing',
-                contentUrl: v.contentUrl || '',
                 createdAt: v.createdAt,
                 updatedAt: v.updatedAt
             }));
@@ -492,8 +659,6 @@ export const getFullCourseContentService = async (courseId) => {
                 fileName: m.fileName || '',
                 fileType: m.fileType || '',
                 fileSize: m.fileSize || 0,
-                publicId: m.publicId || '',
-                contentUrl: m.contentUrl || '',
                 createdAt: m.createdAt,
                 updatedAt: m.updatedAt
             }));
@@ -509,7 +674,6 @@ export const getFullCourseContentService = async (courseId) => {
                 quizId: q._id,
                 passingScore: q.passingScore || 70,
                 timeLimit: q.timeLimit || null,
-                questions: q.questions || [],
                 createdAt: q.createdAt,
                 updatedAt: q.updatedAt
             }));
@@ -545,34 +709,19 @@ export const getFullCourseContentService = async (courseId) => {
  * Service: Lấy course content cho enrolled users (với full data)
  */
 export const getCourseContentForEnrolledUserService = async (courseId) => {
-    // Lấy course từ MySQL
-    const [courseRows] = await pool.query(`
-        SELECT c.*, 
-               u.user_id as instructor_user_id, 
-               u.fName, 
-               u.lName, 
-               u.ava as avaUrl, 
-               u.headline,
-               lv.title as level_title,
-               lg.title as language_title
-        FROM Courses c 
-        JOIN Users u ON c.instructor_id = u.user_id 
-        LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
-        LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
-        WHERE c.course_id = ? AND c.course_status = ?`, [courseId, 'approved']);
+    // Lấy course từ MongoDB
+    const mongoCourse = await Course.findOne({ _id: courseId, course_status: 'approved' }).lean();
 
-    if (courseRows.length === 0) {
+    if (!mongoCourse) {
         return null;
     }
 
-    const course = courseRows[0];
-    
-    // Lấy requirements và objectives từ MongoDB
-    const mongoCourse = await Course.findById(courseId).lean();
-    if (mongoCourse) {
-        course.requirements = mongoCourse.requirements;
-        course.objectives = mongoCourse.objectives;
-    }
+    const course = {
+        course_id: mongoCourse._id,
+        title: mongoCourse.title,
+        des: mongoCourse.description,
+        picture_url: mongoCourse.thumbnail_url
+    };
 
     // Lấy sections
     const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();
@@ -675,31 +824,56 @@ export const getCourseContentForEnrolledUserService = async (courseId) => {
  * Service: Lấy courses của instructor
  */
 export const getInstructorCoursesService = async (instructorId, page = 1, limit = 12, offset = 0, status = null) => {
-    let query = 'SELECT c.*, u.fName, u.lName FROM Courses c JOIN Users u ON c.instructor_id = u.user_id WHERE c.instructor_id = ?';
-    let params = [instructorId];
+    let query = { instructor_id: instructorId };
 
     // Lọc theo status nếu có
     if (status) {
-        query += ' AND c.course_status = ?';
-        params.push(status);
+        query.course_status = status;
     }
 
-    query += ' ORDER BY c.course_id DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    const courses = await Course.find(query)
+        .sort({ _id: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean();
 
-    const [courses] = await pool.query(query, params);
+    // Get instructor info
+    const instructor = await User.findById(instructorId).lean();
+    const fullName = instructor ? `${instructor.fName || ''} ${instructor.lName || ''}`.trim() : '';
+
+    // Calculate ratings for all courses
+    const courseIds = courses.map(c => c._id);
+    const ratingsMap = await calculateMultipleCoursesRatings(courseIds);
 
     // Check for pending revisions for each course
     const coursesWithRevisionStatus = await Promise.all(
         courses.map(async (c) => {
             const pendingRevision = await CourseRevision.findOne({
-                courseId: c.course_id,
+                courseId: c._id,
                 status: 'pending'
             }).lean();
+            
+            const courseRatings = ratingsMap[c._id] || { rating: 0, reviewCount: 0 };
 
             return {
-                ...c,
-                instructors: [{ fullName: `${c.fName} ${c.lName}` }],
+                course_id: c._id,
+                title: c.title,
+                subTitle: c.sub_title,
+                des: c.description,
+                originalPrice: c.original_price,
+                currentPrice: c.current_price,
+                instructor_id: c.instructor_id,
+                lv_id: c.level_id,
+                lang_id: c.lang_id,
+                has_practice: c.has_practice,
+                has_certificate: c.has_certificate,
+                picture_url: c.thumbnail_url,
+                course_status: c.course_status,
+                rating: courseRatings.rating,
+                reviewCount: courseRatings.reviewCount,
+                fName: instructor?.fName || '',
+                lName: instructor?.lName || '',
+                instructors: [{ fullName }],
                 hasPendingRevision: !!pendingRevision,
                 pendingRevisionId: pendingRevision?._id || null
             };
@@ -713,12 +887,12 @@ export const getInstructorCoursesService = async (instructorId, page = 1, limit 
  * Service: Cập nhật status của course
  */
 export const updateCourseStatusService = async (courseId, course_status) => {
-    const [result] = await pool.query(
-        'UPDATE Courses SET course_status = ? WHERE course_id = ?',
-        [course_status, courseId]
+    const result = await Course.updateOne(
+        { _id: courseId },
+        { $set: { course_status } }
     );
 
-    return result.affectedRows;
+    return result.modifiedCount;
 };
 
 /**

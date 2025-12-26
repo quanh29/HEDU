@@ -9,7 +9,7 @@ export const getCourseRatings = async (req, res) => {
         const { courseId } = req.params;
         
         const ratings = await Rating.find({ course_id: courseId })
-            .populate('user_id', 'username email')
+            .populate('user_id', 'full_name profile_image_url')
             .sort({ createdAt: -1 });
         
         res.status(200).json({

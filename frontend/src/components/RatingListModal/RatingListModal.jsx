@@ -48,8 +48,8 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
 
         // Sort by date
         filtered.sort((a, b) => {
-            const dateA = new Date(a.created_at);
-            const dateB = new Date(b.created_at);
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
             return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
         });
 
@@ -74,29 +74,11 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
-        const now = new Date();
-        const diffTime = Math.abs(now - date);
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) {
-            return 'Hôm nay';
-        } else if (diffDays === 1) {
-            return 'Hôm qua';
-        } else if (diffDays < 7) {
-            return `${diffDays} ngày trước`;
-        } else if (diffDays < 30) {
-            const weeks = Math.floor(diffDays / 7);
-            return `${weeks} tuần trước`;
-        } else if (diffDays < 365) {
-            const months = Math.floor(diffDays / 30);
-            return `${months} tháng trước`;
-        } else {
-            return date.toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        }
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
     };
 
     const getStarCount = (star) => {
@@ -180,32 +162,32 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
                         </div>
                     ) : (
                         filteredRatings.map((rating) => (
-                            <div key={rating.rating_id} className={styles.ratingCard}>
+                            <div key={rating._id} className={styles.ratingCard}>
                                 <div className={styles.ratingHeader}>
                                     <div className={styles.userInfo}>
                                         <img
-                                            src={rating.ava || 'https://via.placeholder.com/48'}
-                                            alt={`${rating.fName} ${rating.lName}`}
+                                            src={rating.user_id?.profile_image_url || rating.user_id?.ava || ''}
+                                            alt={rating.user_id?.full_name  || 'User'}
                                             className={styles.userAvatar}
                                             onError={(e) => {
-                                                e.target.src = 'https://via.placeholder.com/48';
+                                                e.target.src = '';
                                             }}
                                         />
                                         <div className={styles.userDetails}>
                                             <div className={styles.userName}>
-                                                {rating.fName} {rating.lName}
+                                                {rating.user_id.full_name || 'Học viên'}
                                             </div>
                                             <div className={styles.ratingMeta}>
                                                 {renderStars(rating.rating)}
                                                 <span className={styles.ratingDate}>
-                                                    • {formatDate(rating.created_at)}
+                                                    • {formatDate(rating.createdAt)}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                {rating.user_comment && (
-                                    <p className={styles.ratingComment}>{rating.user_comment}</p>
+                                {rating.comment && (
+                                    <p className={styles.ratingComment}>{rating.comment}</p>
                                 )}
                             </div>
                         ))

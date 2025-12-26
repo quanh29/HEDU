@@ -328,22 +328,29 @@ const Card = ({
             marginBottom: '12px'
           }}
         >
-          {instructors.map((instructor, index) => (
-            <span 
-              key={index}
-              style={{
-                background: '#333333',
-                color: 'white',
-                padding: '3px 10px',
-                borderRadius: '20px',
-                fontSize: '11px',
-                fontWeight: 500,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {instructor.fullName || instructor}
-            </span>
-          ))}
+          {instructors.map((instructor, index) => {
+            // Handle both object with fullName property and direct string
+            const displayName = typeof instructor === 'object' && instructor !== null
+              ? (instructor.fullName || 'Giảng viên')
+              : (instructor || 'Giảng viên');
+            
+            return (
+              <span 
+                key={index}
+                style={{
+                  background: '#333333',
+                  color: 'white',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {displayName}
+              </span>
+            );
+          })}
         </div>
         
         <div 

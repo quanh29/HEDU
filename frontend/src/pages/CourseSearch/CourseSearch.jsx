@@ -123,9 +123,10 @@ const CourseSearch = () => {
 
       const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/course/search?${params.toString()}`);
       
-      // Extract courses from response (backend returns array of {course, score})
-      const coursesData = response.data.map(item => item.course || item);
-      setCourses(coursesData);
+      console.log('Courses fetched:', response.data);
+      
+      // Backend returns array of courses directly
+      setCourses(response.data || []);
     } catch (err) {
       console.error('Error fetching courses:', err);
       setError('Không thể tải dữ liệu khóa học. Vui lòng thử lại.');

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { courseDetailDummy } from './coursepage_dummydata';
 import Carousel from '../components/Carousel/Carousel';
 import { courses as relatedCourses } from '../assets/dummyData';
 import RatingListModal from '../components/RatingListModal/RatingListModal';
