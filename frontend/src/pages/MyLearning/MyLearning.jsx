@@ -65,9 +65,7 @@ function MyLearning() {
               : 0;
 
             // Format instructor name
-            const instructorName = course.fName && course.lName 
-              ? `${course.fName} ${course.lName}`
-              : 'Chưa có giảng viên';
+            const instructorName = course.full_name;
 
             return {
               id: course.course_id,

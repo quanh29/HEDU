@@ -964,7 +964,7 @@ export const importCourseDataService = async (courses) => {
 };
 
 /**
- * Service: Update course (MySQL + MongoDB)
+ * Service: Update course (MongoDB)
  */
 export const updateCourseService = async (courseId, courseData) => {
     const { 
@@ -974,61 +974,40 @@ export const updateCourseService = async (courseId, courseData) => {
         sections
     } = courseData;
 
-    const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
+        // Build update object for MongoDB
+        const updateObj = {};
+        
+        if (title !== undefined) updateObj.title = title;
+        if (subTitle !== undefined) updateObj.sub_title = subTitle;
+        if (des !== undefined) updateObj.description = des;
+        if (originalPrice !== undefined) updateObj.original_price = originalPrice;
+        if (currentPrice !== undefined) updateObj.current_price = currentPrice;
+        if (lv_id !== undefined) updateObj.level_id = lv_id;
+        if (lang_id !== undefined) updateObj.lang_id = lang_id;
+        if (has_practice !== undefined) updateObj.has_practice = has_practice;
+        if (has_certificate !== undefined) updateObj.has_certificate = has_certificate;
+        if (picture_url !== undefined) updateObj.thumbnail_url = picture_url;
+        if (course_status !== undefined) updateObj.course_status = course_status;
+        if (requirements !== undefined) updateObj.requirements = requirements;
+        if (objectives !== undefined) updateObj.objectives = objectives;
 
-        // Cập nhật MySQL
-        const updateFields = [];
-        const updateValues = [];
-
-        if (title !== undefined) { updateFields.push('title = ?'); updateValues.push(title); }
-        if (subTitle !== undefined) { updateFields.push('subTitle = ?'); updateValues.push(subTitle); }
-        if (des !== undefined) { updateFields.push('des = ?'); updateValues.push(des); }
-        if (originalPrice !== undefined) { updateFields.push('originalPrice = ?'); updateValues.push(originalPrice); }
-        if (currentPrice !== undefined) { updateFields.push('currentPrice = ?'); updateValues.push(currentPrice); }
-        if (lv_id !== undefined) { updateFields.push('lv_id = ?'); updateValues.push(lv_id); }
-        if (lang_id !== undefined) { updateFields.push('lang_id = ?'); updateValues.push(lang_id); }
-        if (has_practice !== undefined) { updateFields.push('has_practice = ?'); updateValues.push(has_practice); }
-        if (has_certificate !== undefined) { updateFields.push('has_certificate = ?'); updateValues.push(has_certificate); }
-        if (picture_url !== undefined) { updateFields.push('picture_url = ?'); updateValues.push(picture_url); }
-        if (course_status !== undefined) { updateFields.push('course_status = ?'); updateValues.push(course_status); }
-
-        if (updateFields.length > 0) {
-            updateValues.push(courseId);
-            const courseQuery = `UPDATE Courses SET ${updateFields.join(', ')} WHERE course_id = ?`;
-            await connection.query(courseQuery, updateValues);
+        // Cập nhật course trong MongoDB
+        if (Object.keys(updateObj).length > 0) {
+            await Course.findByIdAndUpdate(courseId, { $set: updateObj });
         }
 
         // Cập nhật categories nếu có
         if (categories && categories.length > 0) {
             // Xóa categories cũ
-            await connection.query('DELETE FROM Labeling WHERE course_id = ?', [courseId]);
+            await Labeling.deleteMany({ course_id: courseId });
             
             // Thêm categories mới
-            for (const category_id of categories) {
-                await connection.query('INSERT INTO Labeling (category_id, course_id) VALUES (?, ?)', [category_id, courseId]);
-            }
-        }
-
-        await connection.commit();
-
-        // Cập nhật MongoDB
-        if (requirements !== undefined || objectives !== undefined) {
-            const mongoCourse = await Course.findById(courseId);
-            if (mongoCourse) {
-                if (requirements !== undefined) mongoCourse.requirements = requirements;
-                if (objectives !== undefined) mongoCourse.objectives = objectives;
-                await mongoCourse.save();
-            } else {
-                // Tạo mới nếu chưa có
-                const newMongoCourse = new Course({
-                    _id: courseId,
-                    requirements: requirements || [],
-                    objectives: objectives || []
-                });
-                await newMongoCourse.save();
-            }
+            const labelings = categories.map(category_id => ({
+                category_id,
+                course_id: courseId
+            }));
+            await Labeling.insertMany(labelings);
         }
 
         // Cập nhật sections nếu có
@@ -1038,10 +1017,8 @@ export const updateCourseService = async (courseId, courseData) => {
 
         return { success: true, course_id: courseId };
     } catch (error) {
-        await connection.rollback();
+        console.error('Error updating course:', error);
         throw error;
-    } finally {
-        connection.release();
     }
 };
 
@@ -1337,21 +1314,15 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
 };
 
 /**
- * Service: Delete course (MySQL + MongoDB)
+ * Service: Delete course (MongoDB)
  */
 export const deleteCourseService = async (courseId) => {
-    const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
-
-        // Xóa từ MySQL
-        await connection.query('DELETE FROM Labeling WHERE course_id = ?', [courseId]);
-        await connection.query('DELETE FROM Courses WHERE course_id = ?', [courseId]);
-
-        await connection.commit();
-
-        // Xóa từ MongoDB
+        // Xóa course từ MongoDB
         await Course.findByIdAndDelete(courseId);
+        
+        // Xóa categories (Labeling)
+        await Labeling.deleteMany({ course_id: courseId });
         
         // Lấy tất cả sections của course
         const sections = await Section.find({ course_id: courseId }).lean();
@@ -1377,10 +1348,8 @@ export const deleteCourseService = async (courseId) => {
 
         return { success: true, message: 'Course deleted successfully' };
     } catch (error) {
-        await connection.rollback();
+        console.error('Error deleting course:', error);
         throw error;
-    } finally {
-        connection.release();
     }
 };
 
@@ -1388,40 +1357,48 @@ export const deleteCourseService = async (courseId) => {
  * Service: Get full course data for management (bao gồm sections và lessons)
  */
 export const getFullCourseDataForManagementService = async (courseId) => {
-    // Lấy course từ MySQL
-    const [courseRows] = await pool.query(`
-        SELECT c.*, 
-               lv.title as level_title,
-               lg.title as language_title
-        FROM Courses c 
-        LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
-        LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
-        WHERE c.course_id = ?`, [courseId]);
+    // Lấy course từ MongoDB
+    const mongoCourse = await Course.findById(courseId).lean();
 
-    if (courseRows.length === 0) {
+    if (!mongoCourse) {
         return null;
     }
 
-    const course = courseRows[0];
-    
-    // Lấy requirements và objectives từ MongoDB
-    const mongoCourse = await Course.findById(courseId).lean();
-    if (mongoCourse) {
-        course.requirements = mongoCourse.requirements || [];
-        course.objectives = mongoCourse.objectives || [];
-    } else {
-        course.requirements = [];
-        course.objectives = [];
-    }
+    // Lấy level và language info
+    const [level, language] = await Promise.all([
+        Level.findById(mongoCourse.level_id).lean(),
+        Language.findById(mongoCourse.lang_id).lean()
+    ]);
 
-    // Lấy categories
-    const [categories] = await pool.query(`
-        SELECT cat.category_id, cat.title 
-        FROM Labeling l 
-        JOIN Categories cat ON l.category_id = cat.category_id 
-        WHERE l.course_id = ?`, [courseId]);
+    // Map course data to expected format
+    const course = {
+        course_id: mongoCourse._id,
+        title: mongoCourse.title,
+        subTitle: mongoCourse.sub_title,
+        des: mongoCourse.description,
+        originalPrice: mongoCourse.original_price,
+        currentPrice: mongoCourse.current_price,
+        lv_id: mongoCourse.level_id,
+        lang_id: mongoCourse.lang_id,
+        has_practice: mongoCourse.has_practice,
+        has_certificate: mongoCourse.has_certificate,
+        picture_url: mongoCourse.thumbnail_url,
+        course_status: mongoCourse.course_status,
+        requirements: mongoCourse.requirements || [],
+        objectives: mongoCourse.objectives || [],
+        level_title: level?.title || '',
+        language_title: language?.title || ''
+    };
+
+    // Lấy categories từ MongoDB
+    const labelings = await Labeling.find({ course_id: courseId }).lean();
+    const categoryIds = labelings.map(l => l.category_id);
+    const categories = await Category.find({ _id: { $in: categoryIds } }).lean();
     
-    course.categories = categories;
+    course.categories = categories.map(cat => ({
+        category_id: cat._id,
+        title: cat.title
+    }));
 
     // Lấy sections với lessons từ Lesson model
     const sections = await Section.find({ course_id: courseId }).sort({ order: 1 }).lean();

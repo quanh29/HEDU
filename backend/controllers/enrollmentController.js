@@ -1,9 +1,10 @@
 import Enrollment from '../models/Enrollment.js';
+import Course from '../models/Course.js';
+import User from '../models/User.js';
 import Section from '../models/Section.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
-import pool from '../config/mysql.js';
 
 /**
  * Tạo enrollment mới khi user đăng ký khóa học
@@ -20,26 +21,16 @@ export const createEnrollment = async (req, res) => {
             });
         }
 
-        // Kiểm tra xem khóa học có tồn tại không
-        const [courses] = await pool.query(
-            'SELECT course_id, title, course_status FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        // Kiểm tra xem khóa học có tồn tại không (MongoDB)
+        const course = await Course.findOne({ 
+            _id: courseId, 
+            course_status: 'approved' 
+        }).lean();
 
-        if (courses.length === 0) {
+        if (!course) {
             return res.status(404).json({
                 success: false,
-                message: 'Course not found'
-            });
-        }
-
-        const course = courses[0];
-
-        // Kiểm tra khóa học đã được approved chưa
-        if (course.course_status !== 'approved') {
-            return res.status(400).json({
-                success: false,
-                message: 'This course is not available for enrollment'
+                message: 'Course not found or not available for enrollment'
             });
         }
 
@@ -97,16 +88,18 @@ export const getUserEnrollments = async (req, res) => {
         const enrollments = await Enrollment.find({ userId: userId })
             .sort({ createdAt: -1 });
 
-        // Lấy thông tin khóa học từ MySQL cho mỗi enrollment
+        // Lấy thông tin khóa học từ MongoDB cho mỗi enrollment
         const enrollmentsWithCourseInfo = await Promise.all(
             enrollments.map(async (enrollment) => {
-                const [courses] = await pool.query(
-                    `SELECT c.*, u.fName, u.lName, u.ava as instructor_ava
-                     FROM Courses c
-                     LEFT JOIN Users u ON c.instructor_id = u.user_id
-                     WHERE c.course_id = ?`,
-                    [enrollment.courseId]
-                );
+                // Lấy course từ MongoDB
+                const course = await Course.findById(enrollment.courseId).lean();
+                
+                if (!course) {
+                    return null;
+                }
+                
+                // Lấy instructor info
+                const instructor = await User.findById(course.instructor_id).lean();
 
                 // Lấy sections và lessons để tính totalLessons
                 const sections = await Section.find({ course_id: enrollment.courseId })
@@ -139,20 +132,28 @@ export const getUserEnrollments = async (req, res) => {
                     enrollmentId: enrollment._id,
                     userId: enrollment.userId,
                     courseId: enrollment.courseId,
-                    rating: enrollment.rating,
                     completedLessons: enrollment.completedLessons,
                     enrolledAt: enrollment.createdAt,
-                    course: courses[0] ? {
-                        ...courses[0],
+                    course: {
+                        course_id: course._id,
+                        title: course.title,
+                        subTitle: course.sub_title,
+                        des: course.description,
+                        originalPrice: course.original_price,
+                        currentPrice: course.current_price,
+                        picture_url: course.thumbnail_url,
+                        course_status: course.course_status,
+                        full_name: instructor?.full_name || 'Instructor',
+                        instructor_ava: instructor?.ava || '',
                         sections: sectionsWithLessons
-                    } : null
+                    }
                 };
             })
         );
 
         res.json({
             success: true,
-            data: enrollmentsWithCourseInfo
+            data: enrollmentsWithCourseInfo.filter(e => e !== null)
         });
 
     } catch (error) {
@@ -253,49 +254,4 @@ export const updateCompletedLessons = async (req, res) => {
     }
 };
 
-/**
- * Cập nhật rating cho khóa học
- */
-export const updateCourseRating = async (req, res) => {
-    try {
-        const { userId } = req; // userId được lấy từ protectUserAction middleware
-        const { courseId } = req.params;
-        const { rating } = req.body;
 
-        if (!rating || rating < 1 || rating > 5) {
-            return res.status(400).json({
-                success: false,
-                message: 'Rating must be between 1 and 5'
-            });
-        }
-
-        const enrollment = await Enrollment.findOneAndUpdate(
-            { userId: userId, courseId: courseId },
-            { rating: rating },
-            { new: true }
-        );
-
-        if (!enrollment) {
-            return res.status(404).json({
-                success: false,
-                message: 'Enrollment not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Rating updated successfully',
-            data: {
-                rating: enrollment.rating
-            }
-        });
-
-    } catch (error) {
-        console.error('Error updating rating:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error updating rating',
-            error: error.message
-        });
-    }
-};

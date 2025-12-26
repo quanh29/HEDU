@@ -1,5 +1,6 @@
-import pool from '../config/mysql.js';
-import { v4 as uuidv4 } from 'uuid';
+import Cart from '../models/Cart.js';
+import Course from '../models/Course.js';
+import User from '../models/User.js';
 
 /**
  * Lấy giỏ hàng của user
@@ -8,52 +9,49 @@ export const getCart = async (req, res) => {
     try {
         const { userId } = req;
 
-        // Tìm cart của user
-        const [carts] = await pool.query(
-            'SELECT cart_id FROM Carts WHERE user_id = ?',
-            [userId]
-        );
+        // Tìm cart của user từ MongoDB
+        const cart = await Cart.findOne({ user_id: userId }).lean();
 
-        if (carts.length === 0) {
+        if (!cart || !cart.items || cart.items.length === 0) {
             return res.json({
                 success: true,
                 data: []
             });
         }
 
-        const cartId = carts[0].cart_id;
-
-        // Lấy chi tiết giỏ hàng với thông tin khóa học
-        const [cartItems] = await pool.query(`
-            SELECT
-                cd.cart_id,
-                cd.course_id,
-                c.title,
-                c.picture_url,
-                c.currentPrice,
-                c.originalPrice,
-                u.fName,
-                u.lName
-            FROM CartDetail cd
-            JOIN Courses c ON cd.course_id = c.course_id
-            LEFT JOIN Users u ON c.instructor_id = u.user_id
-            WHERE cd.cart_id = ?
-            ORDER BY cd.course_id
-        `, [cartId]);
+        // Lấy thông tin chi tiết của các khóa học trong cart
+        const courseIds = cart.items.map(item => item.course_id);
+        const courses = await Course.find({ _id: { $in: courseIds } }).lean();
+        
+        // Lấy thông tin instructors
+        const instructorIds = [...new Set(courses.map(c => c.instructor_id))];
+        const instructors = await User.find({ _id: { $in: instructorIds } }).lean();
+        
+        // Map instructors by id
+        const instructorMap = {};
+        instructors.forEach(inst => {
+            instructorMap[inst._id] = inst;
+        });
 
         // Format response
-        const formattedItems = cartItems.map(item => ({
-            cartId: item.cart_id,
-            courseId: item.course_id,
-            course: {
-                title: item.title,
-                picture_url: item.picture_url,
-                currentPrice: item.currentPrice,
-                originalPrice: item.originalPrice,
-                instructor_name: item.fName && item.lName ?
-                    `${item.fName} ${item.lName}` : 'Giảng viên'
-            }
-        }));
+        const formattedItems = cart.items.map(item => {
+            const course = courses.find(c => c._id === item.course_id);
+            if (!course) return null;
+            
+            const instructor = instructorMap[course.instructor_id];
+            
+            return {
+                cartId: cart._id,
+                courseId: course._id,
+                course: {
+                    title: course.title,
+                    picture_url: course.thumbnail_url,
+                    currentPrice: course.current_price,
+                    originalPrice: course.original_price,
+                    instructor_name: instructor.full_name || 'Instructor'
+                }
+            };
+        }).filter(item => item !== null);
 
         res.json({
             success: true,
@@ -85,62 +83,44 @@ export const addToCart = async (req, res) => {
             });
         }
 
-        // Kiểm tra khóa học có tồn tại và được duyệt không
-        const [courses] = await pool.query(
-            'SELECT course_id, course_status FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        // Kiểm tra khóa học có tồn tại và được duyệt không (MongoDB)
+        const course = await Course.findOne({ 
+            _id: courseId, 
+            course_status: 'approved' 
+        }).lean();
 
-        if (courses.length === 0) {
+        if (!course) {
             return res.status(404).json({
                 success: false,
-                message: 'Course not found'
+                message: 'Course not found or not available for purchase'
             });
         }
 
-        if (courses[0].course_status !== 'approved') {
-            return res.status(400).json({
-                success: false,
-                message: 'Course is not available for purchase'
-            });
-        }
+        // Tìm hoặc tạo cart của user
+        let cart = await Cart.findOne({ user_id: userId });
 
-        // Kiểm tra xem user đã có cart chưa
-        let [carts] = await pool.query(
-            'SELECT cart_id FROM Carts WHERE user_id = ?',
-            [userId]
-        );
-
-        let cartId;
-        if (carts.length === 0) {
+        if (!cart) {
             // Tạo cart mới
-            cartId = uuidv4();
-            await pool.query(
-                'INSERT INTO Carts (cart_id, user_id) VALUES (?, ?)',
-                [cartId, userId]
-            );
-        } else {
-            cartId = carts[0].cart_id;
-        }
-
-        // Kiểm tra xem khóa học đã có trong cart chưa
-        const [existingItems] = await pool.query(
-            'SELECT * FROM CartDetail WHERE cart_id = ? AND course_id = ?',
-            [cartId, courseId]
-        );
-
-        if (existingItems.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Course already in cart'
+            cart = new Cart({
+                user_id: userId,
+                items: [{ course_id: courseId }]
             });
-        }
+            await cart.save();
+        } else {
+            // Kiểm tra xem khóa học đã có trong cart chưa
+            const existingItem = cart.items.find(item => item.course_id === courseId);
+            
+            if (existingItem) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Course already in cart'
+                });
+            }
 
-        // Thêm khóa học vào cart
-        await pool.query(
-            'INSERT INTO CartDetail (cart_id, course_id) VALUES (?, ?)',
-            [cartId, courseId]
-        );
+            // Thêm khóa học vào cart
+            cart.items.push({ course_id: courseId });
+            await cart.save();
+        }
 
         res.json({
             success: true,
@@ -166,32 +146,28 @@ export const removeFromCart = async (req, res) => {
         const { courseId } = req.params;
 
         // Tìm cart của user
-        const [carts] = await pool.query(
-            'SELECT cart_id FROM Carts WHERE user_id = ?',
-            [userId]
-        );
+        const cart = await Cart.findOne({ user_id: userId });
 
-        if (carts.length === 0) {
+        if (!cart) {
             return res.status(404).json({
                 success: false,
                 message: 'Cart not found'
             });
         }
 
-        const cartId = carts[0].cart_id;
-
-        // Xóa item khỏi cart
-        const [result] = await pool.query(
-            'DELETE FROM CartDetail WHERE cart_id = ? AND course_id = ?',
-            [cartId, courseId]
-        );
-
-        if (result.affectedRows === 0) {
+        // Kiểm tra xem course có trong cart không
+        const itemIndex = cart.items.findIndex(item => item.course_id === courseId);
+        
+        if (itemIndex === -1) {
             return res.status(404).json({
                 success: false,
                 message: 'Course not found in cart'
             });
         }
+
+        // Xóa item khỏi cart
+        cart.items.splice(itemIndex, 1);
+        await cart.save();
 
         res.json({
             success: true,
@@ -216,25 +192,18 @@ export const clearCart = async (req, res) => {
         const { userId } = req;
 
         // Tìm cart của user
-        const [carts] = await pool.query(
-            'SELECT cart_id FROM Carts WHERE user_id = ?',
-            [userId]
-        );
+        const cart = await Cart.findOne({ user_id: userId });
 
-        if (carts.length === 0) {
+        if (!cart || cart.items.length === 0) {
             return res.json({
                 success: true,
                 message: 'Cart is already empty'
             });
         }
 
-        const cartId = carts[0].cart_id;
-
         // Xóa tất cả items trong cart
-        await pool.query(
-            'DELETE FROM CartDetail WHERE cart_id = ?',
-            [cartId]
-        );
+        cart.items = [];
+        await cart.save();
 
         res.json({
             success: true,

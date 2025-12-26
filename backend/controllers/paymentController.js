@@ -1,7 +1,9 @@
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
-import pool from '../config/mysql.js';
+import Course from '../models/Course.js';
+import Cart from '../models/Cart.js';
+import Enrollment from '../models/Enrollment.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -75,7 +77,6 @@ export const initiateMoMoPayment = async (req, res) => {
 
     // Validate MoMo credentials
     if (!partnerCode || !accessKey || !secretKey) {
-      await connection.rollback();
       console.error('Missing MoMo credentials in .env file');
       return res.status(500).json({ 
         message: 'Cấu hình thanh toán MoMo chưa đầy đủ. Vui lòng liên hệ quản trị viên.' 
@@ -127,6 +128,8 @@ export const initiateMoMoPayment = async (req, res) => {
       headers: { 'Content-Type': 'application/json' }
     });
 
+    console.log('🔵 MoMo Response !');
+
     // 7. Return payment URL to client
     if (momoResponse.data.resultCode === 0) {
       // Update payment with MoMo request details
@@ -166,6 +169,9 @@ export const initiateMoMoPayment = async (req, res) => {
  * @route POST /api/payment/momo/callback
  */
 export const handleMoMoCallback = async (req, res) => {
+  // Log để debug
+  console.log('🟣 MoMo IPN Callback received !');
+  
   const {
     partnerCode,
     orderId,
@@ -181,7 +187,6 @@ export const handleMoMoCallback = async (req, res) => {
     extraData,
     signature
   } = req.body;
-
   try {
     // 1. Verify signature
     const secretKey = process.env.MOMO_SECRET_KEY;
@@ -228,8 +233,6 @@ export const handleMoMoCallback = async (req, res) => {
     payment.momoResultCode = resultCode;
     payment.momoMessage = message;
 
-    let connection;
-
     try {
       if (resultCode === 0) {
         // Payment successful
@@ -265,14 +268,11 @@ export const handleMoMoCallback = async (req, res) => {
         // 6. Create earning records for each course
         for (const item of orderItems) {
           try {
-            // Get instructor_id from MySQL
-            const [courseResult] = await pool.query(
-              'SELECT instructor_id FROM Courses WHERE course_id = ?',
-              [item.courseId]
-            );
-
-            if (courseResult.length > 0) {
-              const instructorId = courseResult[0].instructor_id;
+            // Get instructor_id from MongoDB
+            const course = await Course.findById(item.courseId).lean();
+            console.log('Course for earning:', course);
+            if (course) {
+              const instructorId = course.instructor_id;
               const amount = item.price;
               const platformFee = amount * 0.1; // 10% platform fee
               const netAmount = amount - platformFee;
@@ -294,17 +294,13 @@ export const handleMoMoCallback = async (req, res) => {
           }
         }
 
-        // 7. Clear user's cart (MySQL)
-        const [cartResult] = await pool.query(
-          'SELECT cart_id FROM Carts WHERE user_id = ?',
-          [userId]
+        // 7. Clear user's cart (MongoDB)
+        await Cart.findOneAndUpdate(
+          { user_id: userId },
+          { $set: { items: [] } }
         );
-
-        if (cartResult.length > 0) {
-          const cartId = cartResult[0].cart_id;
-          await pool.query('DELETE FROM CartDetail WHERE cart_id = ?', [cartId]);
-        }
-
+        console.log(`✅ Cart cleared for user ${userId}`);
+        console.log('MoMo payment status:' , payment.paymentStatus);
       } else {
         // Payment failed
         payment.paymentStatus = 'failed';
@@ -347,6 +343,8 @@ export const handleMoMoReturn = async (req, res) => {
     extraData,
     signature
   } = req.query;
+
+  console.log('🟢 MoMo Return received !');
 
   try {
     // Verify signature

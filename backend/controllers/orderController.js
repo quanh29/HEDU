@@ -1,6 +1,8 @@
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
-import pool from '../config/mysql.js';
+import Course from '../models/Course.js';
+import Cart from '../models/Cart.js';
+import Voucher from '../models/Voucher.js';
 
 /**
  * Create order from user's cart
@@ -11,69 +13,53 @@ export const createOrderFromCart = async (req, res) => {
   const { userId } = req;
   const { voucherCode } = req.body; // Optional voucher code
 
-  let connection;
-
   try {
-    // Get a connection from pool for transaction
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
+    // 1. Get user's cart (MongoDB)
+    const cart = await Cart.findOne({ user_id: userId }).lean();
 
-    // 1. Get user's cart (MySQL)
-    const [cartResult] = await connection.query(
-      'SELECT cart_id FROM Carts WHERE user_id = ?',
-      [userId]
-    );
-
-    if (cartResult.length === 0 || !cartResult[0].cart_id) {
-      await connection.rollback();
+    if (!cart || !cart.items || cart.items.length === 0) {
       return res.status(400).json({ message: 'Giỏ hàng trống' });
     }
 
-    const cartId = cartResult[0].cart_id;
+    // 2. Get course details for each item in cart (MongoDB)
+    const courseIds = cart.items.map(item => item.course_id);
+    const courses = await Course.find({ 
+      _id: { $in: courseIds },
+      course_status: 'approved'
+    }).lean();
 
-    // 2. Get cart items with course details (MySQL)
-    const [cartItems] = await connection.query(
-      `SELECT cd.course_id, c.currentPrice as price, c.title, c.course_status
-       FROM CartDetail cd
-       JOIN Courses c ON cd.course_id = c.course_id
-       WHERE cd.cart_id = ?`,
-      [cartId]
-    );
-
-    if (cartItems.length === 0) {
-      await connection.rollback();
+    if (courses.length === 0) {
       return res.status(400).json({ message: 'Giỏ hàng trống' });
     }
 
     // 3. Validate all courses are approved
-    const unapprovedCourses = cartItems.filter(item => item.course_status !== 'approved');
-    if (unapprovedCourses.length > 0) {
-      await connection.rollback();
+    if (courses.length < courseIds.length) {
       return res.status(400).json({ 
         message: 'Một số khóa học trong giỏ hàng không còn khả dụng' 
       });
     }
 
-    // 4. Validate voucher if provided (MySQL)
+    // Create cart items with course details
+    const cartItems = courses.map(course => ({
+      course_id: course._id,
+      price: course.current_price,
+      title: course.title,
+      course_status: course.course_status
+    }));
+
+    // 4. Validate voucher if provided (MongoDB)
     let validatedVoucher = null;
     if (voucherCode) {
-      const [voucherResult] = await connection.query(
-        `SELECT voucher_code, voucher_type, amount, expire_at
-         FROM Vouchers
-         WHERE voucher_code = ?`,
-        [voucherCode]
-      );
+      validatedVoucher = await Voucher.findOne({ 
+        code: voucherCode 
+      }).lean();
 
-      if (voucherResult.length === 0) {
-        await connection.rollback();
+      if (!validatedVoucher) {
         return res.status(400).json({ message: 'Mã giảm giá không hợp lệ' });
       }
 
-      validatedVoucher = voucherResult[0];
-
       // Check expiration
-      if (validatedVoucher.expire_at && new Date(validatedVoucher.expire_at) < new Date()) {
-        await connection.rollback();
+      if (validatedVoucher.expiresAt && new Date(validatedVoucher.expiresAt) < new Date()) {
         return res.status(400).json({ message: 'Mã giảm giá đã hết hạn' });
       }
     }
@@ -83,17 +69,14 @@ export const createOrderFromCart = async (req, res) => {
     let discount = 0;
 
     if (validatedVoucher) {
-      if (validatedVoucher.voucher_type === 'percentage') {
-        discount = subtotal * (validatedVoucher.amount / 100);
-      } else if (validatedVoucher.voucher_type === 'absolute') {
-        discount = validatedVoucher.amount;
+      if (validatedVoucher.type === 'percentage') {
+        discount = (subtotal * validatedVoucher.value) / 100;
+      } else if (validatedVoucher.type === 'fixed') {
+        discount = validatedVoucher.value;
       }
     }
 
     const totalAmount = Math.max(0, subtotal - discount);
-
-    await connection.commit();
-    connection.release();
 
     // 6. Create Order in MongoDB
     const order = new Order({
@@ -127,10 +110,6 @@ export const createOrderFromCart = async (req, res) => {
     });
 
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
-      connection.release();
-    }
     console.error('Error creating order:', error);
     res.status(500).json({ message: 'Lỗi khi tạo đơn hàng' });
   }

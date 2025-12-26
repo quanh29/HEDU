@@ -4,7 +4,6 @@ import {
     getUserEnrollments, 
     checkEnrollment,
     updateCompletedLessons,
-    updateCourseRating
 } from '../controllers/enrollmentController.js';
 import { protectUserAction } from '../middleware/auth.js';
 
@@ -36,11 +35,5 @@ enrollmentRouter.get('/check/:courseId', protectUserAction, checkEnrollment);
  */
 enrollmentRouter.put('/:courseId/complete-lesson', protectUserAction, updateCompletedLessons);
 
-/**
- * PUT /api/enrollment/:courseId/rating
- * Cập nhật rating cho khóa học
- * Body: { rating } (1-5)
- */
-enrollmentRouter.put('/:courseId/rating', protectUserAction, updateCourseRating);
 
 export default enrollmentRouter;
