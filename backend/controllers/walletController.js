@@ -151,7 +151,7 @@ export const deposit = async (req, res) => {
 
     const orderId = `WALLET_DEPOSIT_${Date.now()}`;
     const requestId = uuidv4();
-    const orderInfo = `Nạp tiền vào ví: ${new Intl.NumberFormat('vi-VN').format(amount)} ₫`;
+    const orderInfo = `Nap tien vao vi: ${amount} VND`;
     const requestType = 'payWithMethod';
     const extraData = Buffer.from(JSON.stringify({ 
       type: 'wallet_deposit',
@@ -395,7 +395,7 @@ export const handleMoMoDepositCallback = async (req, res) => {
           operation: 'credit',
           amount: depositAmount,
           balance: wallet.balance,
-          description: `Nạp tiền qua MoMo: ${new Intl.NumberFormat('vi-VN').format(depositAmount)} ₫ (GD: ${transId})`
+          description: `Nap tien qua MoMo: ${new Intl.NumberFormat('vi-VN').format(depositAmount)} VND (GD: ${transId})`
         });
 
         console.log(`✅ Wallet deposit successful: ${depositAmount} for user ${userId}`);
