@@ -78,16 +78,16 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   }, [isLoaded, isSignedIn, user?.id]);
 
   // Refresh data when window gets focus (user comes back from creating course)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isLoaded && isSignedIn && user?.id) {
-        fetchInstructorData();
-      }
-    };
+  // useEffect(() => {
+  //   const handleFocus = () => {
+  //     if (isLoaded && isSignedIn && user?.id) {
+  //       refreshData();
+  //     }
+  //   };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isLoaded, isSignedIn, user?.id]);
+  //   window.addEventListener('focus', handleFocus);
+  //   return () => window.removeEventListener('focus', handleFocus);
+  // }, [isLoaded, isSignedIn, user?.id]);
 
   const fetchInstructorData = async () => {
     // Kiểm tra user đã load và có userId

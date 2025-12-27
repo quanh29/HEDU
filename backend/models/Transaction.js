@@ -21,24 +21,6 @@ const TransactionSchema = new mongoose.Schema({
     description: {
         type: String,
         required: true
-    },
-    // For disbursement tracking
-    disbursement_status: {
-        type: String,
-        enum: ['pending', 'processing', 'completed', 'failed'],
-        default: null
-    },
-    disbursement_order_id: {
-        type: String,
-        default: null
-    },
-    disbursement_trans_id: {
-        type: String,
-        default: null
-    },
-    disbursement_error: {
-        type: String,
-        default: null
     }
 },
 { timestamps: true });

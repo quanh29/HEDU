@@ -32,6 +32,7 @@ import voucherRouter from './routes/voucherRoute.js';
 import refundRouter from './routes/refundRoute.js';
 import userRouter from './routes/userRoute.js';
 import walletRouter from './routes/walletRoute.js';
+import dashboardRouter from './routes/dashboardRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -109,6 +110,7 @@ app.use("/api/voucher", voucherRouter);
 app.use("/api/refund", refundRouter);
 app.use("/api/user", userRouter);
 app.use("/api/wallet", walletRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

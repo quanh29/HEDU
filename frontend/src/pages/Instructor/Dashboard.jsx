@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { 
   BookOpen, 
   Users, 
@@ -6,108 +7,120 @@ import {
   Filter
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+
 const Dashboard = ({ stats, formatPrice }) => {
-  // Dummy data for charts and analytics
-  const [timeFilter, setTimeFilter] = useState('month'); // 'week', 'month', 'quarter', 'year'
+  const { getToken } = useAuth();
+  const [timeFilter, setTimeFilter] = useState('month');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
+  
+  // State for dashboard data
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [revenueData, setRevenueData] = useState([]);
+  const [revenueByCourse, setRevenueByCourse] = useState([]);
+  const [courseRatings, setCourseRatings] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
 
-  // Revenue over time data
-  const revenueData = [
-    { month: 'T1', revenue: 12500000, courses: 5 },
-    { month: 'T2', revenue: 15800000, courses: 7 },
-    { month: 'T3', revenue: 18200000, courses: 9 },
-    { month: 'T4', revenue: 22500000, courses: 12 },
-    { month: 'T5', revenue: 28900000, courses: 15 },
-    { month: 'T6', revenue: 31200000, courses: 18 },
-    { month: 'T7', revenue: 35600000, courses: 22 },
-    { month: 'T8', revenue: 38400000, courses: 24 },
-    { month: 'T9', revenue: 42100000, courses: 28 },
-    { month: 'T10', revenue: 45800000, courses: 31 },
-    { month: 'T11', revenue: 48200000, courses: 33 },
-    { month: 'T12', revenue: 52500000, courses: 35 }
-  ];
-
-  // Revenue by course data
-  const revenueByCourse = [
-    { name: 'React Fundamentals', value: 15200000, color: '#3b82f6' },
-    { name: 'Advanced JavaScript', value: 12800000, color: '#8b5cf6' },
-    { name: 'Node.js Backend', value: 9500000, color: '#10b981' },
-    { name: 'Python for Data Science', value: 8200000, color: '#f59e0b' },
-    { name: 'Web Design Basics', value: 6800000, color: '#ef4444' }
-  ];
-
-  // Course ratings data
-  const courseRatings = [
-    { course: 'React Fundamentals', rating: 4.8, reviews: 245, students: 1200 },
-    { course: 'Advanced JavaScript', rating: 4.6, reviews: 189, students: 980 },
-    { course: 'Node.js Backend', rating: 4.9, reviews: 156, students: 850 },
-    { course: 'Python for Data Science', rating: 4.7, reviews: 203, students: 1100 },
-    { course: 'Web Design Basics', rating: 4.5, reviews: 134, students: 720 }
-  ];
-
-  // Recent activities data
-  const recentActivities = [
-    { 
-      id: 1, 
-      type: 'enrollment', 
-      student: 'Nguyễn Văn A', 
-      course: 'React Fundamentals', 
-      time: '15 phút trước',
-      icon: 'user-plus'
-    },
-    { 
-      id: 2, 
-      type: 'review', 
-      student: 'Trần Thị B', 
-      course: 'Node.js Backend', 
-      rating: 5,
-      comment: 'Khóa học rất chi tiết và dễ hiểu!',
-      time: '1 giờ trước',
-      icon: 'star'
-    },
-    { 
-      id: 3, 
-      type: 'enrollment', 
-      student: 'Lê Văn C', 
-      course: 'Advanced JavaScript', 
-      time: '2 giờ trước',
-      icon: 'user-plus'
-    },
-    { 
-      id: 4, 
-      type: 'review', 
-      student: 'Phạm Thị D', 
-      course: 'React Fundamentals', 
-      rating: 4,
-      comment: 'Nội dung tốt, giảng viên nhiệt tình',
-      time: '3 giờ trước',
-      icon: 'star'
-    },
-    { 
-      id: 5, 
-      type: 'enrollment', 
-      student: 'Hoàng Văn E', 
-      course: 'Python for Data Science', 
-      time: '5 giờ trước',
-      icon: 'user-plus'
-    },
-    { 
-      id: 6, 
-      type: 'review', 
-      student: 'Đỗ Thị F', 
-      course: 'Web Design Basics', 
-      rating: 5,
-      comment: 'Xuất sắc! Đúng những gì tôi cần',
-      time: '6 giờ trước',
-      icon: 'star'
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      fetchDashboardData();
+      hasLoadedRef.current = true;
     }
-  ];
+  }, []);
 
-  // Stats with comparison
+  useEffect(() => {
+    if (hasLoadedRef.current) {
+      fetchRevenueChart();
+    }
+  }, [timeFilter]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const token = await getToken();
+
+      // Fetch all dashboard data in parallel
+      const [statsRes, revenueByRes, ratingsRes, activitiesRes] = await Promise.all([
+        fetch(`${API_URL}/api/dashboard/instructor/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/dashboard/instructor/revenue-by-course`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/dashboard/instructor/course-ratings`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/dashboard/instructor/recent-activities`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setDashboardStats(data.data);
+      }
+
+      if (revenueByRes.ok) {
+        const data = await revenueByRes.json();
+        setRevenueByCourse(data.data);
+      }
+
+      if (ratingsRes.ok) {
+        const data = await ratingsRes.json();
+        setCourseRatings(data.data);
+      }
+
+      if (activitiesRes.ok) {
+        const data = await activitiesRes.json();
+        setRecentActivities(data.data);
+      }
+
+      // Fetch revenue chart separately
+      await fetchRevenueChart();
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRevenueChart = async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/dashboard/instructor/revenue-chart?timeFilter=${timeFilter}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRevenueData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching revenue chart:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '400px' 
+      }}>
+        <p>Đang tải dữ liệu...</p>
+      </div>
+    );
+  }
+
+  // Stats with comparison (using real data)
   const statsComparison = {
-    courses: { current: 35, previous: 33, change: 6.1 },
-    students: { current: 4850, previous: 4200, change: 15.5 },
-    revenue: { current: 52500000, previous: 48200000, change: 8.9 }
+    courses: { current: dashboardStats?.totalCourses || 0, previous: 0, change: 0 },
+    students: { current: dashboardStats?.totalStudents || 0, previous: 0, change: 0 },
+    revenue: { current: dashboardStats?.totalRevenue || 0, previous: 0, change: 0 }
   };
 
   const renderStatCard = (title, icon, current, previous, change, formatter = (v) => v) => {

@@ -23,6 +23,7 @@ import PaymentStatus from './pages/PaymentStatus/PaymentStatus.jsx'
 import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
 import RefundHistory from './pages/RefundHistory/RefundHistory.jsx'
 import Wallet from './pages/Wallet/Wallet.jsx'
+import Dashboard from './pages/Instructor/Dashboard.jsx'
 
 function App() {
   const location = useLocation();
@@ -66,7 +67,7 @@ function App() {
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>
             <Route index element={<Navigate to="/instructor/dashboard" replace />} />
-            <Route path='dashboard' element={<Instructor activeTab="dashboard" />}/>
+            <Route path='dashboard' element={<Dashboard/>}/>
             <Route path='courses' element={<Instructor activeTab="courses" />}/>
             <Route path='students' element={<Instructor activeTab="students" />}/>
           </Route>
