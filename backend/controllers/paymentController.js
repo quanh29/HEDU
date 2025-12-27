@@ -4,6 +4,7 @@ import Earning from '../models/Earning.js';
 import Course from '../models/Course.js';
 import Cart from '../models/Cart.js';
 import Enrollment from '../models/Enrollment.js';
+import Conversation from '../models/Conversation.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -289,13 +290,38 @@ export const handleMoMoCallback = async (req, res) => {
               });
 
               console.log(`✅ Earning created for instructor ${instructorId}, course ${item.courseId}`);
+
+              // 7. Create conversation with instructor
+              try {
+                // Check if conversation already exists
+                let conversation = await Conversation.findOne({
+                  'participants.user_id': { $all: [userId, instructorId] },
+                  'participants': { $size: 2 }
+                });
+
+                if (!conversation) {
+                  // Create new conversation
+                  conversation = new Conversation({
+                    participants: [
+                      { user_id: userId },
+                      { user_id: instructorId }
+                    ]
+                  });
+                  await conversation.save();
+                  console.log(`✅ Conversation created between student ${userId} and instructor ${instructorId}`);
+                } else {
+                  console.log(`ℹ️ Conversation already exists between student ${userId} and instructor ${instructorId}`);
+                }
+              } catch (conversationError) {
+                console.error(`Error creating conversation with instructor ${instructorId}:`, conversationError);
+              }
             }
           } catch (earningError) {
             console.error(`Error creating earning for course ${item.courseId}:`, earningError);
           }
         }
 
-        // 7. Clear user's cart (MongoDB)
+        // 8. Clear user's cart (MongoDB)
         await Cart.findOneAndUpdate(
           { user_id: userId },
           { $set: { items: [] } }
@@ -311,7 +337,7 @@ export const handleMoMoCallback = async (req, res) => {
         await updateOrderStatus(orderId, 'failed');
       }
 
-      // 8. Respond to MoMo
+      // 9. Respond to MoMo
       res.status(204).end();
 
     } catch (error) {

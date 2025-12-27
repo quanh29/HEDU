@@ -24,6 +24,7 @@ import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
 import RefundHistory from './pages/RefundHistory/RefundHistory.jsx'
 import Wallet from './pages/Wallet/Wallet.jsx'
 import Dashboard from './pages/Instructor/Dashboard.jsx'
+import Messaging from './pages/Messaging/Messaging.jsx'
 
 function App() {
   const location = useLocation();
@@ -63,6 +64,9 @@ function App() {
           
           {/* Wallet Route */}
           <Route path='/wallet' element={<Wallet/>}/>
+          
+          {/* Messaging Route */}
+          <Route path='/messages' element={<Messaging/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

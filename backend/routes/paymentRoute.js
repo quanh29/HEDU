@@ -18,7 +18,7 @@ paymentRouter.post('/momo/callback', handleMoMoCallback);
 paymentRouter.get('/momo/return', handleMoMoReturn);
 
 // Protected routes require authentication
-// paymentRouter.use(protectUserAction);
+paymentRouter.use(protectUserAction);
 
 // Initiate MoMo payment
 paymentRouter.post('/momo/initiate', initiateMoMoPayment);
@@ -30,6 +30,6 @@ paymentRouter.post('/wallet/pay', payWithWallet);
 paymentRouter.get('/:paymentId', getPaymentDetails);
 
 // Import earning (for testing)
-paymentRouter.post('/import-earning', importEarning);
+// paymentRouter.post('/import-earning', importEarning);
 
 export default paymentRouter;

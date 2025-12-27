@@ -7,6 +7,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { socketAuth } from './middleware/socketAuth.js';
 import { setupVideoSocketHandlers } from './sockets/videoSocket.js';
+import { setupMessageSocketHandlers } from './sockets/messageSocket.js';
 import courseRouter from './routes/courseRoute.js';
 import sectionRouter from './routes/sectionRoute.js';
 import lessonRouter from './routes/lessonRoute.js';
@@ -33,6 +34,7 @@ import refundRouter from './routes/refundRoute.js';
 import userRouter from './routes/userRoute.js';
 import walletRouter from './routes/walletRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
+import messageRouter from './routes/messageRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -56,6 +58,9 @@ io.on('connection', (socket) => {
   
   // Setup video upload event handlers
   setupVideoSocketHandlers(socket, io);
+  
+  // Setup message event handlers
+  setupMessageSocketHandlers(socket, io);
 });
 
 // Export io instance for use in controllers
@@ -111,6 +116,7 @@ app.use("/api/refund", refundRouter);
 app.use("/api/user", userRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/message", messageRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

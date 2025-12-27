@@ -3,6 +3,26 @@
   position: relative;
 }
 
+.avatarWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .userAvatar {
   width: 40px;
   height: 40px;
@@ -105,6 +125,25 @@
 .userMenuList li:hover span {
   background: #f7fafc;
   color: #2d3748;
+}
+
+.menuItemWithIcon {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.menuBadge {
+  background: #ffd8d8;
+  color: rgb(0, 0, 0);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.08rem 0.3rem;
+  border-radius: 6px;
+  min-width: 14px;
+  text-align: center;
+  margin-left: auto;
 }
 
 .signOutBtn {

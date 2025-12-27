@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { LogOut } from 'lucide-react';
+import { LogOut, MessageCircle } from 'lucide-react';
 import styles from './UserMenu.module.css';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 const UserMenu = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const UserMenu = () => {
   const { signOut } = useClerk();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef(null);
+  const { unreadCount } = useUnreadMessages();
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -50,12 +52,17 @@ const UserMenu = () => {
 
   return (
     <div className={styles.userMenuWrapper} ref={userMenuRef}>
-      <img
-        src={user?.imageUrl || '/default-avatar.png'}
-        alt="User Avatar"
-        className={styles.userAvatar}
-        onClick={handleUserMenuToggle}
-      />
+      <div className={styles.avatarWrapper}>
+        <img
+          src={user?.imageUrl || '/default-avatar.png'}
+          alt="User Avatar"
+          className={styles.userAvatar}
+          onClick={handleUserMenuToggle}
+        />
+        {unreadCount > 0 && (
+          <div className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</div>
+        )}
+      </div>
       {showUserMenu && (
         <div className={styles.userDropdown}>
           <div className={styles.userInfo}>
@@ -75,6 +82,14 @@ const UserMenu = () => {
           </div>
           <div className={styles.menuDivider}></div>
           <ul className={styles.userMenuList}>
+            <li onClick={() => handleMenuItemClick('/messages')}>
+              <span className={styles.menuItemWithIcon}>
+                Tin nhắn
+                {unreadCount > 0 && (
+                  <span className={styles.menuBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+              </span>
+            </li>
             <li onClick={() => handleMenuItemClick('/notifications')}>
               <span>Thông báo</span>
             </li>
