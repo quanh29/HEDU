@@ -5,41 +5,52 @@ import Cart from '../models/Cart.js';
 import Voucher from '../models/Voucher.js';
 
 /**
- * Create order from user's cart
+ * Create order from user's cart or specific courses
  * Fetches cart data from database (not from client)
  * @route POST /api/order/create
  */
-export const createOrderFromCart = async (req, res) => {
+export const createOrder = async (req, res) => {
   const { userId } = req;
-  const { voucherCode } = req.body; // Optional voucher code
+  const { voucherCode, courseIds } = req.body; // Optional voucher code and courseIds for buy now mode
 
   try {
-    // 1. Get user's cart (MongoDB)
-    const cart = await Cart.findOne({ user_id: userId }).lean();
+    let courseIdsToOrder = [];
 
-    if (!cart || !cart.items || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Giỏ hàng trống' });
+    // Determine source: courseIds (buy now) or cart
+    if (courseIds && Array.isArray(courseIds) && courseIds.length > 0) {
+      // Buy now mode: use provided courseIds
+      courseIdsToOrder = courseIds;
+      console.log('📦 Buy now mode - using courseIds:', courseIds);
+    } else {
+      // Cart mode: get from user's cart
+      const cart = await Cart.findOne({ user_id: userId }).lean();
+
+      if (!cart || !cart.items || cart.items.length === 0) {
+        return res.status(400).json({ message: 'Giỏ hàng trống' });
+      }
+
+      courseIdsToOrder = cart.items.map(item => item.course_id);
+      console.log('🛒 Cart mode - using cart courses:', courseIdsToOrder);
     }
 
-    // 2. Get course details for each item in cart (MongoDB)
-    const courseIds = cart.items.map(item => item.course_id);
+    // 2. Get course details for each item (MongoDB)
     const courses = await Course.find({ 
-      _id: { $in: courseIds },
+      _id: { $in: courseIdsToOrder },
       course_status: 'approved'
     }).lean();
 
     if (courses.length === 0) {
-      return res.status(400).json({ message: 'Giỏ hàng trống' });
+      return res.status(400).json({ message: 'Không tìm thấy khóa học hợp lệ' });
     }
 
     // 3. Validate all courses are approved
-    if (courses.length < courseIds.length) {
+    if (courses.length < courseIdsToOrder.length) {
       return res.status(400).json({ 
-        message: 'Một số khóa học trong giỏ hàng không còn khả dụng' 
+        message: 'Một số khóa học không còn khả dụng' 
       });
     }
 
-    // Create cart items with course details
+    // Create order items with course details
     const cartItems = courses.map(course => ({
       course_id: course._id,
       price: course.current_price,

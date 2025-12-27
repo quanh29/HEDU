@@ -5,11 +5,15 @@ import { courses as relatedCourses } from '../assets/dummyData';
 import RatingListModal from '../components/RatingListModal/RatingListModal';
 import axios from 'axios';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { useUser } from '@clerk/clerk-react';
+import { useCart } from '../context/CartContext';
 
 function CoursePage() {
   // Lấy params từ URL - chỉ courseId (no slug)
   const { courseId: paramCourseId } = useParams();
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
+  const { addToCart } = useCart();
 
   // State management
   const [course, setCourse] = useState(null);
@@ -94,6 +98,54 @@ function CoursePage() {
         ? prev.filter(i => i !== idx)
         : [...prev, idx]
     );
+  };
+
+  // Handler for "Mua ngay" button
+  const handleBuyNow = async () => {
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for purchase');
+      return;
+    }
+
+    // Navigate to checkout with single course, bypassing cart
+    navigate('/checkout', {
+      state: {
+        buyNow: true,
+        course: {
+          courseId: courseId,
+          title: courseData?.title,
+          picture_url: courseData?.thumbnail,
+          instructor_name: courseData?.instructors?.[0]?.fullName || 'Giảng viên',
+          currentPrice: courseData?.currentPrice,
+          originalPrice: courseData?.originalPrice
+        }
+      }
+    });
+  };
+
+  // Handler for "Thêm vào giỏ hàng" button
+  const handleAddToCart = async () => {
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for cart addition');
+      return;
+    }
+
+    const success = await addToCart(courseId);
+    if (success) {
+      alert('Đã thêm khóa học vào giỏ hàng!');
+    } else {
+      alert('Có lỗi xảy ra khi thêm vào giỏ hàng');
+    }
   };
 
   // Loading state
@@ -349,6 +401,7 @@ function CoursePage() {
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                   <button
+                    onClick={handleBuyNow}
                     style={{
                       padding: '1rem 2rem',
                       border: 'none',
@@ -372,6 +425,7 @@ function CoursePage() {
                     Mua ngay
                   </button>
                   <button
+                    onClick={handleAddToCart}
                     style={{
                       padding: '1rem 2rem',
                       border: '2px solid #333',

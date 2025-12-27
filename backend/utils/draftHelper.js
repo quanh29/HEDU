@@ -1,7 +1,7 @@
 import CourseDraft from '../models/CourseDraft.js';
 import SectionDraft from '../models/SectionDraft.js';
-import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
+import Labeling from '../models/Labeling.js';
 import Section from '../models/Section.js';
 import Lesson from '../models/Lesson.js';
 import Video from '../models/video.js';
@@ -10,16 +10,14 @@ import Quiz from '../models/Quiz.js';
 
 /**
  * Check if a course is in approved status
- * @param {string} courseId - MySQL course_id
+ * @param {string} courseId -  course_id
  * @returns {Promise<boolean>}
  */
 export const isCourseApproved = async (courseId) => {
     try {
-        const [courses] = await pool.query(
-            'SELECT course_status FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
-        return courses[0]?.course_status === 'approved';
+        // query status from mongodb
+        const course = await Course.findById(courseId);
+        return course?.course_status === 'approved';
     } catch (error) {
         console.error('Error checking course approval status:', error);
         throw error;
@@ -52,11 +50,8 @@ export const createDraftFromPublished = async (courseId, userId) => {
     try {
         console.log(`📋 Creating draft from published course: ${courseId}`);
         
-        // Load current course data from MySQL
-        const [courses] = await pool.query(
-            'SELECT * FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        // Load current course data from Mongodb
+        const courses = await Course.findById(courseId);
         
         if (!courses || courses.length === 0) {
             throw new Error(`Course not found: ${courseId}`);
@@ -67,11 +62,8 @@ export const createDraftFromPublished = async (courseId, userId) => {
         // Load MongoDB course data
         const mongoCourse = await Course.findById(courseId);
         
-        // Load categories
-        const [categories] = await pool.query(
-            'SELECT category_id FROM Labeling WHERE course_id = ?',
-            [courseId]
-        );
+        // Load categories from mongodb labeling by courseId in course_id fied
+        const categories = await Labeling.find({ course_id: courseId });
         const categoryIds = categories.map(c => c.category_id);
         
         // Create draft document with courseId as _id

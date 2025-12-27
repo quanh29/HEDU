@@ -1,6 +1,5 @@
 // import Course from '../models/Course.js';
 import CourseRevision from '../models/CourseDraft.js';
-import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
 import Video from '../models/video.js';
@@ -188,12 +187,8 @@ export const createCourseRevision = async (req, res) => {
 
         logger.info(`📝 [createCourseRevision] Creating revision for course: ${courseId}`);
 
-        // Kiểm tra xem khóa học có tồn tại trong MySQL không
-        const [courses] = await pool.query(
-            'SELECT * FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
-
+        // Kiểm tra xem khóa học có tồn tại trong Mongodb không
+        const [courses] = await Course.findByIds([courseId]);
         if (!courses || courses.length === 0) {
             return res.status(404).json({ success: false, message: 'Course not found' });
         }
@@ -264,13 +259,10 @@ export const getPendingRevisions = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // Lấy thông tin khóa học từ MySQL cho mỗi revision
+        // Lấy thông tin khóa học từ Mongodb cho mỗi revision
         const revisionsWithCourseInfo = await Promise.all(
             revisions.map(async (revision) => {
-                const [courses] = await pool.query(
-                    'SELECT course_id, title, course_status FROM Courses WHERE course_id = ?',
-                    [revision.courseId]
-                );
+                const [courses] = await Course.findByIds([revision.courseId]);
 
                 return {
                     ...revision,
@@ -312,34 +304,19 @@ export const approveRevision = async (req, res) => {
 
         const courseId = revision.courseId;
 
-        // Cập nhật MySQL
-        await pool.query(
-            `UPDATE Courses SET 
-                title = ?,
-                subTitle = ?,
-                des = ?,
-                originalPrice = ?,
-                currentPrice = ?,
-                lv_id = ?,
-                lang_id = ?,
-                has_practice = ?,
-                has_certificate = ?,
-                picture_url = ?
-            WHERE course_id = ?`,
-            [
-                revision.title,
-                revision.subtitle,
-                revision.description,
-                revision.originalPrice,
-                revision.currentPrice,
-                revision.lv_id,
-                revision.lang_id,
-                revision.hasPractice,
-                revision.hasCertificate,
-                revision.picture_url,
-                courseId
-            ]
-        );
+        // Cập nhật MongoDB
+        await Course.findByIdAndUpdate(courseId, {
+            title: revision.title,
+            subtitle: revision.subtitle,
+            description: revision.description,
+            originalPrice: revision.originalPrice,
+            currentPrice: revision.currentPrice,
+            lv_id: revision.lv_id,
+            lang_id: revision.lang_id,
+            has_practice: revision.hasPractice,
+            has_certificate: revision.hasCertificate,
+            picture_url: revision.picture_url
+        });
 
         // Cập nhật MongoDB Course document
         await Course.findByIdAndUpdate(courseId, {

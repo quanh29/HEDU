@@ -80,6 +80,7 @@ const ConversationList = ({ selectedConversation, onSelectConversation }) => {
       if (response.data.success) {
         setConversations(response.data.conversations);
       }
+      console.log(response.data.conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -152,7 +153,7 @@ const ConversationList = ({ selectedConversation, onSelectConversation }) => {
               <div className={styles.avatarWrapper}>
                 <img
                   src={conversation.otherUser?.image_url || '/default-avatar.png'}
-                  alt={conversation.otherUser?.name || 'User'}
+                  alt={conversation.otherUser?.full_name || 'User'}
                   className={styles.avatar}
                 />
                 {conversation.unreadCount > 0 && (

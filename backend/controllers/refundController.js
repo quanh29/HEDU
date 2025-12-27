@@ -3,7 +3,7 @@ import Enrollment from '../models/Enrollment.js';
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
-import pool from '../config/mysql.js';
+import Course from '../models/Course.js';
 import axios from 'axios';
 import crypto from 'crypto';
 
@@ -118,14 +118,11 @@ export const getRefundHistory = async (req, res) => {
       .sort({ requestDate: -1 })
       .lean();
 
-    // Fetch course details from MySQL for each refund
+    // Fetch course details from Mongodb for each refund
     const refundsWithCourse = await Promise.all(
       refunds.map(async (refund) => {
         try {
-          const [courses] = await pool.query(
-            'SELECT course_id, title, picture_url FROM Courses WHERE course_id = ?',
-            [refund.courseId]
-          );
+          const [courses] = await Course.findByIds([refund.courseId]);
           
           return {
             ...refund,
@@ -176,14 +173,11 @@ export const getAllRefunds = async (req, res) => {
 
     const total = await Refund.countDocuments(query);
 
-    // Fetch course details from MySQL for each refund
+    // Fetch course details from Mongodb for each refund
     const refundsWithCourse = await Promise.all(
       refunds.map(async (refund) => {
         try {
-          const [courses] = await pool.query(
-            'SELECT course_id, title, picture_url FROM Courses WHERE course_id = ?',
-            [refund.courseId]
-          );
+          const [courses] = await Course.findByIds([refund.courseId]);
           
           return {
             ...refund,

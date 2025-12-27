@@ -706,24 +706,29 @@ export const removePaymentMethod = async (req, res) => {
 export const payWithWallet = async (req, res) => {
   try {
     const userId = req.userId;
-    const { voucherCode } = req.body;
+    const { voucherCode, courseIds } = req.body;
 
     // Import required modules
     const Order = (await import('../models/Order.js')).default;
     const Payment = (await import('../models/Payment.js')).default;
     const Earning = (await import('../models/Earning.js')).default;
-    const pool = (await import('../config/mysql.js')).default;
+    const Course = (await import('../models/Course.js')).default;
+    const Conversation = (await import('../models/Conversation.js')).default;
     const { updateOrderStatus } = await import('./orderController.js');
 
-    // 1. Create order from cart
+    // 1. Create order from cart or specific courses (buy now mode)
     const token = req.headers.authorization.split(' ')[1];
+    const requestBody = courseIds 
+      ? { voucherCode, courseIds }
+      : { voucherCode };
+
     const orderResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3000'}/api/order/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ voucherCode })
+      body: JSON.stringify(requestBody)
     });
 
     if (!orderResponse.ok) {
@@ -801,20 +806,19 @@ export const payWithWallet = async (req, res) => {
       }
     }
 
-    // 8. Create earning records
+    // 8. Create earning records and conversations for each course (MongoDB)
     for (const item of orderItems) {
       try {
-        const [courseResult] = await pool.query(
-          'SELECT instructor_id FROM Courses WHERE course_id = ?',
-          [item.courseId]
-        );
-
-        if (courseResult.length > 0) {
-          const instructorId = courseResult[0].instructor_id;
+        // Get instructor_id from MongoDB Course model
+        const course = await Course.findById(item.courseId).lean();
+        
+        if (course) {
+          const instructorId = course.instructor_id;
           const amount = item.price;
-          const platformFee = amount * 0.1;
+          const platformFee = amount * 0.1; // 10% platform fee
           const netAmount = amount - platformFee;
 
+          // Create earning record
           await Earning.create({
             instructor_id: instructorId,
             course_id: item.courseId,
@@ -822,25 +826,50 @@ export const payWithWallet = async (req, res) => {
             amount: amount,
             net_amount: netAmount,
             status: 'pending',
-            clearance_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            clearance_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days later
           });
 
           console.log(`✅ Earning created for instructor ${instructorId}, course ${item.courseId}`);
+
+          // 9. Create conversation with instructor
+          try {
+            // Check if conversation already exists
+            let conversation = await Conversation.findOne({
+              'participants.user_id': { $all: [userId, instructorId] },
+              'participants': { $size: 2 }
+            });
+
+            if (!conversation) {
+              // Create new conversation
+              conversation = new Conversation({
+                participants: [
+                  { user_id: userId },
+                  { user_id: instructorId }
+                ]
+              });
+              await conversation.save();
+              console.log(`✅ Conversation created between student ${userId} and instructor ${instructorId}`);
+            } else {
+              console.log(`ℹ️ Conversation already exists between student ${userId} and instructor ${instructorId}`);
+            }
+          } catch (conversationError) {
+            console.error(`Error creating conversation with instructor ${instructorId}:`, conversationError);
+          }
         }
       } catch (earningError) {
         console.error(`Error creating earning for course ${item.courseId}:`, earningError);
       }
     }
 
-    // 9. Clear cart
-    const [cartResult] = await pool.query(
-      'SELECT cart_id FROM Carts WHERE user_id = ?',
-      [userId]
-    );
-
-    if (cartResult.length > 0) {
-      const cartId = cartResult[0].cart_id;
-      await pool.query('DELETE FROM CartDetail WHERE cart_id = ?', [cartId]);
+    // 10. Clear user's cart (MongoDB) - only if not in buy now mode
+    if (!courseIds) {
+      await Cart.findOneAndUpdate(
+        { user_id: userId },
+        { $set: { items: [] } }
+      );
+      console.log(`✅ Cart cleared for user ${userId}`);
+    } else {
+      console.log(`ℹ️ Buy now mode - cart not cleared`);
     }
 
     return res.status(200).json({

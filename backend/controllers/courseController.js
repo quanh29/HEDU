@@ -2,7 +2,7 @@
 import * as courseService from '../services/courseService.js';
 import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
-import pool from '../config/mysql.js';
+import Course from '../models/Course.js';
 
 //get course by ID (chỉ hiển thị khóa học đã được duyệt)
 export const getCourseById = async (req, res) => {
@@ -203,10 +203,7 @@ export const updateCourse = async (req, res) => {
 
     try {
         // Kiểm tra trạng thái hiện tại của course
-        const [courses] = await pool.query(
-            'SELECT course_status FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        const [courses] = await Course.findByIds([courseId]);
 
         if (!courses || courses.length === 0) {
             return res.status(404).json({ message: 'Course not found' });

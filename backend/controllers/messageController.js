@@ -1,4 +1,5 @@
 import Message from '../models/Message.js';
+import User from '../models/User.js';
 import Conversation from '../models/Conversation.js';
 import { clerkClient } from '@clerk/express';
 import cloudinary from '../config/cloudinary.js';
@@ -83,13 +84,8 @@ export const getConversations = async (req, res) => {
       conversations.map(async (conv) => {
         const otherParticipant = conv.participants.find(p => p.user_id !== userId);
         
-        // Get other user info from Clerk
-        let otherUser = null;
-        try {
-          otherUser = await clerkClient.users.getUser(otherParticipant.user_id);
-        } catch (error) {
-          console.error(`Error fetching user ${otherParticipant.user_id}:`, error);
-        }
+        // Get other user info from User model from mongodb
+        const otherUser = await User.findOne({ _id: otherParticipant.user_id }).lean();
         
         // Get last message
         const lastMessage = await Message.findOne({ 
@@ -107,8 +103,8 @@ export const getConversations = async (req, res) => {
           _id: conv._id,
           otherUser: {
             id: otherUser?.id,
-            name: otherUser?.fullName || otherUser?.firstName || 'User',
-            image_url: otherUser?.imageUrl
+            name: otherUser?.full_name || 'User',
+            image_url: otherUser?.profile_image_url
           },
           lastMessage: lastMessage ? {
             content: lastMessage.content,

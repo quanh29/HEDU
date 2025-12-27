@@ -1,7 +1,7 @@
 import { clerkClient, getAuth } from '@clerk/express';
-import pool from '../config/mysql.js';
 import Enrollment from '../models/Enrollment.js';
 import logger from '../utils/logger.js';
+import Course from '../models/Course.js';
 
 export const protectAdmin = async (req, res, next) => {
     try {
@@ -98,11 +98,8 @@ export const protectCourseOwner = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Course ID is required' });
         }
 
-        // Query MySQL to check if user is the instructor of this course
-        const [courses] = await pool.query(
-            'SELECT instructor_id FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        // Query Mongodb to check if user is the instructor of this course
+        const [courses] = await Course.findByIds([courseId]);
 
         if (!courses || courses.length === 0) {
             return res.status(404).json({ success: false, message: 'Course not found' });

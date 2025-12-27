@@ -226,8 +226,31 @@ const Card = ({
           <button
             onClick={(e) => {
               e.stopPropagation(); // Ngăn click event bubbling lên card
-              // Xử lý mua ngay
-              console.log('Mua ngay:', title);
+              
+              if (!isSignedIn) {
+                navigate('/auth/login');
+                return;
+              }
+
+              if (!courseId) {
+                console.warn('Missing courseId for purchase');
+                return;
+              }
+
+              // Navigate to checkout with single course, bypassing cart
+              navigate('/checkout', {
+                state: {
+                  buyNow: true,
+                  course: {
+                    courseId: courseId,
+                    title: title,
+                    picture_url: image,
+                    instructor_name: instructors?.[0]?.fullName || instructors?.[0] || 'Giảng viên',
+                    currentPrice: currentPrice,
+                    originalPrice: originalPrice
+                  }
+                }
+              });
             }}
             style={{
               padding: '12px 0',

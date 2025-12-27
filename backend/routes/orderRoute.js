@@ -1,6 +1,6 @@
 import express from 'express';
 import { 
-  createOrderFromCart, 
+  createOrder, 
   getOrderDetails, 
   getOrderHistory 
 } from '../controllers/orderController.js';
@@ -12,7 +12,7 @@ const orderRouter = express.Router();
 orderRouter.use(protectUserAction);
 
 // Create order from cart
-orderRouter.post('/create', createOrderFromCart);
+orderRouter.post('/create', createOrder);
 
 // Get order history (must be before /:orderId)
 orderRouter.get('/history', getOrderHistory);

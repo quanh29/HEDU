@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useCart } from '../../context/CartContext';
 import OrderSummary from '../../components/OrderSummary/OrderSummary';
@@ -12,6 +12,7 @@ const Checkout = () => {
   useDocumentTitle('Thanh toán');
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
   const { cartItems, getTotalPrice, clearCart } = useCart();
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -21,13 +22,18 @@ const Checkout = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(true);
 
+  // Check if this is a "buy now" checkout with single course
+  const buyNowMode = location.state?.buyNow || false;
+  const buyNowCourse = location.state?.course || null;
+
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       navigate('/auth/login');
       return;
     }
 
-    if (isLoaded && cartItems.length === 0) {
+    // If not buy now mode and cart is empty, redirect to home
+    if (isLoaded && !buyNowMode && cartItems.length === 0) {
       navigate('/');
     }
 
@@ -72,6 +78,9 @@ const Checkout = () => {
   };
 
   const calculateSubtotal = () => {
+    if (buyNowMode && buyNowCourse) {
+      return Number(buyNowCourse.currentPrice || 0);
+    }
     return getTotalPrice();
   };
 
@@ -106,6 +115,16 @@ const Checkout = () => {
         // Get Clerk token
         const token = await window.Clerk.session.getToken();
         
+        // Prepare request body based on mode
+        const requestBody = buyNowMode && buyNowCourse
+          ? {
+              courseIds: [buyNowCourse.courseId],
+              voucherCode: appliedVoucher || null
+            }
+          : {
+              voucherCode: appliedVoucher || null
+            };
+        
         // Create order and pay with wallet
         const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/payment/wallet/pay`, {
           method: 'POST',
@@ -113,9 +132,7 @@ const Checkout = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            voucherCode: appliedVoucher || null
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -126,7 +143,9 @@ const Checkout = () => {
 
         const data = await response.json();
         alert('Thanh toán thành công!');
-        clearCart();
+        if (!buyNowMode) {
+          clearCart();
+        }
         navigate('/my-learning');
       } catch (error) {
         console.error('Error during wallet payment:', error);
@@ -153,16 +172,24 @@ const Checkout = () => {
         // Get Clerk token
         const token = await window.Clerk.session.getToken();
         
-        // Step 1: Create order from cart
+        // Prepare request body based on mode
+        const requestBody = buyNowMode && buyNowCourse
+          ? {
+              courseIds: [buyNowCourse.courseId],
+              voucherCode: appliedVoucher || null
+            }
+          : {
+              voucherCode: appliedVoucher || null
+            };
+        
+        // Step 1: Create order from cart or single course
         const orderResponse = await fetch(`${import.meta.env.VITE_BASE_URL}/api/order/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            voucherCode: appliedVoucher || null
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!orderResponse.ok) {
@@ -218,7 +245,7 @@ const Checkout = () => {
           {/* Left Section: Order Summary */}
           <div className={styles.leftSection}>
             <OrderSummary
-              cartItems={cartItems}
+              cartItems={buyNowMode ? [{ courseId: buyNowCourse?.courseId, course: buyNowCourse }] : cartItems}
               subtotal={calculateSubtotal()}
               discount={calculateDiscount()}
               total={calculateTotal()}
@@ -250,7 +277,7 @@ const Checkout = () => {
             <button
               className={styles.checkoutButton}
               onClick={handleCheckout}
-              disabled={!selectedPayment || cartItems.length === 0 || (selectedPayment === 'wallet' && walletBalance < calculateTotal())}
+              disabled={!selectedPayment || (!buyNowMode && cartItems.length === 0) || (buyNowMode && !buyNowCourse) || (selectedPayment === 'wallet' && walletBalance < calculateTotal())}
             >
               Thanh Toán Ngay
             </button>
