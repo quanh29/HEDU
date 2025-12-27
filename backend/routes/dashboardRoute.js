@@ -5,7 +5,9 @@ import {
   getRevenueChart,
   getRevenueByCourse,
   getCourseRatings,
-  getRecentActivities
+  getRecentActivities,
+  getTopCoursesByStudents,
+  getAvailableYears
 } from '../controllers/dashboardController.js';
 
 const dashboardRouter = express.Router();
@@ -24,6 +26,12 @@ dashboardRouter.get('/instructor/revenue-by-course', getRevenueByCourse);
 
 // Get course ratings
 dashboardRouter.get('/instructor/course-ratings', getCourseRatings);
+
+// Get top courses by students
+dashboardRouter.get('/instructor/top-courses-by-students', getTopCoursesByStudents);
+
+// Get available years with revenue data
+dashboardRouter.get('/instructor/available-years', getAvailableYears);
 
 // Get recent activities
 dashboardRouter.get('/instructor/recent-activities', getRecentActivities);

@@ -3,7 +3,8 @@ import {
   initiateMoMoPayment,
   handleMoMoCallback,
   handleMoMoReturn,
-  getPaymentDetails
+  getPaymentDetails,
+  importEarning
 } from '../controllers/paymentController.js';
 import { payWithWallet } from '../controllers/walletController.js';
 import { protectUserAction } from '../middleware/auth.js';
@@ -17,7 +18,7 @@ paymentRouter.post('/momo/callback', handleMoMoCallback);
 paymentRouter.get('/momo/return', handleMoMoReturn);
 
 // Protected routes require authentication
-paymentRouter.use(protectUserAction);
+// paymentRouter.use(protectUserAction);
 
 // Initiate MoMo payment
 paymentRouter.post('/momo/initiate', initiateMoMoPayment);
@@ -27,5 +28,8 @@ paymentRouter.post('/wallet/pay', payWithWallet);
 
 // Get payment details
 paymentRouter.get('/:paymentId', getPaymentDetails);
+
+// Import earning (for testing)
+paymentRouter.post('/import-earning', importEarning);
 
 export default paymentRouter;

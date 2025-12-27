@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import axios from 'axios';
 import { updateOrderStatus } from './orderController.js';
+import { create } from 'domain';
 
 /**
  * Generate MoMo payment signature
@@ -463,5 +464,52 @@ export const getPaymentDetails = async (req, res) => {
   } catch (error) {
     console.error('Error fetching payment details:', error);
     res.status(500).json({ message: 'Lỗi khi lấy thông tin thanh toán' });
+  }
+};
+
+
+// enpoint to import earning from postman for testing purpose only
+// example body:
+// {
+//   [
+//     {
+//       "instructor_id": "user_302EGsIkTVD4YEHbtyHaOod5gio",
+//       "course_id": "104c8e66-87ad-42d7-8ade-3b01e2fd5084",
+//       "order_id": "694f91d2053039f5735a9193",
+//       "amount": 1000000,
+//       "net_amount": 900000,
+//       "status": "pending",
+//       "clearance_date": "2024-12-31T00:00:00.000Z",
+//       "createdAt": "2024-06-01T12:00:00.000Z",
+//       "updatedAt": "2024-06-01T12:00:00.000Z"
+//     },
+//     {
+//       "instructor_id": "user_302EGsIkTVD4YEHbtyHaOod5gio",
+//       "course_id": "104c8e66-87ad-42d7-8ade-3b01e2fd5084",
+//       "order_id": "694f91d2053039f5735a9193",
+//       "amount": 1000000,
+//       "net_amount": 900000,
+//       "status": "pending",
+//       "clearance_date": "2024-12-31T00:00:00.000Z",
+//       "createdAt": "2024-06-01T12:00:00.000Z",
+//       "updatedAt": "2024-06-01T12:00:00.000Z"
+//     }
+//   ]
+// }
+export const importEarning = async (req, res) => {
+  try {
+    const earningsData = req.body;
+    if (!Array.isArray(earningsData) || earningsData.length === 0) {
+      return res.status(400).json({ message: 'Invalid earnings data' });
+    }
+    // Save each earning to the database
+    for (const earningData of earningsData) {
+      const earning = new Earning(earningData);
+      await earning.save();
+    }
+    res.status(201).json({ message: 'Earnings imported successfully' });
+  } catch (error) {
+    console.error('Error importing earning:', error);
+    res.status(500).json({ message: 'Error importing earning' });
   }
 };

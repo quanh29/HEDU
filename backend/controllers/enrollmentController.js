@@ -51,7 +51,6 @@ export const createEnrollment = async (req, res) => {
         const newEnrollment = new Enrollment({
             userId: userId,
             courseId: courseId,
-            rating: null,
             completedLessons: []
         });
 

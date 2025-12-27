@@ -10,8 +10,8 @@ import {
 const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
 const Dashboard = ({ stats, formatPrice }) => {
-  const { getToken } = useAuth();
-  const [timeFilter, setTimeFilter] = useState('month');
+  const { getToken, user } = useAuth();
+  const [timeFilter, setTimeFilter] = useState('all');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
@@ -22,6 +22,9 @@ const Dashboard = ({ stats, formatPrice }) => {
   const [revenueByCourse, setRevenueByCourse] = useState([]);
   const [courseRatings, setCourseRatings] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [instructorCourses, setInstructorCourses] = useState([]);
+  const [topCoursesByStudents, setTopCoursesByStudents] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -32,27 +35,38 @@ const Dashboard = ({ stats, formatPrice }) => {
 
   useEffect(() => {
     if (hasLoadedRef.current) {
-      fetchRevenueChart();
+      fetchDashboardData();
     }
-  }, [timeFilter]);
+  }, [timeFilter, selectedCourseFilter]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       const token = await getToken();
 
+      const filterParam = selectedCourseFilter !== 'all' ? `?courseFilter=${selectedCourseFilter}` : '';
+
       // Fetch all dashboard data in parallel
-      const [statsRes, revenueByRes, ratingsRes, activitiesRes] = await Promise.all([
-        fetch(`${API_URL}/api/dashboard/instructor/stats`, {
+      const [statsRes, revenueByRes, ratingsRes, activitiesRes, coursesRes, topCoursesRes, yearsRes] = await Promise.all([
+        fetch(`${API_URL}/api/dashboard/instructor/stats${filterParam}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`${API_URL}/api/dashboard/instructor/revenue-by-course`, {
+        fetch(`${API_URL}/api/dashboard/instructor/revenue-by-course${filterParam}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`${API_URL}/api/dashboard/instructor/course-ratings`, {
+        fetch(`${API_URL}/api/dashboard/instructor/course-ratings${filterParam}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`${API_URL}/api/dashboard/instructor/recent-activities`, {
+        fetch(`${API_URL}/api/dashboard/instructor/recent-activities${filterParam}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/course/instructor/${user?.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/dashboard/instructor/top-courses-by-students${filterParam}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/dashboard/instructor/available-years${filterParam}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -77,6 +91,24 @@ const Dashboard = ({ stats, formatPrice }) => {
         setRecentActivities(data.data);
       }
 
+      if (coursesRes.ok) {
+        const data = await coursesRes.json();
+        console.log('Instructor courses:', data);
+        // Fix: API returns data.courses, not data.data.courses
+        const coursesList = data.courses || data.data?.courses || [];
+        setInstructorCourses(coursesList);
+      }
+
+      if (topCoursesRes.ok) {
+        const data = await topCoursesRes.json();
+        setTopCoursesByStudents(data.data);
+      }
+
+      if (yearsRes.ok) {
+        const data = await yearsRes.json();
+        setAvailableYears(data.data || []);
+      }
+
       // Fetch revenue chart separately
       await fetchRevenueChart();
 
@@ -90,7 +122,8 @@ const Dashboard = ({ stats, formatPrice }) => {
   const fetchRevenueChart = async () => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/dashboard/instructor/revenue-chart?timeFilter=${timeFilter}`, {
+      const filterParam = selectedCourseFilter !== 'all' ? `&courseFilter=${selectedCourseFilter}` : '';
+      const res = await fetch(`${API_URL}/api/dashboard/instructor/revenue-chart?timeFilter=${timeFilter}${filterParam}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -118,9 +151,17 @@ const Dashboard = ({ stats, formatPrice }) => {
 
   // Stats with comparison (using real data)
   const statsComparison = {
-    courses: { current: dashboardStats?.totalCourses || 0, previous: 0, change: 0 },
-    students: { current: dashboardStats?.totalStudents || 0, previous: 0, change: 0 },
-    revenue: { current: dashboardStats?.totalRevenue || 0, previous: 0, change: 0 }
+    courses: { current: dashboardStats?.totalCourses || 0, previous: dashboardStats?.totalCourses || 0, change: 0 },
+    students: { 
+      current: dashboardStats?.thisMonthStudents || 0, 
+      previous: dashboardStats?.lastMonthStudents || 0, 
+      change: dashboardStats?.studentsChange || 0 
+    },
+    revenue: { 
+      current: dashboardStats?.thisMonthRevenue || 0, 
+      previous: dashboardStats?.lastMonthRevenue || 0, 
+      change: dashboardStats?.revenueChange || 0 
+    }
   };
 
   const renderStatCard = (title, icon, current, previous, change, formatter = (v) => v) => {
@@ -192,10 +233,10 @@ const Dashboard = ({ stats, formatPrice }) => {
               background: 'white'
             }}
           >
-            <option value="week">7 ngày qua</option>
-            <option value="month">30 ngày qua</option>
-            <option value="quarter">3 tháng qua</option>
-            <option value="year">12 tháng qua</option>
+            <option value="all">Tất cả</option>
+            {availableYears.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
           </select>
         </div>
 
@@ -214,11 +255,9 @@ const Dashboard = ({ stats, formatPrice }) => {
             }}
           >
             <option value="all">Tất cả khóa học</option>
-            <option value="react">React Fundamentals</option>
-            <option value="javascript">Advanced JavaScript</option>
-            <option value="nodejs">Node.js Backend</option>
-            <option value="python">Python for Data Science</option>
-            <option value="webdesign">Web Design Basics</option>
+            {instructorCourses.map(course => (
+              <option key={course.course_id} value={course.course_id}>{course.title}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -240,7 +279,7 @@ const Dashboard = ({ stats, formatPrice }) => {
           statsComparison.students.change
         )}
         {renderStatCard(
-          'Doanh thu tháng này',
+          selectedCourseFilter === 'all' ? 'Tổng doanh thu' : 'Doanh thu tháng này',
           <DollarSign size={20} style={{ color: '#10b981' }} />,
           statsComparison.revenue.current,
           statsComparison.revenue.previous,
@@ -250,7 +289,6 @@ const Dashboard = ({ stats, formatPrice }) => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Over Time Chart */}
         <div style={{
           background: 'white',
@@ -262,79 +300,100 @@ const Dashboard = ({ stats, formatPrice }) => {
           <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#111827' }}>
             Doanh thu theo thời gian
           </h3>
-          <div style={{ width: '100%', height: '300px', position: 'relative' }}>
-            <svg width="100%" height="100%" viewBox="0 0 600 300" style={{ overflow: 'visible' }}>
+          <div style={{ width: '100%', height: '400px', position: 'relative' }}>
+            <svg width="100%" height="100%" viewBox="0 0 900 400" style={{ overflow: 'visible' }}>
               {/* Grid lines */}
-              {[0, 1, 2, 3, 4].map((i) => (
+              {[0, 1, 2, 3, 4, 5].map((i) => (
                 <line
                   key={i}
-                  x1="50"
-                  y1={50 + i * 50}
-                  x2="580"
-                  y2={50 + i * 50}
+                  x1="80"
+                  y1={60 + i * 55}
+                  x2="880"
+                  y2={60 + i * 55}
                   stroke="#f3f4f6"
                   strokeWidth="1"
                 />
               ))}
               
               {/* Y-axis labels */}
-              {[50, 40, 30, 20, 10, 0].map((val, i) => (
-                <text
-                  key={i}
-                  x="40"
-                  y={50 + i * 50}
-                  textAnchor="end"
-                  fontSize="11"
-                  fill="#6b7280"
-                  dominantBaseline="middle"
-                >
-                  {val}M
-                </text>
-              ))}
+              {(() => {
+                const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
+                const step = Math.ceil(maxRevenue / 5000000) * 1000000;
+                return [5, 4, 3, 2, 1, 0].map((val, i) => {
+                  const value = (val * step / 1000000).toFixed(0);
+                  return (
+                    <text
+                      key={i}
+                      x="70"
+                      y={60 + i * 55}
+                      textAnchor="end"
+                      fontSize="14"
+                      fill="#6b7280"
+                      dominantBaseline="middle"
+                      fontWeight="500"
+                    >
+                      {value}M
+                    </text>
+                  );
+                });
+              })()}
 
               {/* Line chart */}
-              <polyline
-                points={revenueData.map((d, i) => {
-                  const x = 70 + (i * 45);
-                  const y = 250 - (d.revenue / 60000000 * 200);
-                  return `${x},${y}`;
-                }).join(' ')}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              {revenueData.length > 0 && (() => {
+                const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
+                const chartHeight = 275;
+                const chartWidth = 800;
+                const spacing = chartWidth / Math.max(revenueData.length - 1, 1);
+                
+                return (
+                  <polyline
+                    points={revenueData.map((d, i) => {
+                      const x = 90 + (i * spacing);
+                      const y = 335 - (d.revenue / maxRevenue * chartHeight);
+                      return `${x},${y}`;
+                    }).join(' ')}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                );
+              })()}
 
               {/* Data points with hover labels */}
               {revenueData.map((d, i) => {
-                const x = 70 + (i * 45);
-                const y = 250 - (d.revenue / 60000000 * 200);
+                const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
+                const chartHeight = 275;
+                const chartWidth = 800;
+                const spacing = chartWidth / Math.max(revenueData.length - 1, 1);
+                const x = 90 + (i * spacing);
+                const y = 335 - (d.revenue / maxRevenue * chartHeight);
                 const revenueInMillion = (d.revenue / 1000000).toFixed(1);
                 return (
                   <g key={i}>
                     <circle
                       cx={x}
                       cy={y}
-                      r="4"
+                      r="6"
                       fill="#3b82f6"
                     />
                     {/* Tooltip on hover */}
                     <g className="chart-label" style={{ opacity: 0, transition: 'opacity 0.2s' }}>
                       <rect
-                        x={x - 35}
-                        y={y - 45}
-                        width="70"
-                        height="35"
-                        rx="4"
+                        x={x - 45}
+                        y={y - 55}
+                        width="90"
+                        height="45"
+                        rx="6"
                         fill="#111827"
-                        opacity="0.9"
+                        opacity="0.95"
                       />
                       <text
                         x={x}
-                        y={y - 30}
+                        y={y - 37}
                         textAnchor="middle"
-                        fontSize="10"
+                        fontSize="13"
                         fill="white"
                         fontWeight="600"
                       >
@@ -342,9 +401,9 @@ const Dashboard = ({ stats, formatPrice }) => {
                       </text>
                       <text
                         x={x}
-                        y={y - 18}
+                        y={y - 22}
                         textAnchor="middle"
-                        fontSize="9"
+                        fontSize="12"
                         fill="white"
                       >
                         {revenueInMillion}M VND
@@ -354,7 +413,7 @@ const Dashboard = ({ stats, formatPrice }) => {
                     <circle
                       cx={x}
                       cy={y}
-                      r="12"
+                      r="15"
                       fill="transparent"
                       style={{ cursor: 'pointer' }}
                       onMouseEnter={(e) => {
@@ -371,38 +430,65 @@ const Dashboard = ({ stats, formatPrice }) => {
               })}
 
               {/* X-axis labels */}
-              {revenueData.map((d, i) => (
-                <text
-                  key={i}
-                  x={70 + (i * 45)}
-                  y="280"
-                  textAnchor="middle"
-                  fontSize="11"
-                  fill="#6b7280"
-                >
-                  {d.month}
-                </text>
-              ))}
+              {revenueData.map((d, i) => {
+                const chartWidth = 800;
+                const spacing = chartWidth / Math.max(revenueData.length - 1, 1);
+                const x = 90 + (i * spacing);
+                
+                // Check if we need to show year label (when year changes or first item)
+                const showYearLabel = i === 0 || (i > 0 && d.year !== revenueData[i - 1].year);
+                
+                return (
+                  <g key={i}>
+                    {/* Month label */}
+                    <text
+                      x={x}
+                      y="370"
+                      textAnchor="middle"
+                      fontSize="14"
+                      fill="#6b7280"
+                      fontWeight="500"
+                    >
+                      {d.month}
+                    </text>
+                    
+                    {/* Year label (shown when year changes) */}
+                    {showYearLabel && d.year && timeFilter !== 'all' && (
+                      <text
+                        x={x}
+                        y="390"
+                        textAnchor="middle"
+                        fontSize="12"
+                        fill="#9ca3af"
+                        fontWeight="600"
+                      >
+                        {d.year}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
               
               {/* Chart labels */}
               <text
-                x="300"
-                y="20"
+                x="450"
+                y="30"
                 textAnchor="middle"
-                fontSize="12"
-                fill="#9ca3af"
-                fontWeight="500"
+                fontSize="15"
+                fill="#6b7280"
+                fontWeight="600"
               >
                 Doanh thu (Triệu VND)
               </text>
               
               <text
-                x="20"
-                y="150"
+                x="25"
+                y="200"
                 textAnchor="middle"
-                fontSize="11"
-                fill="#9ca3af"
-                transform="rotate(-90, 20, 150)"
+                fontSize="14"
+                fill="#6b7280"
+                fontWeight="500"
+                transform="rotate(-90, 25, 200)"
               >
                 VND
               </text>
@@ -410,6 +496,8 @@ const Dashboard = ({ stats, formatPrice }) => {
           </div>
         </div>
 
+      {/* Revenue and Top Students Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Course Pie Chart */}
         <div style={{
           background: 'white',
@@ -418,9 +506,9 @@ const Dashboard = ({ stats, formatPrice }) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           border: '1px solid #e5e7eb'
         }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#111827' }}>
-            Cơ cấu doanh thu theo khóa học
-          </h3>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#111827' }}>
+          Cơ cấu doanh thu theo khóa học
+        </h3>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '300px' }}>
             {/* Pie Chart */}
             <div style={{ position: 'relative', width: '200px', height: '200px' }}>
@@ -552,9 +640,148 @@ const Dashboard = ({ stats, formatPrice }) => {
             </div>
           </div>
         </div>
+
+        {/* Top Courses by Students */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#111827' }}>
+            Top khóa học theo học viên
+          </h3>
+          <div style={{ height: '300px', position: 'relative' }}>
+            {topCoursesByStudents.length > 0 ? (
+              <svg width="100%" height="100%" viewBox="0 0 500 300" style={{ overflow: 'visible' }}>
+                {/* Y-axis labels */}
+                {(() => {
+                  const maxStudents = Math.max(...topCoursesByStudents.map(c => c.value), 1);
+                  const step = Math.ceil(maxStudents / 5);
+                  return [5, 4, 3, 2, 1, 0].map((val, i) => {
+                    const value = val * step;
+                    const y = 30 + (i * 40);
+                    return (
+                      <text
+                        key={i}
+                        x="35"
+                        y={y}
+                        textAnchor="end"
+                        fontSize="11"
+                        fill="#6b7280"
+                        dominantBaseline="middle"
+                      >
+                        {value}
+                      </text>
+                    );
+                  });
+                })()}
+
+                {/* Column chart */}
+                {topCoursesByStudents.map((course, index) => {
+                  const maxStudents = Math.max(...topCoursesByStudents.map(c => c.value), 1);
+                  const columnWidth = 60;
+                  const spacing = 15;
+                  const chartHeight = 200;
+                  const x = 60 + (index * (columnWidth + spacing));
+                  const columnHeight = (course.value / maxStudents) * chartHeight;
+                  const y = 230 - columnHeight;
+                  
+                  return (
+                    <g key={index}>
+                      {/* Column */}
+                      <rect
+                        x={x}
+                        y={y}
+                        width={columnWidth}
+                        height={columnHeight}
+                        fill={course.color}
+                        rx="4"
+                        style={{ 
+                          cursor: 'pointer', 
+                          transition: 'opacity 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      />
+                      {/* Value label on top of column */}
+                      <text
+                        x={x + columnWidth / 2}
+                        y={y - 5}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fill="#374151"
+                        fontWeight="600"
+                      >
+                        {course.value.toLocaleString()}
+                      </text>
+                      {/* Course name label (rotated) */}
+                      <text
+                        x={x + columnWidth / 2}
+                        y="245"
+                        textAnchor="start"
+                        fontSize="10"
+                        fill="#374151"
+                        fontWeight="500"
+                        transform={`rotate(45, ${x + columnWidth / 2}, 245)`}
+                      >
+                        {course.name.length > 20 ? course.name.substring(0, 20) + '...' : course.name}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Y-axis line */}
+                <line
+                  x1="45"
+                  y1="30"
+                  x2="45"
+                  y2="230"
+                  stroke="#e5e7eb"
+                  strokeWidth="2"
+                />
+
+                {/* X-axis line */}
+                <line
+                  x1="45"
+                  y1="230"
+                  x2="480"
+                  y2="230"
+                  stroke="#e5e7eb"
+                  strokeWidth="2"
+                />
+
+                {/* Y-axis label */}
+                <text
+                  x="20"
+                  y="130"
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="#6b7280"
+                  fontWeight="500"
+                  transform="rotate(-90, 20, 130)"
+                >
+                  Số học viên
+                </text>
+              </svg>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: '100%',
+                color: '#9ca3af',
+                fontSize: '14px'
+              }}>
+                Chưa có dữ liệu
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Course Ratings Table */}
+      {/* Course Ratings Table - Full Width Row */}
       <div style={{
         background: 'white',
         padding: '24px',
@@ -581,9 +808,6 @@ const Dashboard = ({ stats, formatPrice }) => {
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
                   Số đánh giá
                 </th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                  Đánh giá
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -605,21 +829,6 @@ const Dashboard = ({ stats, formatPrice }) => {
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '14px', color: '#6b7280' }}>
                     {course.reviews} đánh giá
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '2px' }}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span 
-                          key={star}
-                          style={{ 
-                            color: star <= Math.round(course.rating) ? '#f59e0b' : '#d1d5db',
-                            fontSize: '16px'
-                          }}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
                   </td>
                 </tr>
               ))}

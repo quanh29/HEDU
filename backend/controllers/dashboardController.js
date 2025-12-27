@@ -11,34 +11,80 @@ import User from '../models/User.js';
 export const getInstructorStats = async (req, res) => {
   try {
     const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    // Get courses filter
+    let coursesQuery = { instructor_id: instructorId };
+    if (courseFilter && courseFilter !== 'all') {
+      coursesQuery._id = courseFilter;
+    }
 
     // Get total courses from MongoDB
     const totalCourses = await Course.countDocuments({
-      instructor_id: instructorId,
+      ...coursesQuery,
       course_status: { $ne: 'draft' }
     });
 
     // Get course IDs for enrollments
-    const courses = await Course.find(
-      { instructor_id: instructorId },
-      { _id: 1 }
-    );
+    const courses = await Course.find(coursesQuery, { _id: 1 });
     const courseIdsList = courses.map(c => c._id);
     
     const totalStudents = courseIdsList.length > 0 
       ? await Enrollment.countDocuments({ courseId: { $in: courseIdsList } })
       : 0;
 
-    // Get total revenue (pending + cleared)
+    // Calculate date ranges for comparison
+    const now = new Date();
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    // Get total revenue (all time)
     const earnings = await Earning.find({
       instructor_id: instructorId,
+      ...(courseIdsList.length > 0 ? { course_id: { $in: courseIdsList } } : {}),
       status: { $in: ['pending', 'cleared'] }
     });
     const totalRevenue = earnings.reduce((sum, e) => sum + e.net_amount, 0);
 
+    // Get this month revenue
+    const thisMonthEarnings = await Earning.find({
+      instructor_id: instructorId,
+      ...(courseIdsList.length > 0 ? { course_id: { $in: courseIdsList } } : {}),
+      status: { $in: ['pending', 'cleared'] },
+      createdAt: { $gte: startOfThisMonth }
+    });
+    const thisMonthRevenue = thisMonthEarnings.reduce((sum, e) => sum + e.net_amount, 0);
+
+    // Get last month revenue
+    const lastMonthEarnings = await Earning.find({
+      instructor_id: instructorId,
+      ...(courseIdsList.length > 0 ? { course_id: { $in: courseIdsList } } : {}),
+      status: { $in: ['pending', 'cleared'] },
+      createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+    });
+    const lastMonthRevenue = lastMonthEarnings.reduce((sum, e) => sum + e.net_amount, 0);
+
+    // Get last month students count
+    const lastMonthStudents = courseIdsList.length > 0
+      ? await Enrollment.countDocuments({ 
+          courseId: { $in: courseIdsList },
+          createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+        })
+      : 0;
+
+    // Get this month students count
+    const thisMonthStudents = courseIdsList.length > 0
+      ? await Enrollment.countDocuments({ 
+          courseId: { $in: courseIdsList },
+          createdAt: { $gte: startOfThisMonth }
+        })
+      : 0;
+
     // Get pending revenue
     const pendingEarnings = await Earning.find({
       instructor_id: instructorId,
+      ...(courseIdsList.length > 0 ? { course_id: { $in: courseIdsList } } : {}),
       status: 'pending'
     });
     const pendingRevenue = pendingEarnings.reduce((sum, e) => sum + e.net_amount, 0);
@@ -46,6 +92,7 @@ export const getInstructorStats = async (req, res) => {
     // Get cleared revenue
     const clearedEarnings = await Earning.find({
       instructor_id: instructorId,
+      ...(courseIdsList.length > 0 ? { course_id: { $in: courseIdsList } } : {}),
       status: 'cleared'
     });
     const clearedRevenue = clearedEarnings.reduce((sum, e) => sum + e.net_amount, 0);
@@ -56,12 +103,26 @@ export const getInstructorStats = async (req, res) => {
       ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
       : 0;
 
+    // Calculate percentage changes
+    const revenueChange = lastMonthRevenue > 0 
+      ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
+      : 0;
+    const studentsChange = lastMonthStudents > 0
+      ? ((thisMonthStudents - lastMonthStudents) / lastMonthStudents) * 100
+      : 0;
+
     return res.json({
       success: true,
       data: {
         totalCourses,
         totalStudents,
-        totalRevenue,
+        totalRevenue: courseFilter && courseFilter !== 'all' ? thisMonthRevenue : totalRevenue,
+        thisMonthRevenue,
+        lastMonthRevenue,
+        revenueChange,
+        thisMonthStudents,
+        lastMonthStudents,
+        studentsChange,
         pendingRevenue,
         clearedRevenue,
         avgRating: Math.round(avgRating * 10) / 10,
@@ -86,50 +147,56 @@ export const getInstructorStats = async (req, res) => {
 export const getRevenueChart = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { timeFilter = 'month' } = req.query;
+    const { timeFilter = 'all', courseFilter } = req.query;
 
     // Calculate date range based on filter
     const now = new Date();
     let startDate = new Date();
-    let groupBy = '$month';
-    let limit = 12;
+    let endDate = new Date();
+    let groupBy = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } };
+    let limit = 100;
 
-    switch (timeFilter) {
-      case 'week':
-        startDate.setDate(now.getDate() - 7 * 12); // 12 weeks
-        groupBy = '$week';
-        limit = 12;
-        break;
-      case 'quarter':
-        startDate.setMonth(now.getMonth() - 12); // 12 quarters (3 years)
-        groupBy = '$month';
-        limit = 12;
-        break;
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 5); // 5 years
-        groupBy = '$year';
-        limit = 5;
-        break;
-      default: // month
-        startDate.setMonth(now.getMonth() - 12); // 12 months
-        groupBy = '$month';
-        limit = 12;
+    // Check if timeFilter is a specific year (like "2025", "2024", etc.)
+    const yearMatch = timeFilter.match(/^(\d{4})$/);
+    
+    if (yearMatch) {
+      // Filter by specific year - show all 12 months
+      const year = parseInt(yearMatch[1]);
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31, 23, 59, 59);
+      groupBy = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } };
+      limit = 12;
+    } else if (timeFilter === 'all') {
+      // Show all years from 2000
+      startDate = new Date(2000, 0, 1);
+      endDate = now;
+      groupBy = { year: { $year: '$createdAt' } };
+      limit = 100;
+    } else {
+      // Default to current year
+      startDate = new Date(now.getFullYear(), 0, 1);
+      endDate = now;
+      groupBy = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } };
+      limit = 12;
+    }
+
+    let matchQuery = {
+      instructor_id: instructorId,
+      status: { $in: ['pending', 'cleared'] },
+      createdAt: { $gte: startDate, $lte: endDate }
+    };
+
+    if (courseFilter && courseFilter !== 'all') {
+      matchQuery.course_id = courseFilter;
     }
 
     const earnings = await Earning.aggregate([
       {
-        $match: {
-          instructor_id: instructorId,
-          status: { $in: ['pending', 'cleared'] },
-          createdAt: { $gte: startDate }
-        }
+        $match: matchQuery
       },
       {
         $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
+          _id: groupBy,
           revenue: { $sum: '$net_amount' },
           count: { $sum: 1 }
         }
@@ -143,11 +210,24 @@ export const getRevenueChart = async (req, res) => {
     ]);
 
     const monthNames = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
-    const chartData = earnings.map(e => ({
-      month: monthNames[e._id.month - 1],
-      revenue: e.revenue,
-      courses: e.count
-    }));
+    const chartData = earnings.map(e => {
+      let label;
+      if (timeFilter === 'all') {
+        // Show only year for "all" view
+        label = `${e._id.year}`;
+      } else if (e._id.month) {
+        // Show only month name for specific year view
+        label = monthNames[e._id.month - 1];
+      } else {
+        label = `${e._id.year}`;
+      }
+      return {
+        month: label,
+        year: e._id.year,
+        revenue: e.revenue,
+        courses: e.count
+      };
+    });
 
     return res.json({
       success: true,
@@ -171,13 +251,20 @@ export const getRevenueChart = async (req, res) => {
 export const getRevenueByCourse = async (req, res) => {
   try {
     const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    let matchQuery = {
+      instructor_id: instructorId,
+      status: { $in: ['pending', 'cleared'] }
+    };
+
+    if (courseFilter && courseFilter !== 'all') {
+      matchQuery.course_id = courseFilter;
+    }
 
     const earnings = await Earning.aggregate([
       {
-        $match: {
-          instructor_id: instructorId,
-          status: { $in: ['pending', 'cleared'] }
-        }
+        $match: matchQuery
       },
       {
         $group: {
@@ -238,15 +325,19 @@ export const getRevenueByCourse = async (req, res) => {
 export const getCourseRatings = async (req, res) => {
   try {
     const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    let coursesQuery = {
+      instructor_id: instructorId,
+      course_status: { $ne: 'draft' }
+    };
+
+    if (courseFilter && courseFilter !== 'all') {
+      coursesQuery._id = courseFilter;
+    }
 
     // Get instructor courses from MongoDB
-    const courses = await Course.find(
-      {
-        instructor_id: instructorId,
-        course_status: { $ne: 'draft' }
-      },
-      { _id: 1, title: 1 }
-    );
+    const courses = await Course.find(coursesQuery, { _id: 1, title: 1 });
 
     const courseIds = courses.map(c => c._id);
     
@@ -300,12 +391,15 @@ export const getCourseRatings = async (req, res) => {
 export const getRecentActivities = async (req, res) => {
   try {
     const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    let coursesQuery = { instructor_id: instructorId };
+    if (courseFilter && courseFilter !== 'all') {
+      coursesQuery._id = courseFilter;
+    }
 
     // Get instructor courses from MongoDB
-    const courses = await Course.find(
-      { instructor_id: instructorId },
-      { _id: 1, title: 1 }
-    );
+    const courses = await Course.find(coursesQuery, { _id: 1, title: 1 });
 
     const courseIds = courses.map(c => c._id);
     const courseTitles = {};
@@ -390,6 +484,119 @@ export const getRecentActivities = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi khi tải hoạt động gần đây',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get available years with revenue data
+ * @route GET /api/dashboard/instructor/available-years
+ */
+export const getAvailableYears = async (req, res) => {
+  try {
+    const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    let matchQuery = {
+      instructor_id: instructorId,
+      status: { $in: ['pending', 'cleared'] }
+    };
+
+    if (courseFilter && courseFilter !== 'all') {
+      matchQuery.course_id = courseFilter;
+    }
+
+    // Get distinct years from earnings
+    const years = await Earning.aggregate([
+      {
+        $match: matchQuery
+      },
+      {
+        $group: {
+          _id: { $year: '$createdAt' }
+        }
+      },
+      {
+        $sort: { _id: -1 }
+      }
+    ]);
+
+    const yearList = years.map(y => y._id);
+
+    return res.json({
+      success: true,
+      data: yearList
+    });
+
+  } catch (error) {
+    console.error('Error fetching available years:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải danh sách năm',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get top courses by students
+ * @route GET /api/dashboard/instructor/top-courses-by-students
+ */
+export const getTopCoursesByStudents = async (req, res) => {
+  try {
+    const instructorId = req.userId;
+    const { courseFilter } = req.query;
+
+    let coursesQuery = {
+      instructor_id: instructorId,
+      course_status: { $ne: 'draft' }
+    };
+
+    if (courseFilter && courseFilter !== 'all') {
+      coursesQuery._id = courseFilter;
+    }
+
+    // Get instructor courses
+    const courses = await Course.find(coursesQuery, { _id: 1, title: 1 });
+    const courseIds = courses.map(c => c._id);
+    
+    if (courseIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Get enrollment counts for each course
+    const enrollmentCounts = await Promise.all(
+      courses.map(async (course) => {
+        const studentCount = await Enrollment.countDocuments({ courseId: course._id });
+        return {
+          name: course.title,
+          value: studentCount,
+          courseId: course._id
+        };
+      })
+    );
+
+    // Sort by student count and limit to top 5
+    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+    const topCourses = enrollmentCounts
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5)
+      .map((course, index) => ({
+        ...course,
+        color: colors[index % colors.length]
+      }));
+
+    return res.json({
+      success: true,
+      data: topCourses
+    });
+
+  } catch (error) {
+    console.error('Error fetching top courses by students:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải top khóa học theo học viên',
       error: error.message
     });
   }

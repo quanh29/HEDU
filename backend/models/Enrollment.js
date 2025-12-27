@@ -9,14 +9,6 @@ const enrollmentSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    rating: {
-        type: Number, 
-        default: null,
-    },
-    commment: {
-        type: String,
-        default: null,
-    },
     completedLessons: {
         type: [String], // Array of lesson IDs
         default: [],
