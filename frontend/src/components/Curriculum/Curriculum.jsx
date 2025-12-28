@@ -8,6 +8,7 @@ import QuizQuestionModal from '../Modals/QuizQuestionModal';
 import styles from './Curriculum.module.css';
 import { useVideoSocket } from '../../context/SocketContext.jsx';
 import { useAuth } from '@clerk/clerk-react';
+import toast from 'react-hot-toast';
 
 const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson, draftMode }) => {
   const { getToken } = useAuth();
@@ -273,7 +274,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     } catch (error) {
       console.error('Error deleting video:', error);
       if (!skipConfirm) {
-        alert('Có lỗi khi xóa video. Vui lòng thử lại.');
+        toast.error('Có lỗi khi xóa video. Vui lòng thử lại.');
       }
     }
   };
@@ -326,12 +327,12 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
 
       console.log('✅ Material deleted successfully');
       if (!skipConfirm) {
-        alert('Tài liệu đã được xóa thành công');
+        toast.success('Tài liệu đã được xóa thành công');
       }
     } catch (error) {
       console.error('❌ Error deleting material:', error);
       if (!skipConfirm) {
-        alert('Có lỗi khi xóa tài liệu. Vui lòng thử lại.');
+        toast.error('Có lỗi khi xóa tài liệu. Vui lòng thử lại.');
       }
     }
   };
@@ -392,7 +393,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       console.log('✅ Lesson deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting lesson:', error);
-      alert('Có lỗi khi xóa bài học. Vui lòng thử lại.');
+      toast.error('Có lỗi khi xóa bài học. Vui lòng thử lại.');
     }
   };
 
@@ -453,7 +454,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       console.log('✅ Section and all lessons deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting section:', error);
-      alert('Có lỗi khi xóa chương. Vui lòng thử lại.');
+      toast.error('Có lỗi khi xóa chương. Vui lòng thử lại.');
     }
   };
 
@@ -608,7 +609,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       await syncQuizWithBackend(currentSectionId, currentLessonId, lesson, quizQuestions);
     } catch (error) {
       console.error('❌ Error syncing quiz with backend:', error);
-      alert('Có lỗi khi lưu câu hỏi. Vui lòng thử lại.');
+      toast.error('Có lỗi khi lưu câu hỏi. Vui lòng thử lại.');
     }
     
     setQuizQuestionModalOpen(false);
@@ -642,7 +643,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
         await syncQuizWithBackend(sectionId, lessonId, lesson, quizQuestions);
       } catch (error) {
         console.error('❌ Error syncing quiz with backend:', error);
-        alert('Có lỗi khi xóa câu hỏi. Vui lòng thử lại.');
+        toast.error('Có lỗi khi xóa câu hỏi. Vui lòng thử lại.');
       }
     } else {
       console.log('ℹ️ No questions and no quiz ID - skipping backend sync');

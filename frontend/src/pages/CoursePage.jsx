@@ -258,9 +258,9 @@ function CoursePage() {
   return (
     <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ marginTop: 70, padding: '2rem 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 2rem' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 2rem', marginLeft: '35vw' }}>
           {/* Breadcrumb */}
-          <div style={{ marginBottom: '1rem', color: '#666' }}>
+          <div style={{ marginBottom: '1rem', color: '#666', marginLeft: '-15vw'  }}>
             <a href="/" style={{ fontWeight: 'bold' }}>Trang chủ</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Lập trình</a> &gt; <a href="/courses" style={{ fontWeight: 'bold' }}>Web Development</a> &gt; {courseData?.title}
           </div>
           
@@ -335,7 +335,7 @@ function CoursePage() {
                               </div>
                             )}
                             <div>
-                              <h4 style={{ color: '#3b82f6', marginBottom: '0.3rem' }}>{instructor.fullName || 'Giảng viên'}</h4>
+                              <h4 style={{ color: '#000', fontWeight: 700, marginBottom: '0.3rem' }}>{instructor.fullName || 'Giảng viên'}</h4>
                               <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>{instructor.headline || 'Giảng viên chuyên nghiệp'}</p>
                             </div>
                           </div>
@@ -362,7 +362,7 @@ function CoursePage() {
                           G
                         </div>
                         <div>
-                          <h4 style={{ color: '#3b82f6', marginBottom: '0.3rem' }}>Giảng viên</h4>
+                          <h4 style={{ color: '#000', fontWeight: 700, marginBottom: '0.3rem' }}>Giảng viên</h4>
                           <p style={{ color: '#666', fontSize: '0.9rem' }}>Thông tin giảng viên đang được cập nhật...</p>
                         </div>
                       </div>

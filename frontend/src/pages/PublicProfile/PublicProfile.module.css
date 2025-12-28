@@ -7,6 +7,7 @@
 .profileWrapper {
   max-width: 1200px;
   margin: 0 auto;
+  margin-top: 5vh;
 }
 
 /* Loading & Error States */

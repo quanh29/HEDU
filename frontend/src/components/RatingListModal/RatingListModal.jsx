@@ -191,7 +191,7 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
                                             </div>
                                         )}
                                         <div className={styles.userDetails}>
-                                            <div className={styles.userName} style={{ color: rating.user_id?._id ? '#3b82f6' : 'inherit' }}>
+                                            <div className={styles.userName} style={{ color: rating.user_id?._id ? '#000000ff' : 'inherit' }}>
                                                 {rating.user_id?.full_name || 'Học viên'}
                                             </div>
                                             <div className={styles.ratingMeta}>
