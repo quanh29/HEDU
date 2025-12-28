@@ -23,6 +23,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import styles from './CourseManagement.module.css';
 import { 
   mapSectionData, 
@@ -188,7 +189,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   const fetchCourseData = async () => {
     if (!courseId) {
       console.error('CourseId is undefined!');
-      alert('Không tìm thấy ID khóa học');
+      toast.error('Không tìm thấy ID khóa học');
       navigate('/instructor');
       return;
     }
@@ -433,7 +434,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     } catch (error) {
       console.error('Error fetching course data:', error);
       console.error('Error details:', error.response?.data);
-      alert('Không thể tải dữ liệu khóa học: ' + (error.response?.data?.message || error.message));
+      toast.error('Không thể tải dữ liệu khóa học: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -486,12 +487,12 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       const token = await getToken();
       await draftService.submitDraftForApproval(courseId, token);
       
-      alert('Đã gửi bản nháp để phê duyệt!');
+      toast.success('Đã gửi bản nháp để phê duyệt!');
       setDraftStatus('pending');
       checkDraftStatus();
     } catch (error) {
       console.error('Error submitting draft:', error);
-      alert('Có lỗi khi gửi bản nháp: ' + (error.response?.data?.message || error.message));
+      toast.error('Có lỗi khi gửi bản nháp: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
@@ -513,7 +514,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       const token = await getToken();
       await draftService.cancelDraft(courseId, token);
       
-      alert('Đã hủy bản nháp!');
+      toast.success('Đã hủy bản nháp!');
       setDraftMode(false);
       setDraftStatus(null);
       setCourseDraftId(null);
@@ -522,7 +523,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       fetchCourseData();
     } catch (error) {
       console.error('Error canceling draft:', error);
-      alert('Có lỗi khi hủy bản nháp: ' + (error.response?.data?.message || error.message));
+      toast.error('Có lỗi khi hủy bản nháp: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
@@ -580,7 +581,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       console.log('\u2705 Section created:', response.data._id, '(isDraft:', response.isDraft, ')');
     } catch (error) {
       console.error('\u274c Error creating section:', error);
-      alert('Kh\u00f4ng th\u1ec3 t\u1ea1o ch\u01b0\u01a1ng: ' + (error.response?.data?.message || error.message));
+      toast.error('Không thể tạo chương: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -732,7 +733,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       console.log('\u2705 Lesson created:', lessonData._id, '(isDraft:', response.isDraft, ')');
     } catch (error) {
       console.error('\u274c Error creating lesson:', error);
-      alert('Kh\u00f4ng th\u1ec3 t\u1ea1o b\u00e0i h\u1ecdc: ' + (error.response?.data?.message || error.message));
+      toast.error('Không thể tạo bài học: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -887,7 +888,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
   // Handle save basic info only
   const handleSaveBasicInfo = async () => {
     if (!isEditMode || !courseId) {
-      alert('Chỉ có thể lưu khi chỉnh sửa khóa học');
+      toast.error('Chỉ có thể lưu khi chỉnh sửa khóa học');
       return;
     }
 
@@ -927,10 +928,10 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       // Update initial data after successful save
       setInitialData({ ...courseData });
       setLastSaved(new Date());
-      alert('Lưu thông tin thành công!');
+      toast.success('Lưu thông tin thành công!');
     } catch (error) {
       console.error('❌ [handleSaveBasicInfo] Error:', error);
-      alert('Có lỗi xảy ra khi lưu: ' + (error.response?.data?.message || error.message));
+      toast.error('Có lỗi xảy ra khi lưu: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
@@ -948,7 +949,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       const instructorId = user?.id;
       
       if (!instructorId) {
-        alert('Vui lòng đăng nhập để tạo khóa học');
+        toast.error('Vui lòng đăng nhập để tạo khóa học');
         return;
       }
       
@@ -1064,9 +1065,9 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         
         // Kiểm tra xem có phải là revision không
         if (response.data.isRevision) {
-          alert('Đã gửi yêu cầu cập nhật khóa học! Vui lòng chờ admin phê duyệt.');
+          toast.success('Đã gửi yêu cầu cập nhật khóa học! Vui lòng chờ admin phê duyệt.');
         } else {
-          alert(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
+          toast.success(status === 'draft' ? 'Cập nhật nháp khóa học thành công!' : 'Cập nhật và gửi khóa học xét duyệt thành công!');
         }
         
         // Update initial data and last saved time
@@ -1084,13 +1085,13 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
           }
         });
         console.log('✅ [saveCourseWithStatus] Course created:', response.data);
-        alert(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
+        toast.success(status === 'draft' ? 'Đã lưu nháp khóa học!' : 'Đã gửi khóa học xét duyệt!');
         navigate('/instructor');
       }
     } catch (error) {
       console.error('❌ [saveCourseWithStatus] Error saving course:', error);
       console.error('Error details:', error.response?.data);
-      alert('Có lỗi xảy ra khi lưu khóa học: ' + (error.response?.data?.message || error.message));
+      toast.error('Có lỗi xảy ra khi lưu khóa học: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }

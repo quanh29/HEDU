@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Trash2, Loader, Save } from 'lucide-react';
+import toast from 'react-hot-toast';
 import axios from 'axios';
 import styles from './BasicInfo.module.css';
 
@@ -67,27 +68,10 @@ const BasicInfo = ({
 
   // Handle heading toggle - expand/collapse and auto-expand if has selected categories
   const handleHeadingToggle = (headingId) => {
-    const categories = getSubcategoriesForHeading(headingId);
-    const selectedCategories = courseData.selectedCategories || [];
-    const headingHasSelectedCategories = categories.some(cat => 
-      selectedCategories.includes(cat.category_id)
+    // Just toggle expand/collapse. Do NOT unselect categories when collapsing.
+    setExpandedHeadings(prev =>
+      prev.includes(headingId) ? prev.filter(id => id !== headingId) : [...prev, headingId]
     );
-
-    if (headingHasSelectedCategories) {
-      // If heading has selected categories, unselect all its categories
-      const categoryIds = categories.map(cat => cat.category_id);
-      const newSelected = selectedCategories.filter(id => !categoryIds.includes(id));
-      handleInputChange('selectedCategories', newSelected);
-      // Collapse the heading
-      setExpandedHeadings(prev => prev.filter(id => id !== headingId));
-    } else {
-      // Toggle expand/collapse
-      setExpandedHeadings(prev => 
-        prev.includes(headingId) 
-          ? prev.filter(id => id !== headingId)
-          : [...prev, headingId]
-      );
-    }
   };
 
   // Select all categories in a heading
@@ -139,13 +123,13 @@ const BasicInfo = ({
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP)');
+      toast.error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP)');
       return;
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      alert('Kích thước file không được vượt quá 10MB');
+      toast.error('Kích thước file không được vượt quá 10MB');
       return;
     }
 
@@ -174,11 +158,11 @@ const BasicInfo = ({
         handleInputChange('thumbnail', response.data.url);
         setThumbnailPublicId(response.data.publicId);
         
-        alert('Upload ảnh thành công!');
+        toast.success('Upload ảnh thành công!');
       }
     } catch (error) {
       console.error('❌ [BasicInfo] Thumbnail upload error:', error);
-      alert('Upload ảnh thất bại: ' + (error.response?.data?.message || error.message));
+      toast.error('Upload ảnh thất bại: ' + (error.response?.data?.message || error.message));
     } finally {
       setUploadingThumbnail(false);
     }
@@ -237,10 +221,10 @@ const BasicInfo = ({
       handleInputChange('thumbnail', '');
       setThumbnailPublicId('');
       
-      alert('Xóa ảnh thành công!');
+      toast.success('Xóa ảnh thành công!');
     } catch (error) {
       console.error('❌ [BasicInfo] Thumbnail delete error:', error);
-      alert('Xóa ảnh thất bại: ' + (error.response?.data?.message || error.message));
+      toast.error('Xóa ảnh thất bại: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -807,8 +791,15 @@ const BasicInfo = ({
           justifyContent: 'flex-end'
         }}>
           <button
-            onClick={onSave}
-            disabled={!hasChanges}
+                onClick={() => {
+                  // Validate at least one category selected before saving
+                  if (!courseData.selectedCategories || courseData.selectedCategories.length === 0) {
+                    toast.error('Vui lòng chọn ít nhất 1 danh mục khóa học');
+                    return;
+                  }
+                  if (onSave) onSave();
+                }}
+                disabled={!hasChanges}
             style={{
               display: 'flex',
               alignItems: 'center',
