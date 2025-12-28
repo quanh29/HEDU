@@ -142,7 +142,15 @@ export const deleteVideo = async (req, res) => {
                 logger.warning('⚠️ Continuing with database deletion...');
             }
         } else if (skipMuxDeletion === 'true') {
-            logger.info('⏭️ Skipping MUX deletion (draft mode - will delete on approval)');
+            // delete video that was newly uploaded in draft mode
+            if(videoDraft.changeType === 'new') {
+                logger.info(`🎬 Deleting MUX asset (changeType is new): ${videoDraft.assetId}`);
+                await videoService.deleteMuxAsset(videoDraft.assetId);
+                logger.success(`✅ MUX asset deleted: ${videoDraft.assetId}`);
+            }
+            else {
+                logger.info('⏭️ Skipping MUX deletion (draft mode - will delete on approval)');
+            }
         } else {
             logger.info('ℹ️ No MUX asset to delete (no assetId)');
         }

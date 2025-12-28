@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useCart } from '../../context/CartContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Card = ({ 
   courseId, // Thêm courseId prop
@@ -17,8 +18,10 @@ const Card = ({
   const hasDiscount = originalPrice && currentPrice && originalPrice !== currentPrice;
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
   const { addToCart } = useCart();
   const [isHovered, setIsHovered] = useState(false);
+  const isFree = currentPrice === 0;
   
   const handleStarHover = (e, isEntering) => {
     if (isEntering) {
@@ -82,6 +85,48 @@ const Card = ({
 
     await addToCart(courseId);
     // Toast is now shown in CartContext
+  };
+
+  // Xử lý đăng ký khóa học miễn phí
+  const handleEnrollFree = async (e) => {
+    e.stopPropagation(); // Ngăn click event bubbling lên card
+
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for enrollment');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/enrollment/free`,
+        { courseId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        toast.success('Đăng ký khóa học thành công!');
+        setTimeout(() => {
+          navigate(`/learning/${courseId}`);
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error enrolling in free course:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Có lỗi xảy ra khi đăng ký khóa học');
+      }
+    }
   };
 
   return (
@@ -217,22 +262,58 @@ const Card = ({
             width: '100%'
           }}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Ngăn click event bubbling lên card
-              
-              if (!isSignedIn) {
-                navigate('/auth/login');
-                return;
-              }
+          {isFree ? (
+            // Free course - show enroll button
+            <button
+              onClick={handleEnrollFree}
+              style={{
+                padding: '12px 0',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: 'rgba(0, 51, 34, 0.9)',
+                color: 'white',
+                transition: 'all 0.3s ease',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                transform: isHovered ? 'translateY(0)' : 'translateY(20px)',
+                opacity: isHovered ? 1 : 0,
+                width: '60%',
+                maxWidth: '220px',
+                minWidth: '120px',
+                boxSizing: 'border-box'
+              }}
+              onMouseEnter={e => {
+                e.target.style.background = 'rgba(0, 109, 75, 0.9)';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={e => {
+                e.target.style.background = 'rgba(0, 41, 27, 0.9)';
+                e.target.style.transform = 'scale(1)';
+              }}
+            >
+              Đăng ký ngay
+            </button>
+          ) : (
+            // Paid course - show buy and cart buttons
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  
+                  if (!isSignedIn) {
+                    navigate('/auth/login');
+                    return;
+                  }
 
-              if (!courseId) {
-                console.warn('Missing courseId for purchase');
-                return;
-              }
+                  if (!courseId) {
+                    console.warn('Missing courseId for purchase');
+                    return;
+                  }
 
-              // Navigate to checkout with single course, bypassing cart
-              navigate('/checkout', {
+                  navigate('/checkout', {
                 state: {
                   buyNow: true,
                   course: {
@@ -308,6 +389,8 @@ const Card = ({
           >
             Thêm vào giỏ
           </button>
+            </>
+          )}
         </div>
       </div>
       
@@ -408,27 +491,55 @@ const Card = ({
             marginTop: '12px'
           }}
         >
-          {hasDiscount && (
-            <span 
-              style={{
-                fontSize: '14px',
-                color: '#a0aec0',
-                textDecoration: 'line-through',
-                fontWeight: 500
-              }}
-            >
-              {formatPrice(originalPrice)}
-            </span>
+          {isFree ? (
+            <>
+              {originalPrice && originalPrice > 0 && (
+                <span 
+                  style={{
+                    fontSize: '14px',
+                    color: '#a0aec0',
+                    textDecoration: 'line-through',
+                    fontWeight: 500
+                  }}
+                >
+                  {formatPrice(originalPrice)}
+                </span>
+              )}
+              <span 
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: '#10b981'
+                }}
+              >
+                Miễn phí
+              </span>
+            </>
+          ) : (
+            <>
+              {hasDiscount && (
+                <span 
+                  style={{
+                    fontSize: '14px',
+                    color: '#a0aec0',
+                    textDecoration: 'line-through',
+                    fontWeight: 500
+                  }}
+                >
+                  {formatPrice(originalPrice)}
+                </span>
+              )}
+              <span 
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: '#000000'
+                }}
+              >
+                {formatPrice(currentPrice || originalPrice)}
+              </span>
+            </>
           )}
-          <span 
-            style={{
-              fontSize: '20px',
-              fontWeight: 700,
-              color: '#000000'
-            }}
-          >
-            {formatPrice(currentPrice || originalPrice)}
-          </span>
         </div>
       </div>
 

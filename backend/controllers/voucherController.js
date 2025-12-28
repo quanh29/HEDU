@@ -36,7 +36,7 @@ export const validateVoucher = async (req, res) => {
       valid: true,
       voucher: {
         code: voucher.voucher_code,
-        type: voucher.voucher_type,
+        type: voucher.discount_type,
         amount: voucher.amount,
         expireAt: voucher.expire_at
       }

@@ -1,6 +1,7 @@
 import Cart from '../models/Cart.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import Enrollment from '../models/Enrollment.js';
 
 /**
  * Lấy giỏ hàng của user
@@ -93,6 +94,19 @@ export const addToCart = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: 'Course not found or not available for purchase'
+            });
+        }
+
+        // Kiểm tra user đã đăng ký khóa học chưa
+        const existingEnrollment = await Enrollment.findOne({
+            userId: userId,
+            courseId: courseId
+        });
+
+        if (existingEnrollment) {
+            return res.status(400).json({
+                success: false,
+                message: 'You are already enrolled in this course'
             });
         }
 

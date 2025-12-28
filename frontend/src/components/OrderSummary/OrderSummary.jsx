@@ -21,7 +21,7 @@ const OrderSummary = ({ cartItems, subtotal, discount, total }) => {
         {cartItems.map((item) => (
           <div key={item.courseId} className={styles.courseItem}>
             <img
-              src={item.course?.picture_url || 'https://via.placeholder.com/100x75?text=No+Image'}
+              src={item.course?.picture_url}
               alt={item.course?.title || 'Course'}
               className={styles.courseImage}
             />

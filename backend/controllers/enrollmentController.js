@@ -5,6 +5,8 @@ import Section from '../models/Section.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
+import Conversation from '../models/Conversation.js';
+import logger from '../utils/logger.js';
 
 /**
  * Tạo enrollment mới khi user đăng ký khóa học
@@ -253,4 +255,119 @@ export const updateCompletedLessons = async (req, res) => {
     }
 };
 
+/**
+ * Đăng ký khóa học miễn phí
+ * Tạo enrollment và conversation giữa user và instructor
+ */
+export const enrollFreeCourse = async (req, res) => {
+    try {
+        const { userId } = req; // userId từ protectUserAction middleware
+        const { courseId } = req.body;
 
+        if (!courseId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Course ID is required'
+            });
+        }
+
+        logger.info(`📝 [enrollFreeCourse] User ${userId} enrolling in course ${courseId}`);
+
+        // Kiểm tra khóa học có tồn tại và có miễn phí không
+        const course = await Course.findOne({ 
+            _id: courseId, 
+            course_status: 'approved' 
+        }).lean();
+
+        if (!course) {
+            logger.warn(`⚠️ [enrollFreeCourse] Course ${courseId} not found or not approved`);
+            return res.status(404).json({
+                success: false,
+                message: 'Course not found or not available'
+            });
+        }
+
+        // Verify khóa học thực sự miễn phí
+        if (course.current_price !== 0) {
+            logger.warn(`⚠️ [enrollFreeCourse] Course ${courseId} is not free. Price: ${course.current_price}`);
+            return res.status(400).json({
+                success: false,
+                message: 'This course is not free. Please purchase it through the cart.'
+            });
+        }
+
+        // Kiểm tra xem user đã đăng ký khóa học này chưa
+        const existingEnrollment = await Enrollment.findOne({
+            userId: userId,
+            courseId: courseId
+        });
+
+        if (existingEnrollment) {
+            logger.info(`ℹ️ [enrollFreeCourse] User ${userId} already enrolled in course ${courseId}`);
+            return res.status(400).json({
+                success: false,
+                message: 'You are already enrolled in this course'
+            });
+        }
+
+        // Tạo enrollment mới
+        const newEnrollment = new Enrollment({
+            userId: userId,
+            courseId: courseId,
+            completedLessons: []
+        });
+
+        await newEnrollment.save();
+        logger.info(`✅ [enrollFreeCourse] Enrollment created for user ${userId} in course ${courseId}`);
+
+        // Tạo conversation với instructor nếu chưa tồn tại
+        const instructorId = course.instructor_id;
+        
+        // Kiểm tra xem conversation giữa user và instructor đã tồn tại chưa
+        const existingConversation = await Conversation.findOne({
+            $and: [
+                { 'participants.user_id': userId },
+                { 'participants.user_id': instructorId }
+            ]
+        });
+
+        let conversationId = null;
+
+        if (!existingConversation) {
+            // Tạo conversation mới
+            const newConversation = new Conversation({
+                participants: [
+                    { user_id: userId },
+                    { user_id: instructorId }
+                ]
+            });
+
+            await newConversation.save();
+            conversationId = newConversation._id;
+            logger.info(`✅ [enrollFreeCourse] Conversation created between user ${userId} and instructor ${instructorId}`);
+        } else {
+            conversationId = existingConversation._id;
+            logger.info(`ℹ️ [enrollFreeCourse] Conversation already exists between user ${userId} and instructor ${instructorId}`);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Successfully enrolled in the free course',
+            data: {
+                enrollmentId: newEnrollment._id,
+                userId: newEnrollment.userId,
+                courseId: newEnrollment.courseId,
+                enrolledAt: newEnrollment.createdAt,
+                conversationId: conversationId
+            }
+        });
+
+    } catch (error) {
+        logger.error('❌ [enrollFreeCourse] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error enrolling in free course',
+            error: error.message
+        });
+    }
+};

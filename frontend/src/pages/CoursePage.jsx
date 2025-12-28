@@ -4,7 +4,7 @@ import Carousel from '../components/Carousel/Carousel';
 import RatingListModal from '../components/RatingListModal/RatingListModal';
 import axios from 'axios';
 import useDocumentTitle from '../hooks/useDocumentTitle';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useCart } from '../context/CartContext';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,7 @@ function CoursePage() {
   const { courseId: paramCourseId } = useParams();
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
   const { addToCart } = useCart();
 
   // State management
@@ -200,6 +201,43 @@ function CoursePage() {
 
     const success = await addToCart(courseId);
     // Toast is now shown in CartContext
+  };
+
+  // Handler for "Đăng ký ngay" button (free courses)
+  const handleEnrollFree = async () => {
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for enrollment');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/enrollment/free`,
+        { courseId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        toast.success('Đăng ký khóa học thành công! Bạn có thể bắt đầu học ngay.');
+      }
+    } catch (error) {
+      console.error('Error enrolling in free course:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Có lỗi xảy ra khi đăng ký khóa học');
+      }
+    }
   };
 
   // Loading state
@@ -471,63 +509,120 @@ function CoursePage() {
             {/* Right Column - Course Sidebar */}
             <div style={{ position: 'sticky', top: 100, height: 'fit-content' }}>
               <div style={{ background: 'white', borderRadius: 15, padding: '2rem', boxShadow: '0 5px 15px rgba(0,0,0,0.08)', marginBottom: '2rem' }}>
-                {courseData?.originalPrice ? (
+                {/* Price Display */}
+                {courseData?.currentPrice === 0 ? (
                   <>
-                    <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '1.1rem', marginBottom: '0.5rem' }}>{formatPrice(courseData.originalPrice)}</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(courseData.currentPrice)}</div>
+                    {courseData?.originalPrice && courseData.originalPrice > 0 && (
+                      <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                        {formatPrice(courseData.originalPrice)}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#10b981', marginBottom: '1rem' }}>
+                      Miễn phí
+                    </div>
                   </>
                 ) : (
-                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>{formatPrice(courseData?.currentPrice || 0)}</div>
+                  <>
+                    {courseData?.originalPrice && courseData.originalPrice !== courseData.currentPrice ? (
+                      <>
+                        <div style={{ textDecoration: 'line-through', color: '#999', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                          {formatPrice(courseData.originalPrice)}
+                        </div>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>
+                          {formatPrice(courseData.currentPrice)}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#333', marginBottom: '1rem' }}>
+                        {formatPrice(courseData?.currentPrice || 0)}
+                      </div>
+                    )}
+                  </>
                 )}
+
+                {/* Action Buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-                  <button
-                    onClick={handleBuyNow}
-                    style={{
-                      padding: '1rem 2rem',
-                      border: 'none',
-                      borderRadius: 10,
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: '#333',
-                      color: 'white',
-                      transition: 'all 0.3s',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = '#000';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = '#333';
-                      e.currentTarget.style.transform = 'none';
-                    }}
-                  >
-                    Mua ngay
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    style={{
-                      padding: '1rem 2rem',
-                      border: '2px solid #333',
-                      borderRadius: 10,
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: 'transparent',
-                      color: '#333',
-                      transition: 'all 0.3s',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = '#333';
-                      e.currentTarget.style.color = 'white';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#333';
-                    }}
-                  >
-                    Thêm vào giỏ hàng
-                  </button>
+                  {courseData?.currentPrice === 0 ? (
+                    // Free course - show enroll button
+                    <button
+                      onClick={handleEnrollFree}
+                      style={{
+                        padding: '1rem 2rem',
+                        border: '2px solid #000000ff',
+                        borderRadius: 10,
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        background: '#ffffffff',
+                        color: 'Black',
+                        transition: 'all 0.3s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#000000ff';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = '#ffffffff';
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.color = 'Black';
+                      }}
+                    >
+                      Đăng ký ngay
+                    </button>
+                  ) : (
+                    // Paid course - show buy and cart buttons
+                    <>
+                      <button
+                        onClick={handleBuyNow}
+                        style={{
+                          padding: '1rem 2rem',
+                          border: 'none',
+                          borderRadius: 10,
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          background: '#333',
+                          color: 'white',
+                          transition: 'all 0.3s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#000';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = '#333';
+                          e.currentTarget.style.transform = 'none';
+                        }}
+                      >
+                        Mua ngay
+                      </button>
+                      <button
+                        onClick={handleAddToCart}
+                        style={{
+                          padding: '1rem 2rem',
+                          border: '2px solid #333',
+                          borderRadius: 10,
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          background: 'transparent',
+                          color: '#333',
+                          transition: 'all 0.3s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#333';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = '#333';
+                        }}
+                      >
+                        Thêm vào giỏ hàng
+                      </button>
+                    </>
+                  )}
                 </div>
                 <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: 10, border: '1px solid #ddd' }}>
                   <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: 'bold' }}>Khóa học bao gồm:</h4>

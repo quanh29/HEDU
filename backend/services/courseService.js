@@ -14,6 +14,7 @@ import Language from '../models/Language.js';
 import Level from '../models/Level.js';
 import Labeling from '../models/Labeling.js';
 import Rating from '../models/Rating.js';
+import Enrollment from '../models/Enrollment.js';
 
 /**
  * Helper functions
@@ -538,6 +539,9 @@ export const getFullCourseContentService = async (courseId) => {
     // Calculate ratings from Ratings collection
     const { rating, reviewCount } = await calculateCourseRatings(courseId);
 
+    // get enrolled student count from Enrollment collection
+    const enrolledCount = await Enrollment.countDocuments({ courseId: courseId});
+
     // Map to expected format
     const course = {
         course_id: mongoCourse._id,
@@ -550,6 +554,7 @@ export const getFullCourseContentService = async (courseId) => {
         currentPrice: mongoCourse.current_price,
         rating: rating,
         reviewCount: reviewCount,
+        enrollmentCount: enrolledCount,
         hasPractice: mongoCourse.has_practice,
         hasCertificate: mongoCourse.has_certificate,
         course_status: mongoCourse.course_status,

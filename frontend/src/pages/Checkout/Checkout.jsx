@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useCart } from '../../context/CartContext';
 import OrderSummary from '../../components/OrderSummary/OrderSummary';
 import VoucherSection from '../../components/VoucherSection/VoucherSection';
 import PaymentMethods from '../../components/PaymentMethods/PaymentMethods';
+import toast from 'react-hot-toast';
 import styles from './Checkout.module.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 
@@ -25,6 +26,11 @@ const Checkout = () => {
   // Check if this is a "buy now" checkout with single course
   const buyNowMode = location.state?.buyNow || false;
   const buyNowCourse = location.state?.course || null;
+
+  // Debug: Log when voucher state changes
+  useEffect(() => {
+    // console.log('Voucher state changed:', { voucherDiscount, voucherType, appliedVoucher });
+  }, [voucherDiscount, voucherType, appliedVoucher]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -66,6 +72,7 @@ const Checkout = () => {
   };
 
   const handleApplyVoucher = (code, amount, type) => {
+    // console.log('Applying voucher:', { code, amount, type });
     setVoucherDiscount(amount);
     setVoucherType(type);
     setAppliedVoucher(code);
@@ -84,30 +91,37 @@ const Checkout = () => {
     return getTotalPrice();
   };
 
-  const calculateDiscount = () => {
+  const subtotal = useMemo(() => calculateSubtotal(), [buyNowMode, buyNowCourse, getTotalPrice]);
+
+  const discount = useMemo(() => {
+    // console.log('Calculating discount:', { voucherType, voucherDiscount, subtotal });
+    
     if (voucherType === 'percentage') {
-      return calculateSubtotal() * (voucherDiscount / 100);
-    } else if (voucherType === 'absolute') {
+      const calculatedDiscount = subtotal * (voucherDiscount / 100);
+      // console.log('Percentage discount:', calculatedDiscount);
+      return calculatedDiscount;
+    } else if (voucherType === 'absolute' || voucherType === 'fixed') {
+      // console.log('Fixed discount:', voucherDiscount);
       return voucherDiscount;
     }
+    // console.log('No discount applied');
     return 0;
-  };
+  }, [voucherType, voucherDiscount, subtotal]);
 
-  const calculateTotal = () => {
-    return Math.max(0, calculateSubtotal() - calculateDiscount());
-  };
+  const total = useMemo(() => {
+    return Math.max(0, subtotal - discount);
+  }, [subtotal, discount]);
 
   const handleCheckout = async () => {
     if (!selectedPayment) {
-      alert('Vui lòng chọn phương thức thanh toán!');
+      toast.error('Vui lòng chọn phương thức thanh toán!');
       return;
     }
 
     // Check wallet balance if wallet payment is selected
     if (selectedPayment === 'wallet') {
-      const total = calculateTotal();
       if (walletBalance < total) {
-        alert(`Số dư không đủ! Bạn cần thêm ${new Intl.NumberFormat('vi-VN').format(total - walletBalance)} ₫ để thanh toán.`);
+        toast.error(`Số dư không đủ! Bạn cần thêm ${new Intl.NumberFormat('vi-VN').format(total - walletBalance)} ₫ để thanh toán.`);
         return;
       }
 
@@ -137,19 +151,19 @@ const Checkout = () => {
 
         if (!response.ok) {
           const errorData = await response.json();
-          alert(errorData.message || 'Lỗi khi thanh toán');
+          toast.error(errorData.message || 'Lỗi khi thanh toán');
           return;
         }
 
         const data = await response.json();
-        alert('Thanh toán thành công!');
+        toast.success('Thanh toán thành công!');
         if (!buyNowMode) {
           clearCart();
         }
         navigate('/my-learning');
       } catch (error) {
         console.error('Error during wallet payment:', error);
-        alert('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
+        toast.error('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
       }
       return;
     }
@@ -157,13 +171,13 @@ const Checkout = () => {
     // Validate payment method specific requirements
     if (selectedPayment === 'card') {
       // Card validation would go here
-      alert('Chức năng thanh toán bằng thẻ đang được phát triển!');
+      toast('Chức năng thanh toán bằng thẻ đang được phát triển!');
       return;
     }
 
     if (selectedPayment === 'banking') {
       // Banking validation would go here
-      alert('Chức năng thanh toán qua ngân hàng đang được phát triển!');
+      toast('Chức năng thanh toán qua ngân hàng đang được phát triển!');
       return;
     }
 
@@ -194,7 +208,7 @@ const Checkout = () => {
 
         if (!orderResponse.ok) {
           const errorData = await orderResponse.json();
-          alert(errorData.message || 'Lỗi khi tạo đơn hàng');
+          toast.error(errorData.message || 'Lỗi khi tạo đơn hàng');
           return;
         }
 
@@ -213,7 +227,7 @@ const Checkout = () => {
 
         if (!paymentResponse.ok) {
           const errorData = await paymentResponse.json();
-          alert(errorData.message || 'Lỗi khi khởi tạo thanh toán MoMo');
+          toast.error(errorData.message || 'Lỗi khi khởi tạo thanh toán MoMo');
           return;
         }
 
@@ -223,11 +237,11 @@ const Checkout = () => {
         if (paymentData.success && paymentData.paymentUrl) {
           window.location.href = paymentData.paymentUrl;
         } else {
-          alert('Không thể khởi tạo thanh toán MoMo. Vui lòng thử lại.');
+          toast.error('Không thể khởi tạo thanh toán MoMo. Vui lòng thử lại.');
         }
       } catch (error) {
         console.error('Error during MoMo payment:', error);
-        alert('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
+        toast.error('Có lỗi xảy ra trong quá trình thanh toán. Vui lòng thử lại.');
       }
     }
   };
@@ -246,9 +260,9 @@ const Checkout = () => {
           <div className={styles.leftSection}>
             <OrderSummary
               cartItems={buyNowMode ? [{ courseId: buyNowCourse?.courseId, course: buyNowCourse }] : cartItems}
-              subtotal={calculateSubtotal()}
-              discount={calculateDiscount()}
-              total={calculateTotal()}
+              subtotal={subtotal}
+              discount={discount}
+              total={total}
             />
           </div>
 
@@ -267,17 +281,17 @@ const Checkout = () => {
               walletLoading={walletLoading}
             />
 
-            {selectedPayment === 'wallet' && walletBalance < calculateTotal() && (
+            {selectedPayment === 'wallet' && walletBalance < total && (
               <div className={styles.warningBox}>
-                ⚠️ Số dư không đủ để thanh toán. Vui lòng nạp thêm{' '}
-                {new Intl.NumberFormat('vi-VN').format(calculateTotal() - walletBalance)} ₫
+                Số dư không đủ để thanh toán. Vui lòng nạp thêm{' '}
+                {new Intl.NumberFormat('vi-VN').format(total - walletBalance)} ₫
               </div>
             )}
 
             <button
               className={styles.checkoutButton}
               onClick={handleCheckout}
-              disabled={!selectedPayment || (!buyNowMode && cartItems.length === 0) || (buyNowMode && !buyNowCourse) || (selectedPayment === 'wallet' && walletBalance < calculateTotal())}
+              disabled={!selectedPayment || (!buyNowMode && cartItems.length === 0) || (buyNowMode && !buyNowCourse) || (selectedPayment === 'wallet' && walletBalance < total)}
             >
               Thanh Toán Ngay
             </button>

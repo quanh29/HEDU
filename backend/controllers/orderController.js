@@ -3,6 +3,7 @@ import Payment from '../models/Payment.js';
 import Course from '../models/Course.js';
 import Cart from '../models/Cart.js';
 import Voucher from '../models/Voucher.js';
+import Enrollment from '../models/Enrollment.js';
 
 /**
  * Create order from user's cart or specific courses
@@ -43,7 +44,19 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Không tìm thấy khóa học hợp lệ' });
     }
 
-    // 3. Validate all courses are approved
+    // 3. check if any course in list was already enrolled by user from enrollments collection
+    const existingEnrollments = await Enrollment.find({ 
+      userId, 
+      courseId: { $in: courseIdsToOrder } 
+    }).lean();
+    if (existingEnrollments.length > 0) {
+      const enrolledCourseIds = existingEnrollments.map(enrollment => enrollment.courseId.toString());
+      return res.status(400).json({
+        message: 'Bạn đã đăng ký một số khóa học trong đơn hàng này',
+      });
+    }
+
+    // 4. Validate all courses are approved
     if (courses.length < courseIdsToOrder.length) {
       return res.status(400).json({ 
         message: 'Một số khóa học không còn khả dụng' 
@@ -58,11 +71,11 @@ export const createOrder = async (req, res) => {
       course_status: course.course_status
     }));
 
-    // 4. Validate voucher if provided (MongoDB)
+    // 5. Validate voucher if provided (MongoDB)
     let validatedVoucher = null;
     if (voucherCode) {
       validatedVoucher = await Voucher.findOne({ 
-        code: voucherCode 
+        voucher_code: voucherCode 
       }).lean();
 
       if (!validatedVoucher) {
@@ -75,21 +88,21 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    // 5. Calculate total amount
+    // 6. Calculate total amount
     const subtotal = cartItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
     let discount = 0;
 
     if (validatedVoucher) {
-      if (validatedVoucher.type === 'percentage') {
-        discount = (subtotal * validatedVoucher.value) / 100;
-      } else if (validatedVoucher.type === 'fixed') {
-        discount = validatedVoucher.value;
+      if (validatedVoucher.discount_type === 'percentage') {
+        discount = (subtotal * validatedVoucher.amount) / 100;
+      } else if (validatedVoucher.discount_type === 'absolute') {
+        discount = validatedVoucher.amount;
       }
     }
 
     const totalAmount = Math.max(0, subtotal - discount);
 
-    // 6. Create Order in MongoDB
+    // 7. Create Order in MongoDB
     const order = new Order({
       userId,
       orderStatus: 'pending',

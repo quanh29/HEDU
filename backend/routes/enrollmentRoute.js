@@ -4,6 +4,7 @@ import {
     getUserEnrollments, 
     checkEnrollment,
     updateCompletedLessons,
+    enrollFreeCourse,
 } from '../controllers/enrollmentController.js';
 import { protectUserAction } from '../middleware/auth.js';
 
@@ -34,6 +35,14 @@ enrollmentRouter.get('/check/:courseId', protectUserAction, checkEnrollment);
  * Body: { lessonId }
  */
 enrollmentRouter.put('/:courseId/complete-lesson', protectUserAction, updateCompletedLessons);
+
+/**
+ * POST /api/enrollment/free
+ * Đăng ký khóa học miễn phí
+ * Body: { courseId }
+ * Tạo enrollment và conversation với instructor
+ */
+enrollmentRouter.post('/free', protectUserAction, enrollFreeCourse);
 
 
 export default enrollmentRouter;
