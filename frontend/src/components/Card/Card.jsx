@@ -203,8 +203,8 @@ const Card = ({
             left: 0,
             right: 0,
             bottom: 0,
-            background: isHovered 
-              ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.1) 100%)'
+            background: isHovered
+              ? 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 50%, rgba(255,255,255,0.06) 100%)'
               : 'transparent',
             display: 'flex',
             flexDirection: 'column',
@@ -212,8 +212,8 @@ const Card = ({
             justifyContent: 'center',
             gap: '10px',
             opacity: isHovered ? 1 : 0,
-            transition: 'all 0.3s ease',
-            backdropFilter: isHovered ? 'blur(2px)' : 'none',
+            transition: 'all 0.25s ease',
+            backdropFilter: isHovered ? 'blur(3px)' : 'none',
             width: '100%'
           }}
         >

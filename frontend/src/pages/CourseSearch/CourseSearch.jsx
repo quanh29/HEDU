@@ -224,7 +224,7 @@ const CourseSearch = () => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f7fafc', paddingTop: '80px' }}>
       {/* Header với filters */}
       <div style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', 'padding-top': '20px', paddingBottom: '2px'}}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', 'padding-top': '20px', paddingBottom: '2px'}}>
 
           {/* Filters */}
           <CourseFilter 
@@ -237,9 +237,9 @@ const CourseSearch = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ maxWidth: '100%', margin: '0 auto', padding: '30px 20px'}}>
+      <div style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '30px 20px' }}>
         {/* Results Info */}
-        <div style={{ marginBottom: '30px', marginLeft: '25vw' }}>
+        <div style={{ marginBottom: '30px', textAlign: 'center' }}>
           {loading ? (
             <p style={{ color: '#666', fontSize: '14px' }}>Đang tải...</p>
           ) : error ? (
@@ -288,11 +288,10 @@ const CourseSearch = () => {
               <div style={{ 
                 display: 'flex',
                 flexWrap: 'wrap',
-                width: '66vw',
+                justifyContent: 'center',
                 gap: '20px',
                 marginBottom: '40px',
-                marginLeft: '17vw',
-                marginRight: '17vw',
+                width: '100%'
               }}>
                 {currentCourses.map((course) => (
                   <Card
