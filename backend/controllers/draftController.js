@@ -139,20 +139,23 @@ export const cancelDraft = async (req, res) => {
         const draftVideos = await VideoDraft.find({ courseDraftId: courseId });
         const draftMaterials = await MaterialDraft.find({ courseDraftId: courseId });
 
-        console.log(`🗑️ [Cancel Draft] Found ${draftVideos.length} draft videos and ${draftMaterials.length} draft materials to delete`);
+        console.log(`🗑️ [Cancel Draft] Found ${draftVideos.length} draft videos and ${draftMaterials.length} draft materials`);
 
-        // Delete MUX assets for draft videos
-        if (draftVideos.length > 0) {
+        // Delete MUX assets for NEW draft videos only (don't delete unchanged/modified from published)
+        const newDraftVideos = draftVideos.filter(v => v.changeType === 'new');
+        console.log(`   🗑️ [MUX] ${newDraftVideos.length} NEW videos to delete (${draftVideos.length - newDraftVideos.length} unchanged/modified will be kept)`);
+        
+        if (newDraftVideos.length > 0) {
             const { video: muxVideo } = new Mux({
                 tokenId: process.env.MUX_TOKEN_ID,
                 tokenSecret: process.env.MUX_SECRET_KEY
             });
 
-            for (const video of draftVideos) {
+            for (const video of newDraftVideos) {
                 if (video.assetId) {
                     try {
                         await muxVideo.assets.delete(video.assetId);
-                        console.log(`   ✅ [MUX] Deleted draft asset: ${video.assetId}`);
+                        console.log(`   ✅ [MUX] Deleted NEW draft asset: ${video.assetId}`);
                     } catch (err) {
                         console.error(`   ❌ [MUX] Failed to delete draft asset ${video.assetId}:`, err.message);
                     }
@@ -160,11 +163,14 @@ export const cancelDraft = async (req, res) => {
             }
         }
 
-        // Delete Cloudinary files for draft materials
-        if (draftMaterials.length > 0) {
+        // Delete Cloudinary files for NEW draft materials only (don't delete unchanged/modified from published)
+        const newDraftMaterials = draftMaterials.filter(m => m.changeType === 'new');
+        console.log(`   🗑️ [Cloudinary] ${newDraftMaterials.length} NEW materials to delete (${draftMaterials.length - newDraftMaterials.length} unchanged/modified will be kept)`);
+        
+        if (newDraftMaterials.length > 0) {
             const cloudinary = (await import('../config/cloudinary.js')).default;
 
-            for (const material of draftMaterials) {
+            for (const material of newDraftMaterials) {
                 if (material.contentUrl) {
                     try {
                         await cloudinary.uploader.destroy(
@@ -174,7 +180,7 @@ export const cancelDraft = async (req, res) => {
                                 type: 'private'
                             }
                         );
-                        console.log(`   ✅ [Cloudinary] Deleted draft file: ${material.contentUrl}`);
+                        console.log(`   ✅ [Cloudinary] Deleted NEW draft file: ${material.contentUrl}`);
                     } catch (err) {
                         console.error(`   ❌ [Cloudinary] Failed to delete draft file ${material.contentUrl}:`, err.message);
                     }

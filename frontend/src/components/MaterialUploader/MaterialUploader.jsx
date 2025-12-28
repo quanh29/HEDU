@@ -124,7 +124,7 @@ const MaterialUploader = ({
                             Chọn tài liệu để upload
                         </span>
                         <span className={styles.uploadSubtext}>
-                            Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX (tối đa 50MB)
+                            Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX (tối đa 10MB)
                         </span>
                     </label>
                 </div>

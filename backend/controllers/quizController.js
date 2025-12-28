@@ -37,7 +37,15 @@ export const addQuiz = async (req, res) => {
                     
                     await quizDraft.save();
                     
+                    // Mark CourseDraft as having changes
+                    const CourseDraft = mongoose.model('CourseDraft');
+                    await CourseDraft.findByIdAndUpdate(
+                        quizDraft.courseDraftId,
+                        { hasChanges: true }
+                    );
+                    
                     console.log(`✅ Updated QuizDraft ${quizDraft._id} for LessonDraft ${lessonId}`);
+                    console.log(`✅ Marked CourseDraft ${quizDraft.courseDraftId} as changed`);
                     
                     return res.status(200).json({
                         success: true,
@@ -72,7 +80,9 @@ export const addQuiz = async (req, res) => {
             const courseDraft = await CourseDraft.findById(draftLesson.courseDraftId);
             if (courseDraft) {
                 courseDraft.draftQuizzes.push(newQuizDraft._id);
+                courseDraft.hasChanges = true;
                 await courseDraft.save();
+                console.log(`✅ Marked CourseDraft ${draftLesson.courseDraftId} as changed after quiz creation`);
             }
 
             console.log(`✅ Created QuizDraft ${newQuizDraft._id} for LessonDraft ${lessonId}`);
@@ -381,6 +391,16 @@ export const updateQuiz = async (req, res) => {
         }
 
         const updatedQuiz = await quiz.save();
+        
+        // Mark CourseDraft as having changes if this is a draft
+        if (isDraft && quiz.courseDraftId) {
+            const CourseDraft = mongoose.model('CourseDraft');
+            await CourseDraft.findByIdAndUpdate(
+                quiz.courseDraftId,
+                { hasChanges: true }
+            );
+            console.log(`✅ Marked CourseDraft ${quiz.courseDraftId} as changed after quiz update`);
+        }
 
         console.log(`✅ Updated ${isDraft ? 'QuizDraft' : 'Quiz'}: ${quizId}`);
 
@@ -429,7 +449,21 @@ export const deleteQuiz = async (req, res) => {
                 courseDraft.draftQuizzes = courseDraft.draftQuizzes.filter(
                     id => id.toString() !== quizId
                 );
+                // Mark draft as having changes
+                courseDraft.hasChanges = true;
                 await courseDraft.save();
+                
+                console.log(`✅ Marked CourseDraft ${quiz.courseDraftId} as changed after quiz deletion`);
+            }
+            
+            // Unlink from LessonDraft
+            if (quiz.draftLessonId) {
+                const LessonDraft = mongoose.model('LessonDraft');
+                await LessonDraft.findByIdAndUpdate(
+                    quiz.draftLessonId,
+                    { $unset: { draftQuizId: "" } }
+                );
+                console.log(`✅ Unlinked quiz from LessonDraft ${quiz.draftLessonId}`);
             }
         }
 

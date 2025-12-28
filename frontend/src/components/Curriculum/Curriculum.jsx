@@ -634,17 +634,69 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     // Update UI immediately
     updateLesson(sectionId, lessonId, 'quizQuestions', quizQuestions);
     
-    // Sync with backend
-    try {
-      await syncQuizWithBackend(sectionId, lessonId, lesson, quizQuestions);
-    } catch (error) {
-      console.error('❌ Error syncing quiz with backend:', error);
-      alert('Có lỗi khi xóa câu hỏi. Vui lòng thử lại.');
+    // Sync with backend only if there are remaining questions OR if quiz already exists
+    const quizId = draftMode ? (lesson.draftQuizId || lesson.quizId) : lesson.quizId;
+    
+    if (quizQuestions.length > 0 || quizId) {
+      try {
+        await syncQuizWithBackend(sectionId, lessonId, lesson, quizQuestions);
+      } catch (error) {
+        console.error('❌ Error syncing quiz with backend:', error);
+        alert('Có lỗi khi xóa câu hỏi. Vui lòng thử lại.');
+      }
+    } else {
+      console.log('ℹ️ No questions and no quiz ID - skipping backend sync');
     }
   };
 
   // Helper function to sync quiz with backend
   const syncQuizWithBackend = async (sectionId, lessonId, lesson, quizQuestions) => {
+    // If no questions and no existing quiz, skip creation
+    if (quizQuestions.length === 0 && !lesson.quizId && !lesson.draftQuizId) {
+      console.log('ℹ️ No questions to sync, skipping quiz creation');
+      return;
+    }
+
+    const token = await getToken();
+    
+    // In draft mode, prefer draftQuizId over quizId
+    const quizId = draftMode ? (lesson.draftQuizId || lesson.quizId) : lesson.quizId;
+
+    // If no questions but quiz exists, DELETE the quiz
+    if (quizQuestions.length === 0 && quizId) {
+      console.log('🗑️ Deleting quiz because no questions remain:', quizId);
+      
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BASE_URL}/api/quiz/${quizId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to delete quiz');
+        }
+
+        console.log('✅ Quiz deleted successfully');
+        
+        // Clear quiz IDs from UI
+        if (draftMode) {
+          updateLesson(sectionId, lessonId, 'draftQuizId', '');
+        }
+        updateLesson(sectionId, lessonId, 'quizId', '');
+        
+      } catch (error) {
+        console.error('❌ Error deleting quiz:', error);
+        throw error;
+      }
+      
+      return;
+    }
+
     // Transform frontend format to backend format
     const backendQuestions = quizQuestions.map(q => ({
       questionText: q.question,
@@ -655,13 +707,11 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       explanation: q.explanation || ''
     }));
 
-    const token = await getToken();
-
-    if (lesson.quizId) {
+    if (quizId) {
       // Update existing quiz
-      console.log('📝 Updating quiz:', lesson.quizId);
+      console.log('📝 Updating quiz:', quizId);
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/quiz/${lesson.quizId}`,
+        `${import.meta.env.VITE_BASE_URL}/api/quiz/${quizId}`,
         {
           method: 'PUT',
           headers: {
@@ -680,8 +730,8 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       }
 
       console.log('✅ Quiz updated successfully');
-    } else {
-      // Create new quiz
+    } else if (quizQuestions.length > 0) {
+      // Create new quiz only if there are questions
       console.log('➕ Creating new quiz for lesson:', lessonId);
       const response = await fetch(
         `${import.meta.env.VITE_BASE_URL}/api/quiz`,
@@ -701,37 +751,47 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
       );
 
       if (!response.ok) {
-        throw new Error('Failed to create quiz');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Quiz creation failed:', response.status, errorData);
+        throw new Error(`Failed to create quiz: ${errorData.message || response.statusText}`);
       }
 
       const data = await response.json();
-      const quizId = data._id;
+      const newQuizId = data._id || data.data?._id;
 
-      console.log('✅ Quiz created with ID:', quizId);
+      console.log('✅ Quiz created with ID:', newQuizId);
 
-      // Link quiz with lesson via lesson update API
-      const updateLessonResponse = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/lesson/${lessonId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            quiz: quizId
-          })
-        }
-      );
-
-      if (!updateLessonResponse.ok) {
-        console.error('⚠️ Failed to link quiz to lesson');
+      // Update UI with quizId (use draftQuizId in draft mode)
+      if (draftMode && data.isDraft) {
+        updateLesson(sectionId, lessonId, 'draftQuizId', newQuizId);
       } else {
-        console.log('✅ Linked quiz to lesson');
-      }
+        updateLesson(sectionId, lessonId, 'quizId', newQuizId);
+        
+        // Link quiz with lesson via lesson update API (only in non-draft mode)
+        try {
+          const updateLessonResponse = await fetch(
+            `${import.meta.env.VITE_BASE_URL}/api/lesson/${lessonId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                quiz: newQuizId
+              })
+            }
+          );
 
-      // Update UI with quizId
-      updateLesson(sectionId, lessonId, 'quizId', quizId);
+          if (!updateLessonResponse.ok) {
+            console.error('⚠️ Failed to link quiz to lesson');
+          } else {
+            console.log('✅ Linked quiz to lesson');
+          }
+        } catch (error) {
+          console.error('⚠️ Error linking quiz to lesson:', error);
+        }
+      }
     }
   };
 
