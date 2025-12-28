@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Search } from 'lucide-react';
+import { MessageCircle, Search, User } from 'lucide-react';
 import styles from './ConversationList.module.css';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useSocket } from '../../../context/SocketContext';
+import { useNavigate } from 'react-router-dom';
 
 const ConversationList = ({ selectedConversation, onSelectConversation }) => {
   const [conversations, setConversations] = useState([]);
@@ -11,6 +12,7 @@ const ConversationList = ({ selectedConversation, onSelectConversation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { getToken } = useAuth();
   const { socket, isConnected } = useSocket();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchConversations();
@@ -148,38 +150,42 @@ const ConversationList = ({ selectedConversation, onSelectConversation }) => {
               className={`${styles.conversationItem} ${
                 selectedConversation?._id === conversation._id ? styles.active : ''
               }`}
-              onClick={() => onSelectConversation(conversation)}
             >
-              <div className={styles.avatarWrapper}>
-                <img
-                  src={conversation.otherUser?.image_url || '/default-avatar.png'}
-                  alt={conversation.otherUser?.full_name || 'User'}
-                  className={styles.avatar}
-                />
-                {conversation.unreadCount > 0 && (
-                  <div className={styles.unreadBadge}>{conversation.unreadCount}</div>
-                )}
-              </div>
-              <div className={styles.conversationInfo}>
-                <div className={styles.conversationHeader}>
-                  <span className={styles.userName}>
-                    {conversation.otherUser?.name || 'Người dùng'}
-                  </span>
-                  {conversation.lastMessage && (
-                    <span className={styles.timestamp}>
-                      {formatTimestamp(conversation.lastMessage.createdAt)}
-                    </span>
+              <div 
+                className={styles.conversationMain}
+                onClick={() => onSelectConversation(conversation)}
+              >
+                <div className={styles.avatarWrapper}>
+                  <img
+                    src={conversation.otherUser?.image_url || '/default-avatar.png'}
+                    alt={conversation.otherUser?.full_name || 'User'}
+                    className={styles.avatar}
+                  />
+                  {conversation.unreadCount > 0 && (
+                    <div className={styles.unreadBadge}>{conversation.unreadCount}</div>
                   )}
                 </div>
-                {conversation.lastMessage && (
-                  <p
-                    className={`${styles.lastMessage} ${
-                      conversation.unreadCount > 0 ? styles.unread : ''
-                    }`}
-                  >
-                    {conversation.lastMessage.content}
-                  </p>
-                )}
+                <div className={styles.conversationInfo}>
+                  <div className={styles.conversationHeader}>
+                    <span className={styles.userName}>
+                      {conversation.otherUser?.name || 'Người dùng'}
+                    </span>
+                    {conversation.lastMessage && (
+                      <span className={styles.timestamp}>
+                        {formatTimestamp(conversation.lastMessage.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                  {conversation.lastMessage && (
+                    <p
+                      className={`${styles.lastMessage} ${
+                        conversation.unreadCount > 0 ? styles.unread : ''
+                      }`}
+                    >
+                      {conversation.lastMessage.content}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           ))

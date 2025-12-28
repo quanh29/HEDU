@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const CartContext = createContext();
 
@@ -62,11 +63,21 @@ export const CartProvider = ({ children }) => {
       if (response.data.success) {
         // Refresh cart items to get updated data
         await fetchCartItems();
+        toast.success('Đã thêm khóa học vào giỏ hàng!');
         return true;
       }
       return false;
     } catch (error) {
       console.error('Error adding to cart:', error);
+      
+      // Check if course is already in cart
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('đã có')) {
+        toast.error('Khóa học đã có trong giỏ hàng');
+      } else if (error.response?.status === 400 && error.response?.data?.message?.includes('enrolled')) {
+        toast.error('Bạn đã đăng ký khóa học này rồi');
+      } else {
+        toast.error('Có lỗi xảy ra khi thêm vào giỏ hàng');
+      }
       return false;
     }
   };

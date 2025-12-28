@@ -1,6 +1,7 @@
 import { Webhook } from 'svix';
 import User from '../models/User.js';
 import Wallet from '../models/Wallet.js';
+import Course from '../models/Course.js';
 import { clerkClient } from '@clerk/express';
 
 // Handle Clerk webhook for user events
@@ -485,6 +486,48 @@ export const changePassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to change password',
+      error: error.message
+    });
+  }
+};
+
+// Get public user profile (no auth required)
+export const getPublicProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('👤 [Public Profile] userId:', userId);
+
+    // Get user from MongoDB
+    const user = await User.findById(userId).select('_id email full_name is_male dob headline bio profile_image_url');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get user's public courses
+    const publicCourses = await Course.find({
+      instructor_id: userId,
+      course_status: 'approved'
+    }).select('_id title thumbnail_url current_price original_price');
+
+    console.log('✅ [Public Profile] Found', publicCourses.length, 'public courses');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user.toObject(),
+        courses: publicCourses
+      }
+    });
+  } catch (error) {
+    console.error('❌ [Public Profile] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get public profile',
       error: error.message
     });
   }

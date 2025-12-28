@@ -70,9 +70,15 @@ const UserMenu = () => {
               src={user?.imageUrl || '/default-avatar.png'}
               alt="User Avatar"
               className={styles.userDropdownAvatar}
+              onClick={() => handleMenuItemClick(`/user/${user?.id}`)}
+              style={{ cursor: 'pointer' }}
             />
             <div className={styles.userDetails}>
-              <div className={styles.userName}>
+              <div 
+                className={styles.userName}
+                onClick={() => handleMenuItemClick(`/user/${user?.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 {user?.fullName || user?.firstName || 'User'}
               </div>
               <div className={styles.userEmail}>

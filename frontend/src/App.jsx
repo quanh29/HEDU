@@ -26,6 +26,7 @@ import Wallet from './pages/Wallet/Wallet.jsx'
 import Dashboard from './pages/Instructor/Dashboard.jsx'
 import Messaging from './pages/Messaging/Messaging.jsx'
 import Profile from './pages/Profile/Profile.jsx'
+import PublicProfile from './pages/PublicProfile/PublicProfile.jsx'
 
 function App() {
   const location = useLocation();
@@ -71,6 +72,9 @@ function App() {
           
           {/* Profile Route */}
           <Route path='/profile' element={<Profile/>}/>
+          
+          {/* Public Profile Route */}
+          <Route path='/user/:userId' element={<PublicProfile/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

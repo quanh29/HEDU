@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Image as ImageIcon, MessageSquare, X } from 'lucide-react';
+import { Send, Image as ImageIcon, MessageSquare, X, User as UserIcon } from 'lucide-react';
 import styles from './ChatWindow.module.css';
 import axios from 'axios';
 import { useAuth, useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 
 const ChatWindow = ({ conversation, socket }) => {
   const [messages, setMessages] = useState([]);
@@ -24,6 +25,7 @@ const ChatWindow = ({ conversation, socket }) => {
   const isInitialLoadRef = useRef(true);
   const { getToken } = useAuth();
   const { user } = useUser();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (conversation) {
@@ -371,6 +373,16 @@ const ChatWindow = ({ conversation, socket }) => {
           <div className={styles.userName}>{conversation.otherUser?.name || 'Người dùng'}</div>
           <div className={styles.userStatus}>Đang hoạt động</div>
         </div>
+        {conversation.otherUser?.id && (
+          <button
+            className={styles.profileButton}
+            onClick={() => navigate(`/user/${conversation.otherUser.id}`)}
+            title="Xem trang cá nhân"
+          >
+            <UserIcon size={20} />
+            Trang cá nhân
+          </button>
+        )}
       </div>
 
       {/* Messages */}

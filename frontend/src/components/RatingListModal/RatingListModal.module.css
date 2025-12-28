@@ -226,6 +226,19 @@
     flex-shrink: 0;
 }
 
+.avatarPlaceholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    border: 2px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    flex-shrink: 0;
+}
+
 .userDetails {
     flex: 1;
 }
@@ -235,6 +248,11 @@
     color: #333;
     font-size: 1rem;
     margin-bottom: 0.5rem;
+    transition: color 0.2s;
+}
+
+.userInfo:hover .userName {
+    text-decoration: underline;
 }
 
 .ratingMeta {

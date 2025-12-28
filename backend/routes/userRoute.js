@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleClerkWebhook, getUserProfile, updateUserProfile, uploadAvatar, changePassword } from '../controllers/userController.js';
+import { handleClerkWebhook, getUserProfile, updateUserProfile, uploadAvatar, changePassword, getPublicProfile } from '../controllers/userController.js';
 import { protectUserAction } from '../middleware/auth.js';
 import multer from 'multer';
 
@@ -16,7 +16,10 @@ const upload = multer({
 // Clerk webhook endpoint
 userRouter.post('/webhook', handleClerkWebhook);
 
-// User profile endpoints
+// Public profile endpoint (no auth required)
+userRouter.get('/public-profile/:userId', getPublicProfile);
+
+// User profile endpoints (auth required)
 userRouter.get('/profile', protectUserAction, getUserProfile);
 userRouter.put('/profile', protectUserAction, updateUserProfile);
 userRouter.post('/profile/avatar', protectUserAction, upload.single('avatar'), uploadAvatar);

@@ -21,6 +21,7 @@ const BasicInfo = ({
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailPublicId, setThumbnailPublicId] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [expandedHeadings, setExpandedHeadings] = useState([]); // Track which headings are expanded
 
   // Track changes by comparing courseData with initialData
   useEffect(() => {
@@ -38,13 +39,12 @@ const BasicInfo = ({
         courseData.thumbnail !== initialData.thumbnail ||
         courseData.level !== initialData.level ||
         courseData.language !== initialData.language ||
-        courseData.category !== initialData.category ||
-        courseData.subcategory !== initialData.subcategory ||
         courseData.hasPractice !== initialData.hasPractice ||
         courseData.hasCertificate !== initialData.hasCertificate ||
         courseData.originalPrice !== initialData.originalPrice ||
         JSON.stringify(courseData.objectives) !== JSON.stringify(initialData.objectives) ||
-        JSON.stringify(courseData.requirements) !== JSON.stringify(initialData.requirements);
+        JSON.stringify(courseData.requirements) !== JSON.stringify(initialData.requirements) ||
+        JSON.stringify(courseData.selectedCategories?.sort()) !== JSON.stringify(initialData.selectedCategories?.sort());
       
       setHasChanges(changed);
     };
@@ -52,14 +52,84 @@ const BasicInfo = ({
     checkForChanges();
   }, [courseData, initialData]);
 
+  // Handle category selection toggle
+  const handleCategoryToggle = (categoryId) => {
+    const selectedCategories = courseData.selectedCategories || [];
+    
+    if (selectedCategories.includes(categoryId)) {
+      // Remove category
+      handleInputChange('selectedCategories', selectedCategories.filter(id => id !== categoryId));
+    } else {
+      // Add category
+      handleInputChange('selectedCategories', [...selectedCategories, categoryId]);
+    }
+  };
+
+  // Handle heading toggle - expand/collapse and auto-expand if has selected categories
+  const handleHeadingToggle = (headingId) => {
+    const categories = getSubcategoriesForHeading(headingId);
+    const selectedCategories = courseData.selectedCategories || [];
+    const headingHasSelectedCategories = categories.some(cat => 
+      selectedCategories.includes(cat.category_id)
+    );
+
+    if (headingHasSelectedCategories) {
+      // If heading has selected categories, unselect all its categories
+      const categoryIds = categories.map(cat => cat.category_id);
+      const newSelected = selectedCategories.filter(id => !categoryIds.includes(id));
+      handleInputChange('selectedCategories', newSelected);
+      // Collapse the heading
+      setExpandedHeadings(prev => prev.filter(id => id !== headingId));
+    } else {
+      // Toggle expand/collapse
+      setExpandedHeadings(prev => 
+        prev.includes(headingId) 
+          ? prev.filter(id => id !== headingId)
+          : [...prev, headingId]
+      );
+    }
+  };
+
+  // Select all categories in a heading
+  const handleSelectAllInHeading = (headingId) => {
+    const categories = getSubcategoriesForHeading(headingId);
+    const categoryIds = categories.map(cat => cat.category_id);
+    const selectedCategories = courseData.selectedCategories || [];
+    
+    // Add all category IDs that aren't already selected
+    const newSelected = [...new Set([...selectedCategories, ...categoryIds])];
+    handleInputChange('selectedCategories', newSelected);
+  };
+
+  // Deselect all categories in a heading
+  const handleDeselectAllInHeading = (headingId) => {
+    const categories = getSubcategoriesForHeading(headingId);
+    const categoryIds = categories.map(cat => cat.category_id);
+    const selectedCategories = courseData.selectedCategories || [];
+    
+    const newSelected = selectedCategories.filter(id => !categoryIds.includes(id));
+    handleInputChange('selectedCategories', newSelected);
+  };
+
   // Get categories for selected heading
   const getSubcategoriesForHeading = (headingId) => {
     if (!headingId) return [];
     return allCategories.filter(cat => cat.heading_id === headingId);
   };
 
-  const selectedHeading = headings.find(h => h.heading_id === courseData.category);
-  const subcategories = selectedHeading ? getSubcategoriesForHeading(selectedHeading.heading_id) : [];
+  // Auto-expand headings that have selected categories on mount
+  useEffect(() => {
+    if (courseData.selectedCategories && courseData.selectedCategories.length > 0 && headings.length > 0) {
+      const headingsToExpand = headings
+        .filter(heading => {
+          const categories = getSubcategoriesForHeading(heading.heading_id);
+          return categories.some(cat => courseData.selectedCategories.includes(cat.category_id));
+        })
+        .map(heading => heading.heading_id);
+      
+      setExpandedHeadings(headingsToExpand);
+    }
+  }, [headings]); // Only run when headings are loaded
 
   // Handle thumbnail file upload
   const handleThumbnailUpload = async (e) => {
@@ -388,55 +458,263 @@ const BasicInfo = ({
           </div>
         </div>
         {/* Category & Subcategory */}
-        <div className={styles.grid2}>
-          <div>
-            <label className={styles.label}>Danh mục khóa học *</label>
-            <select
-              value={courseData.category}
-              onChange={e => {
-                handleInputChange('category', e.target.value);
-                // Reset subcategory when category changes
-                handleInputChange('subcategory', '');
-              }}
-              className={styles.select}
-              disabled={loadingCategories}
-            >
-              <option value="">
-                {loadingCategories ? 'Đang tải...' : 'Chọn danh mục'}
-              </option>
-              {headings.map(heading => (
-                <option key={heading.heading_id} value={heading.heading_id}>
-                  {heading.title}
-                </option>
-              ))}
-            </select>
-            {loadingCategories && (
-              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                Đang tải danh mục...
-              </p>
+        <div>
+          <label className={styles.label}>
+            Danh mục khóa học * (Chọn ít nhất 1)
+            {courseData.selectedCategories && courseData.selectedCategories.length > 0 && (
+              <span style={{ 
+                marginLeft: '8px', 
+                fontSize: '12px', 
+                color: '#3b82f6',
+                fontWeight: 'normal'
+              }}>
+                - Đã chọn {courseData.selectedCategories.length} danh mục
+              </span>
             )}
-          </div>
-          <div>
-            <label className={styles.label}>Danh mục con</label>
-            <select
-              value={courseData.subcategory}
-              onChange={e => handleInputChange('subcategory', e.target.value)}
-              className={styles.select}
-              disabled={!courseData.category || loadingCategories}
-            >
-              <option value="">Chọn danh mục con</option>
-              {subcategories.map(cat => (
-                <option key={cat.category_id} value={cat.category_id}>
-                  {cat.title}
-                </option>
-              ))}
-            </select>
-            {courseData.category && subcategories.length === 0 && !loadingCategories && (
-              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
-                Không có danh mục con
-              </p>
-            )}
-          </div>
+          </label>
+          {loadingCategories ? (
+            <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
+              Đang tải danh mục...
+            </p>
+          ) : (
+            <div style={{ marginTop: '12px' }}>
+              {headings.map(heading => {
+                const categories = getSubcategoriesForHeading(heading.heading_id);
+                if (categories.length === 0) return null;
+                
+                const isExpanded = expandedHeadings.includes(heading.heading_id);
+                const selectedCategories = courseData.selectedCategories || [];
+                const selectedInHeading = categories.filter(cat => 
+                  selectedCategories.includes(cat.category_id)
+                ).length;
+                const hasSelectedCategories = selectedInHeading > 0;
+                const allSelected = selectedInHeading === categories.length;
+                
+                return (
+                  <div 
+                    key={heading.heading_id} 
+                    style={{ 
+                      marginBottom: '12px',
+                      border: `2px solid ${hasSelectedCategories ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {/* Heading Header */}
+                    <div
+                      onClick={() => handleHeadingToggle(heading.heading_id)}
+                      style={{
+                        padding: '12px 16px',
+                        background: hasSelectedCategories ? '#eff6ff' : '#f9fafb',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s',
+                        userSelect: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = hasSelectedCategories ? '#dbeafe' : '#f3f4f6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = hasSelectedCategories ? '#eff6ff' : '#f9fafb';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <input
+                          type="checkbox"
+                          checked={hasSelectedCategories}
+                          readOnly
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                            accentColor: '#3b82f6'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span style={{ 
+                          fontWeight: '600', 
+                          fontSize: '14px',
+                          color: hasSelectedCategories ? '#1e40af' : '#374151',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {heading.title}
+                        </span>
+                        {hasSelectedCategories && (
+                          <span style={{
+                            background: '#3b82f6',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            {selectedInHeading}/{categories.length}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#6b7280',
+                          marginRight: '8px'
+                        }}>
+                          {categories.length} danh mục
+                        </span>
+                        <span style={{
+                          fontSize: '18px',
+                          color: '#6b7280',
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.3s ease',
+                          display: 'inline-block'
+                        }}>
+                          ▼
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Categories List - Expandable */}
+                    {isExpanded && (
+                      <div
+                        style={{
+                          maxHeight: '400px',
+                          overflow: 'auto',
+                          background: 'white',
+                          animation: 'slideDown 0.3s ease-out'
+                        }}
+                      >
+                        {/* Select All Button */}
+                        <div style={{
+                          padding: '12px 16px',
+                          borderBottom: '1px solid #e5e7eb',
+                          background: '#fafafa',
+                          display: 'flex',
+                          gap: '8px'
+                        }}>
+                          {!allSelected ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectAllInHeading(heading.heading_id);
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#2563eb';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#3b82f6';
+                              }}
+                            >
+                              ✓ Chọn tất cả
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeselectAllInHeading(heading.heading_id);
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#dc2626';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ef4444';
+                              }}
+                            >
+                              ✗ Bỏ chọn tất cả
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Category Checkboxes */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+                          gap: '8px',
+                          padding: '16px'
+                        }}>
+                          {categories.map(cat => {
+                            const isSelected = selectedCategories.includes(cat.category_id);
+                            return (
+                              <label 
+                                key={cat.category_id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '10px 12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  background: isSelected ? '#dbeafe' : 'white',
+                                  border: `1px solid ${isSelected ? '#3b82f6' : '#e5e7eb'}`,
+                                  transition: 'all 0.2s',
+                                  fontSize: '14px'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isSelected) {
+                                    e.currentTarget.style.background = '#f9fafb';
+                                    e.currentTarget.style.borderColor = '#d1d5db';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isSelected) {
+                                    e.currentTarget.style.background = 'white';
+                                    e.currentTarget.style.borderColor = '#e5e7eb';
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleCategoryToggle(cat.category_id)}
+                                  style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    cursor: 'pointer',
+                                    accentColor: '#3b82f6'
+                                  }}
+                                />
+                                <span style={{ 
+                                  color: isSelected ? '#1e40af' : '#374151',
+                                  fontWeight: isSelected ? '500' : '400'
+                                }}>
+                                  {cat.title}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {errors.categories && <p className={styles.error}>{errors.categories}</p>}
         </div>
         {/* Features */}
         <div>

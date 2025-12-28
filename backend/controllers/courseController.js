@@ -3,6 +3,7 @@ import * as courseService from '../services/courseService.js';
 import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
 import Course from '../models/Course.js';
+import Labeling from '../models/Labeling.js';
 
 //get course by ID (chỉ hiển thị khóa học đã được duyệt)
 export const getCourseById = async (req, res) => {
@@ -279,6 +280,99 @@ export const getFullCourseDataForManagement = async (req, res) => {
         res.status(200).json(course);
     } catch (error) {
         console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Get related courses by category (same category, different course)
+export const getRelatedCourses = async (req, res) => {
+    const { courseId } = req.params;
+
+    try {
+        // Get course categories
+        const labelings = await Labeling.find({ course_id: courseId }).lean();
+        
+        if (labelings.length === 0) {
+            return res.status(200).json({ success: true, courses: [] });
+        }
+
+        const categoryIds = labelings.map(l => l.category_id);
+
+        // Find other courses with same categories
+        const relatedLabelings = await Labeling.find({
+            category_id: { $in: categoryIds },
+            course_id: { $ne: courseId }
+        }).limit(10).lean();
+
+        const relatedCourseIds = [...new Set(relatedLabelings.map(l => l.course_id))];
+
+        // Get course details (only approved courses)
+        const courses = await Course.find({
+            _id: { $in: relatedCourseIds },
+            course_status: 'approved'
+        }).limit(10).lean();
+
+        // Calculate ratings for each course
+        const coursesWithRatings = await Promise.all(
+            courses.map(async (course) => {
+                const { rating, reviewCount } = await courseService.calculateCourseRatings(course._id);
+                return {
+                    courseId: course._id,
+                    title: course.title,
+                    thumbnail_url: course.thumbnail_url,
+                    originalPrice: course.original_price,
+                    currentPrice: course.current_price,
+                    rating,
+                    reviewCount
+                };
+            })
+        );
+
+        res.status(200).json({ success: true, courses: coursesWithRatings });
+    } catch (error) {
+        console.error('Error getting related courses:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Get other courses by same instructor
+export const getInstructorOtherCourses = async (req, res) => {
+    const { courseId } = req.params;
+
+    try {
+        // Get current course to find instructor
+        const currentCourse = await Course.findById(courseId).lean();
+        
+        if (!currentCourse) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Find other courses by same instructor (only approved)
+        const courses = await Course.find({
+            instructor_id: currentCourse.instructor_id,
+            _id: { $ne: courseId },
+            course_status: 'approved'
+        }).limit(10).lean();
+
+        // Calculate ratings for each course
+        const coursesWithRatings = await Promise.all(
+            courses.map(async (course) => {
+                const { rating, reviewCount } = await courseService.calculateCourseRatings(course._id);
+                return {
+                    courseId: course._id,
+                    title: course.title,
+                    thumbnail_url: course.thumbnail_url,
+                    originalPrice: course.original_price,
+                    currentPrice: course.current_price,
+                    rating,
+                    reviewCount
+                };
+            })
+        );
+
+        res.status(200).json({ success: true, courses: coursesWithRatings });
+    } catch (error) {
+        console.error('Error getting instructor other courses:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

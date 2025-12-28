@@ -9,12 +9,14 @@ function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!signIn || isLoading) return;
 
         setIsLoading(true);
+        setError('');
         try {
             const signInAttempt = await signIn.create({
                 identifier: email,
@@ -27,6 +29,7 @@ function LoginForm() {
             }
         } catch (error) {
             console.error('Error during sign in:', error);
+            setError('Email hoặc mật khẩu không đúng');
         } finally {
             setIsLoading(false);
         }
@@ -126,6 +129,19 @@ function LoginForm() {
                         </button>
                     </div>
                     <div id="clerk-captcha"></div>
+                    {error && (
+                        <div style={{
+                            color: '#dc2626',
+                            fontSize: '14px',
+                            padding: '10px',
+                            backgroundColor: '#fee2e2',
+                            borderRadius: '6px',
+                            marginBottom: '16px',
+                            textAlign: 'center'
+                        }}>
+                            {error}
+                        </div>
+                    )}
                     <button type="submit" className={styles.loginBtn} disabled={isLoading}>
                         {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                     </button>

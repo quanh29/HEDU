@@ -80,14 +80,8 @@ const Card = ({
       return;
     }
 
-    const success = await addToCart(courseId);
-    if (success) {
-      console.log('Course added to cart successfully');
-      alert('Đã thêm khóa học vào giỏ hàng!');
-    } else {
-      console.error('Failed to add course to cart');
-      alert('Có lỗi xảy ra khi thêm vào giỏ hàng');
-    }
+    await addToCart(courseId);
+    // Toast is now shown in CartContext
   };
 
   return (

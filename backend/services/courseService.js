@@ -30,7 +30,7 @@ function getFileName(url) {
 /**
  * Helper: Tính toán rating và reviewCount từ collection Ratings
  */
-async function calculateCourseRatings(courseId) {
+export async function calculateCourseRatings(courseId) {
     const ratings = await Rating.find({ course_id: courseId }).lean();
     
     if (ratings.length === 0) {

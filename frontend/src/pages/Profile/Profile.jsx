@@ -381,7 +381,7 @@ const Profile = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>Thông tin tài khoản</h1>
+        <h1 style={{color: "white"}}>Thông tin tài khoản</h1>
       </div>
 
       <div className={styles.content}>
@@ -419,7 +419,7 @@ const Profile = () => {
             <p>{formData.email}</p>
             <span className={styles.note}>
               <Upload size={14} />
-              Nhấn vào biểu tượng camera để tải lên ảnh mới
+              Nhấn vào biểu tượng camera để tải lên ảnh mới (tối đa 5MB)
             </span>
           </div>
         </div>
@@ -440,13 +440,13 @@ const Profile = () => {
             <Lock size={18} />
             Mật khẩu
           </button>
-          <button
+          {/* <button
             className={`${styles.tab} ${activeTab === 'twoFactor' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('twoFactor')}
           >
             <Shield size={18} />
             Xác thực 2 yếu tố
-          </button>
+          </button> */}
         </div>
 
         {/* General Info Tab */}
@@ -598,7 +598,6 @@ const Profile = () => {
         {activeTab === 'security' && (
           <form onSubmit={handleChangePassword} className={styles.form}>
             <div className={styles.securityInfo}>
-              <Lock size={24} />
               <h3>Đổi mật khẩu</h3>
               <p>Đảm bảo tài khoản của bạn an toàn bằng cách sử dụng mật khẩu mạnh</p>
             </div>
@@ -668,7 +667,7 @@ const Profile = () => {
                   </>
                 ) : (
                   <>
-                    <Lock size={18} />
+                    <Save size={18} />
                     Đổi mật khẩu
                   </>
                 )}
@@ -678,7 +677,7 @@ const Profile = () => {
         )}
 
         {/* Two Factor Authentication Tab */}
-        {activeTab === 'twoFactor' && (
+        {/* {activeTab === 'twoFactor' && (
           <div className={styles.form}>
             <div className={styles.twoFactorSection}>
               <div className={styles.twoFactorHeader}>
@@ -779,7 +778,7 @@ const Profile = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Carousel from '../components/Carousel/Carousel';
-import { courses as relatedCourses } from '../assets/dummyData';
 import RatingListModal from '../components/RatingListModal/RatingListModal';
 import axios from 'axios';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { useUser } from '@clerk/clerk-react';
 import { useCart } from '../context/CartContext';
+import toast from 'react-hot-toast';
 
 function CoursePage() {
   // Lấy params từ URL - chỉ courseId (no slug)
@@ -20,6 +20,8 @@ function CoursePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [relatedCourses, setRelatedCourses] = useState([]);
+  const [instructorCourses, setInstructorCourses] = useState([]);
 
   // Set dynamic title based on course name
   useDocumentTitle(course?.title || 'Khóa học');
@@ -64,6 +66,10 @@ function CoursePage() {
         console.log('Course data received:', response.data);
         setCourse(response.data);
 
+        // Fetch related courses and instructor courses
+        fetchRelatedCourses(courseId);
+        fetchInstructorCourses(courseId);
+
         // No slug redirect: URL now uses only courseId
       } catch (err) {
         console.error('Error fetching course:', err);
@@ -79,6 +85,58 @@ function CoursePage() {
 
     fetchCourse();
   }, [courseId, navigate]);
+
+  // Fetch related courses
+  const fetchRelatedCourses = async (courseId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/related`
+      );
+      
+      if (response.data.success) {
+        // Format courses for Carousel
+        const formatted = response.data.courses.map(course => ({
+          courseId: course.courseId,
+          title: course.title,
+          image: course.thumbnail_url,
+          originalPrice: course.originalPrice,
+          currentPrice: course.currentPrice,
+          rating: course.rating || 0,
+          reviewCount: course.reviewCount || 0,
+          instructors: []
+        }));
+        setRelatedCourses(formatted);
+      }
+    } catch (error) {
+      console.error('Error fetching related courses:', error);
+    }
+  };
+
+  // Fetch instructor other courses
+  const fetchInstructorCourses = async (courseId) => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}/instructor-courses`
+      );
+      
+      if (response.data.success) {
+        // Format courses for Carousel
+        const formatted = response.data.courses.map(course => ({
+          courseId: course.courseId,
+          title: course.title,
+          image: course.thumbnail_url,
+          originalPrice: course.originalPrice,
+          currentPrice: course.currentPrice,
+          rating: course.rating || 0,
+          reviewCount: course.reviewCount || 0,
+          instructors: []
+        }));
+        setInstructorCourses(formatted);
+      }
+    } catch (error) {
+      console.error('Error fetching instructor courses:', error);
+    }
+  };
 
   // Format giá tiền
   const formatPrice = (price) => {
@@ -141,11 +199,7 @@ function CoursePage() {
     }
 
     const success = await addToCart(courseId);
-    if (success) {
-      alert('Đã thêm khóa học vào giỏ hàng!');
-    } else {
-      alert('Có lỗi xảy ra khi thêm vào giỏ hàng');
-    }
+    // Toast is now shown in CartContext
   };
 
   // Loading state
@@ -246,7 +300,23 @@ function CoursePage() {
                     {courseData?.instructors && courseData.instructors.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {courseData.instructors.map((instructor, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: 10, border: '1px solid #ddd' }}>
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '1rem', 
+                              padding: '1.5rem', 
+                              background: '#f8f9fa', 
+                              borderRadius: 10, 
+                              border: '1px solid #ddd',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => navigate(`/user/${instructor._id || courseData.instructor_id}`)}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#e9ecef'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                          >
                             {instructor.avaUrl ? (
                               <img 
                                 src={instructor.avaUrl} 
@@ -265,19 +335,34 @@ function CoursePage() {
                               </div>
                             )}
                             <div>
-                              <h4 style={{ color: '#333', marginBottom: '0.3rem' }}>{instructor.fullName || 'Giảng viên'}</h4>
-                              <p style={{ color: '#666', fontSize: '0.9rem' }}>{instructor.headline || 'Giảng viên chuyên nghiệp'}</p>
+                              <h4 style={{ color: '#3b82f6', marginBottom: '0.3rem' }}>{instructor.fullName || 'Giảng viên'}</h4>
+                              <p style={{ color: '#666', fontSize: '0.9rem', margin: 0 }}>{instructor.headline || 'Giảng viên chuyên nghiệp'}</p>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: '#f8f9fa', borderRadius: 10, border: '1px solid #ddd' }}>
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '1rem', 
+                          padding: '1.5rem', 
+                          background: '#f8f9fa', 
+                          borderRadius: 10, 
+                          border: '1px solid #ddd',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onClick={() => navigate(`/user/${courseData?.instructor_id}`)}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#e9ecef'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                      >
                         <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(45deg, #333, #666)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>
                           G
                         </div>
                         <div>
-                          <h4 style={{ color: '#333', marginBottom: '0.3rem' }}>Giảng viên</h4>
+                          <h4 style={{ color: '#3b82f6', marginBottom: '0.3rem' }}>Giảng viên</h4>
                           <p style={{ color: '#666', fontSize: '0.9rem' }}>Thông tin giảng viên đang được cập nhật...</p>
                         </div>
                       </div>
@@ -380,12 +465,7 @@ function CoursePage() {
                 </div>
               </div>
 
-              {/* Related Courses */}
-              <div style={{ marginTop: '3rem' }}>
-                <div style={{ marginTop: '2rem' }}>
-                  <Carousel courses={relatedCourses} title="Khóa học liên quan" />
-                </div>
-              </div>
+
             </div>
 
             {/* Right Column - Course Sidebar */}
@@ -465,6 +545,20 @@ function CoursePage() {
           </div>
         </div>
       </div>
+
+      {/* Related Courses Carousel */}
+      {relatedCourses.length > 0 && (
+        <div style={{ marginTop: '3rem' }}>
+          <Carousel courses={relatedCourses} title="Khóa học liên quan" />
+        </div>
+      )}
+
+      {/* Instructor Other Courses Carousel */}
+      {instructorCourses.length > 0 && (
+        <div style={{ marginTop: '3rem' }}>
+          <Carousel courses={instructorCourses} title="Khóa học khác của giảng viên" />
+        </div>
+      )}
 
       {/* Rating List Modal */}
       <RatingListModal

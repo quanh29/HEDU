@@ -11,9 +11,10 @@ const labelingSchema = new mongoose.Schema({
         required: true,
         ref: 'Course'
     }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    _id: false
+ });
 
-// Composite index for unique constraint
-labelingSchema.index({ category_id: 1, course_id: 1 }, { unique: true });
 
 export default mongoose.model('Labeling', labelingSchema);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, Filter } from 'lucide-react';
+import { X, Star, Filter, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import styles from './RatingListModal.module.css';
 
 function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRating }) {
@@ -9,6 +10,7 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
     const [loading, setLoading] = useState(true);
     const [starFilter, setStarFilter] = useState('all'); // 'all', '5', '4', '3', '2', '1'
     const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest'
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (isOpen && courseId) {
@@ -164,18 +166,33 @@ function RatingListModal({ courseId, isOpen, onClose, totalRatings, averageRatin
                         filteredRatings.map((rating) => (
                             <div key={rating._id} className={styles.ratingCard}>
                                 <div className={styles.ratingHeader}>
-                                    <div className={styles.userInfo}>
-                                        <img
-                                            src={rating.user_id?.profile_image_url || rating.user_id?.ava || ''}
-                                            alt={rating.user_id?.full_name  || 'User'}
-                                            className={styles.userAvatar}
-                                            onError={(e) => {
-                                                e.target.src = '';
-                                            }}
-                                        />
+                                    <div 
+                                        className={styles.userInfo}
+                                        onClick={() => {
+                                            if (rating.user_id?._id) {
+                                                navigate(`/user/${rating.user_id._id}`);
+                                            }
+                                        }}
+                                        style={{ cursor: rating.user_id?._id ? 'pointer' : 'default' }}
+                                    >
+                                        {rating.user_id?.profile_image_url ? (
+                                            <img
+                                                src={rating.user_id.profile_image_url}
+                                                alt={rating.user_id?.full_name || 'User'}
+                                                className={styles.userAvatar}
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'flex';
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className={styles.avatarPlaceholder}>
+                                                <UserIcon size={20} />
+                                            </div>
+                                        )}
                                         <div className={styles.userDetails}>
-                                            <div className={styles.userName}>
-                                                {rating.user_id.full_name || 'Học viên'}
+                                            <div className={styles.userName} style={{ color: rating.user_id?._id ? '#3b82f6' : 'inherit' }}>
+                                                {rating.user_id?.full_name || 'Học viên'}
                                             </div>
                                             <div className={styles.ratingMeta}>
                                                 {renderStars(rating.rating)}

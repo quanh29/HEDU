@@ -102,7 +102,7 @@ export const getConversations = async (req, res) => {
         return {
           _id: conv._id,
           otherUser: {
-            id: otherUser?.id,
+            id: otherUser?._id,
             name: otherUser?.full_name || 'User',
             image_url: otherUser?.profile_image_url
           },

@@ -11,7 +11,9 @@ import {
     importCourseData,
     updateCourse,
     deleteCourse,
-    getFullCourseDataForManagement
+    getFullCourseDataForManagement,
+    getRelatedCourses,
+    getInstructorOtherCourses
 } from "../controllers/courseController.js";
 import { protectEnrolledUser, protectCourseOwner } from "../middleware/auth.js";
 
@@ -37,6 +39,16 @@ courseRouter.get("/:courseId/content", protectEnrolledUser, async (req, res) => 
 // Route cũ để tương thích ngược (gọi cùng hàm)
 courseRouter.get("/:courseId", async (req, res) => {
     getFullCourseContent(req, res);
+});
+
+// Related courses route
+courseRouter.get("/:courseId/related", async (req, res) => {
+    getRelatedCourses(req, res);
+});
+
+// Instructor other courses route
+courseRouter.get("/:courseId/instructor-courses", async (req, res) => {
+    getInstructorOtherCourses(req, res);
 });
 
 // Management routes - cho instructor và admin

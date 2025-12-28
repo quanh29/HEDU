@@ -50,8 +50,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
     tags: [],
     objectives: [''],
     requirements: [''],
-    category: '',
-    subcategory: '',
+    selectedCategories: [], // Array of category_ids
     hasPractice: false,
     hasCertificate: false
   });
@@ -281,29 +280,22 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         ? courseInfo.categories.map(cat => cat.title) 
         : [];
       
-      // Map category to heading_id and subcategory to category_id
-      let categoryId = '';
-      let subcategoryId = '';
+      // Map categories to category_ids array
+      let selectedCategoryIds = [];
       
       if (courseInfo.categories && courseInfo.categories.length > 0) {
-        // Try to find matching heading and category from fetched headings
-        const firstCatTitle = courseInfo.categories[0].title;
-        const matchingHeading = headings.find(h => 
-          h.categories.some(c => c.title === firstCatTitle)
-        );
-        
-        if (matchingHeading) {
-          categoryId = matchingHeading.heading_id;
-          const matchingCat = matchingHeading.categories.find(c => c.title === firstCatTitle);
-          if (matchingCat) {
-            subcategoryId = matchingCat.category_id;
-          }
-        }
+        // Find all matching category IDs from fetched headings
+        selectedCategoryIds = courseInfo.categories
+          .map(cat => {
+            // Find the category in allCategories by title
+            const foundCat = allCategories.find(c => c.title === cat.title);
+            return foundCat ? foundCat.category_id : null;
+          })
+          .filter(id => id !== null); // Remove nulls
       }
       
       console.log('📚 [fetchCourseData] Mapped categories:', {
-        categoryId,
-        subcategoryId,
+        selectedCategoryIds,
         originalCategories: courseInfo.categories,
         originalTags: tags
       });
@@ -319,8 +311,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         tags: tags,
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
-        category: categoryId,
-        subcategory: subcategoryId,
+        selectedCategories: selectedCategoryIds,
         hasPractice: courseInfo.has_practice === 1 || false,
         hasCertificate: courseInfo.has_certificate === 1 || false,
         originalPrice: courseInfo.originalPrice || 0,
@@ -338,8 +329,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         tags: tags,
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
-        category: categoryId,
-        subcategory: subcategoryId,
+        selectedCategories: selectedCategoryIds,
         hasPractice: courseInfo.has_practice === 1 || false,
         hasCertificate: courseInfo.has_certificate === 1 || false,
         originalPrice: courseInfo.originalPrice || 0,
@@ -853,7 +843,34 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
       newErrors.description = 'Mô tả khóa học là bắt buộc';
     }
     
-
+    // Validate categories: must have at least 1 selected
+    if (!courseData.selectedCategories || courseData.selectedCategories.length === 0) {
+      newErrors.categories = 'Vui lòng chọn ít nhất một danh mục';
+    } else {
+      // Check if user selected a heading but no categories in it
+      const selectedCategoryIds = courseData.selectedCategories;
+      
+      // Group selected categories by heading
+      const categoryByHeading = {};
+      allCategories.forEach(cat => {
+        if (selectedCategoryIds.includes(cat.category_id)) {
+          if (!categoryByHeading[cat.heading_id]) {
+            categoryByHeading[cat.heading_id] = [];
+          }
+          categoryByHeading[cat.heading_id].push(cat.category_id);
+        }
+      });
+      
+      // Check each heading that has selected categories
+      const headingNames = Object.keys(categoryByHeading).map(headingId => {
+        const heading = headings.find(h => h.heading_id === headingId);
+        return heading?.title || headingId;
+      });
+      
+      if (headingNames.length === 0) {
+        newErrors.categories = 'Vui lòng chọn ít nhất một danh mục';
+      }
+    }
     
     if (courseData.objectives.every(obj => !obj.trim())) {
       newErrors.objectives = 'Cần ít nhất một mục tiêu học tập';
@@ -897,7 +914,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         picture_url: courseData.thumbnail,
         requirements: courseData.requirements.filter(r => r.trim() !== ''),
         objectives: courseData.objectives.filter(o => o.trim() !== ''),
-        categories: courseData.subcategory ? [courseData.subcategory] : []
+        categories: courseData.selectedCategories || []
       };
 
       const url = `${import.meta.env.VITE_BASE_URL}/api/course/${courseId}`;
@@ -951,8 +968,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         selectedLanguage
       });
       
-      // Lấy category_id từ subcategory đã chọn
-      const categories = courseData.subcategory ? [courseData.subcategory] : [];
+      // Lấy categories từ selectedCategories
+      const categories = courseData.selectedCategories || [];
       
       console.log('💾 [saveCourseWithStatus] Preparing course data:', {
         isEditMode,
