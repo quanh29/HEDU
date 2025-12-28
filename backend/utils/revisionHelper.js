@@ -1,6 +1,6 @@
 import CourseRevision from '../models/CourseDraft.js';
-import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
+import Labeling from '../models/Labeling.js';
 
 /**
  * Check if a course is in approved status
@@ -9,11 +9,8 @@ import Course from '../models/Course.js';
  */
 export const isCourseApproved = async (courseId) => {
     try {
-        const [courses] = await pool.query(
-            'SELECT course_status FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
-        return courses[0]?.course_status === 'approved';
+        const course = await Course.findById(courseId).select('course_status').lean();
+        return course?.course_status === 'approved';
     } catch (error) {
         console.error('Error checking course approval status:', error);
         throw error;
@@ -55,54 +52,43 @@ export const getOrCreateRevision = async (courseId, userId) => {
             return revision;
         }
         
-        // Load current course data from MySQL
-        const [courses] = await pool.query(
-            'SELECT * FROM Courses WHERE course_id = ?',
-            [courseId]
-        );
+        // Load current course data from MongoDB
+        const course = await Course.findById(courseId).lean();
         
-        if (!courses || courses.length === 0) {
+        if (!course) {
             throw new Error(`Course not found: ${courseId}`);
         }
         
-        const course = courses[0];
-        
-        // Load MongoDB course data
-        const mongoCourse = await Course.findById(courseId);
-        
-        // Load categories
-        const [categories] = await pool.query(
-            'SELECT category_id FROM Labeling WHERE course_id = ?',
-            [courseId]
-        );
-        const categoryIds = categories.map(c => c.category_id);
+        // Load categories from MongoDB
+        const categoryDocs = await Labeling.find({ course_id: courseId }).select('category_id').lean();
+        const categoryIds = categoryDocs.map(c => c.category_id);
         
         // Create new revision
         revision = new CourseRevision({
             courseId: courseId,
             title: course.title || '',
-            subtitle: course.subTitle || '',
+            subtitle: course.sub_title || '',
             instructors: [course.instructor_id || userId],
-            description: course.des || '',
-            thumbnail: course.picture_url || '',
-            originalPrice: course.originalPrice || 0,
-            currentPrice: course.currentPrice || 0,
+            description: course.description || '',
+            thumbnail: course.thumbnail_url || '',
+            originalPrice: course.original_price || 0,
+            currentPrice: course.current_price || 0,
             createdAt: course.createdAt || new Date(),
             updatedAt: new Date(),
             tags: categoryIds,
-            level: course.lv_id || 'beginner',
+            level: course.level_id || 'beginner',
             language: course.lang_id || 'vietnamese',
             hasPractice: course.has_practice || false,
             hasCertificate: course.has_certificate || false,
-            requirements: mongoCourse?.requirements || [],
-            objectives: mongoCourse?.objectives || [],
+            requirements: course.requirements || [],
+            objectives: course.objectives || [],
             sections: [], // Legacy field, will be deprecated
             status: 'pending',
             version: (course.version || 0) + 1,
-            lv_id: course.lv_id,
+            lv_id: course.level_id,
             lang_id: course.lang_id,
             categories: categoryIds,
-            picture_url: course.picture_url,
+            picture_url: course.thumbnail_url,
             submittedAt: new Date(),
             draftSections: [],
             draftLessons: [],

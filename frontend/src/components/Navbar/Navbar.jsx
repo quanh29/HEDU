@@ -99,8 +99,8 @@ const Navbar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchValue.trim()) {
-      const slug = createSlug(searchValue.trim());
-      navigate(`/course/search?title=${slug}`);
+      // const slug = createSlug(searchValue.trim());
+      navigate(`/course/search?title=${searchValue.trim()}`);
     }
   };
 

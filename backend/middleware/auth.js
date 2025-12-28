@@ -98,14 +98,12 @@ export const protectCourseOwner = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Course ID is required' });
         }
 
-        // Query Mongodb to check if user is the instructor of this course
-        const [courses] = await Course.findByIds([courseId]);
+        // Query MongoDB to check if user is the instructor of this course
+        const course = await Course.findById(courseId).lean();
 
-        if (!courses || courses.length === 0) {
+        if (!course) {
             return res.status(404).json({ success: false, message: 'Course not found' });
         }
-
-        const course = courses[0];
         
         // Check if the user is the course owner
         if (course.instructor_id !== userId) {

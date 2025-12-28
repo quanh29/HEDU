@@ -203,13 +203,13 @@ export const updateCourse = async (req, res) => {
 
     try {
         // Kiểm tra trạng thái hiện tại của course
-        const [courses] = await Course.findByIds([courseId]);
+        const courses = await Course.findById(courseId).lean();
 
         if (!courses || courses.length === 0) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        const currentStatus = courses[0].course_status;
+        const currentStatus = courses.course_status;
         const newStatus = req.body.course_status;
 
         logger.info(`📝 [updateCourse] Updating course ${courseId}, currentStatus: ${currentStatus}, newStatus: ${newStatus}`);

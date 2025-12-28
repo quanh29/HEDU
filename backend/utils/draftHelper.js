@@ -50,17 +50,12 @@ export const createDraftFromPublished = async (courseId, userId) => {
     try {
         console.log(`📋 Creating draft from published course: ${courseId}`);
         
-        // Load current course data from Mongodb
-        const courses = await Course.findById(courseId);
+        // Load current course data from MongoDB
+        const course = await Course.findById(courseId).lean();
         
-        if (!courses || courses.length === 0) {
+        if (!course) {
             throw new Error(`Course not found: ${courseId}`);
         }
-        
-        const course = courses[0];
-        
-        // Load MongoDB course data
-        const mongoCourse = await Course.findById(courseId);
         
         // Load categories from mongodb labeling by courseId in course_id fied
         const categories = await Labeling.find({ course_id: courseId });
@@ -70,28 +65,28 @@ export const createDraftFromPublished = async (courseId, userId) => {
         const draft = new CourseDraft({
             _id: courseId, // Use courseId as _id
             title: course.title || '',
-            subtitle: course.subTitle || '',
+            subtitle: course.sub_title || '',
             instructors: [course.instructor_id || userId],
-            description: course.des || '',
-            thumbnail: course.picture_url || '',
-            originalPrice: course.originalPrice || 0,
-            currentPrice: course.currentPrice || 0,
+            description: course.description || '',
+            thumbnail: course.thumbnail_url || '',
+            originalPrice: course.original_price || 0,
+            currentPrice: course.current_price || 0,
             createdAt: course.createdAt || new Date(),
             updatedAt: new Date(),
             tags: categoryIds,
-            level: course.lv_id || 'beginner',
+            level: course.level_id || 'beginner',
             language: course.lang_id || 'vietnamese',
             hasPractice: course.has_practice || false,
             hasCertificate: course.has_certificate || false,
-            requirements: mongoCourse?.requirements || [],
-            objectives: mongoCourse?.objectives || [],
+            requirements: course.requirements || [],
+            objectives: course.objectives || [],
             sections: [], // Legacy field
             status: 'draft',
             version: (course.version || 0) + 1,
-            lv_id: course.lv_id,
+            lv_id: course.level_id,
             lang_id: course.lang_id,
             categories: categoryIds,
-            picture_url: course.picture_url,
+            picture_url: course.thumbnail_url,
             draftSections: [],
             draftLessons: [],
             draftVideos: [],

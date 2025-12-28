@@ -1,7 +1,11 @@
-import pool from '../config/mysql.js';
 import Course from '../models/Course.js';
 import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
+import User from '../models/User.js';
+import Category from '../models/Category.js';
+import Labeling from '../models/Labeling.js';
+import Level from '../models/Level.js';
+import Language from '../models/Language.js';
 
 /**
  * Admin Controller - Quản lý courses cho admin
@@ -13,75 +17,76 @@ import logger from '../utils/logger.js';
 export const getAllCoursesForAdmin = async (req, res) => {
     try {
         const { course_status, category, search, page = 1, limit = 100 } = req.query;
-        const offset = (page - 1) * limit;
+        const skip = (page - 1) * limit;
 
-        let query = `
-            SELECT c.*, 
-                   u.user_id as instructor_user_id,
-                   u.fName, 
-                   u.lName,
-                   u.email as instructor_email,
-                   u.ava as instructor_ava
-            FROM Courses c 
-            LEFT JOIN Users u ON c.instructor_id = u.user_id
-        `;
+        let query = {};
         
-        let whereClauses = [];
-        let params = [];
-
         // Filter by status
         if (course_status && course_status !== 'all') {
-            whereClauses.push('c.course_status = ?');
-            params.push(course_status);
+            query.course_status = course_status;
         }
 
+        // Search by title
+        if (search) {
+            query.title = { $regex: search, $options: 'i' };
+        }
+
+        let courses;
+        
         // Filter by category
         if (category && category !== 'all') {
-            query += ` LEFT JOIN Labeling l ON c.course_id = l.course_id
-                       LEFT JOIN Categories cat ON l.category_id = cat.category_id`;
-            whereClauses.push('cat.title = ?');
-            params.push(category);
+            // Tìm category theo title
+            const categoryDoc = await Category.findOne({ title: category }).lean();
+            if (categoryDoc) {
+                // Tìm các course_id có category này
+                const labelings = await Labeling.find({ category_id: categoryDoc._id }).select('course_id').lean();
+                const courseIds = labelings.map(l => l.course_id);
+                query._id = { $in: courseIds };
+            }
         }
 
-        // Search by title or instructor name
-        if (search) {
-            whereClauses.push('(c.title LIKE ? OR u.fName LIKE ? OR u.lName LIKE ? OR u.email LIKE ?)');
-            const searchTerm = `%${search}%`;
-            params.push(searchTerm, searchTerm, searchTerm, searchTerm);
-        }
+        courses = await Course.find(query)
+            .sort({ _id: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
 
-        if (whereClauses.length > 0) {
-            query += ' WHERE ' + whereClauses.join(' AND ');
-        }
-
-        query += ` ORDER BY c.course_id DESC
-                   LIMIT ? OFFSET ?`;
-        
-        params.push(parseInt(limit), parseInt(offset));
-
-        const [courses] = await pool.query(query, params);
-
-        // Lấy categories cho mỗi course
+        // Lấy thông tin instructor và categories cho mỗi course
         const coursesWithDetails = await Promise.all(courses.map(async (course) => {
-            const [categories] = await pool.query(`
-                SELECT cat.category_id, cat.title 
-                FROM Labeling l 
-                JOIN Categories cat ON l.category_id = cat.category_id 
-                WHERE l.course_id = ?
-            `, [course.course_id]);
+            // Lấy thông tin instructor
+            const instructor = await User.findById(course.instructor_id)
+                .select('_id email full_name profile_image_url headline')
+                .lean();
+
+            // Lấy categories
+            const labelings = await Labeling.find({ course_id: course._id }).select('category_id').lean();
+            const categoryIds = labelings.map(l => l.category_id);
+            const categories = await Category.find({ _id: { $in: categoryIds } }).lean();
+
+            // Map instructor fields
+            const instructorData = instructor ? {
+                user_id: instructor._id,
+                fName: instructor.full_name?.split(' ')[0] || '',
+                lName: instructor.full_name?.split(' ').slice(1).join(' ') || '',
+                email: instructor.email,
+                ava: instructor.profile_image_url
+            } : null;
 
             return {
+                course_id: course._id,
                 ...course,
-                instructor: {
-                    user_id: course.instructor_user_id,
-                    fName: course.fName,
-                    lName: course.lName,
-                    email: course.instructor_email,
-                    ava: course.instructor_ava
-                },
-                categories: categories,
-                students: 0, // TODO: Implement when Enrollments table is ready
-                reports: 0 // TODO: Implement reports system
+                instructor: instructorData,
+                instructor_user_id: course.instructor_id,
+                fName: instructorData?.fName,
+                lName: instructorData?.lName,
+                instructor_email: instructorData?.email,
+                instructor_ava: instructorData?.ava,
+                categories: categories.map(cat => ({
+                    category_id: cat._id,
+                    title: cat.title
+                })),
+                students: 0,
+                reports: 0
             };
         }));
 
@@ -103,59 +108,56 @@ export const getCourseByIdForAdmin = async (req, res) => {
     try {
         const { courseId } = req.params;
 
-        const [courseRows] = await pool.query(`
-            SELECT c.*, 
-                   u.user_id as instructor_user_id, 
-                   u.fName, 
-                   u.lName, 
-                   u.email as instructor_email,
-                   u.ava as instructor_ava, 
-                   u.headline,
-                   lv.title as level_title,
-                   lg.title as language_title
-            FROM Courses c 
-            JOIN Users u ON c.instructor_id = u.user_id 
-            LEFT JOIN Levels lv ON c.lv_id = lv.lv_id
-            LEFT JOIN Languages lg ON c.lang_id = lg.lang_id
-            WHERE c.course_id = ?
-        `, [courseId]);
+        const course = await Course.findById(courseId).lean();
 
-        if (courseRows.length === 0) {
+        if (!course) {
             return res.status(404).json({ 
                 success: false, 
                 message: 'Không tìm thấy khóa học' 
             });
         }
 
-        const course = courseRows[0];
+        // Lấy thông tin instructor
+        const instructor = await User.findById(course.instructor_id).lean();
         
-        // Lấy requirements và objectives từ MongoDB
-        const mongoCourse = await Course.findById(courseId).lean();
-        if (mongoCourse) {
-            course.requirements = mongoCourse.requirements;
-            course.objectives = mongoCourse.objectives;
-        }
+        // Lấy level và language
+        const level = await Level.findById(course.level_id).lean();
+        const language = await Language.findById(course.lang_id).lean();
 
         // Lấy categories
-        const [categories] = await pool.query(`
-            SELECT cat.category_id, cat.title 
-            FROM Labeling l 
-            JOIN Categories cat ON l.category_id = cat.category_id 
-            WHERE l.course_id = ?
-        `, [courseId]);
+        const labelings = await Labeling.find({ course_id: courseId }).select('category_id').lean();
+        const categoryIds = labelings.map(l => l.category_id);
+        const categories = await Category.find({ _id: { $in: categoryIds } }).lean();
         
-        course.categories = categories;
-        course.instructor = {
-            user_id: course.instructor_user_id,
-            fName: course.fName,
-            lName: course.lName,
-            email: course.instructor_email,
-            ava: course.instructor_ava,
-            headline: course.headline
-        };
-        course.students = 0; // TODO: Implement when Enrollments table is ready
+        const instructorData = instructor ? {
+            user_id: instructor._id,
+            fName: instructor.full_name?.split(' ')[0] || '',
+            lName: instructor.full_name?.split(' ').slice(1).join(' ') || '',
+            email: instructor.email,
+            ava: instructor.profile_image_url,
+            headline: instructor.headline
+        } : null;
 
-        res.json(course);
+        const result = {
+            course_id: course._id,
+            ...course,
+            instructor_user_id: course.instructor_id,
+            fName: instructorData?.fName,
+            lName: instructorData?.lName,
+            instructor_email: instructorData?.email,
+            instructor_ava: instructorData?.ava,
+            headline: instructorData?.headline,
+            level_title: level?.title,
+            language_title: language?.title,
+            categories: categories.map(cat => ({
+                category_id: cat._id,
+                title: cat.title
+            })),
+            instructor: instructorData,
+            students: 0
+        };
+
+        res.json(result);
     } catch (error) {
         console.error('Error fetching course for admin:', error);
         res.status(500).json({ 
@@ -238,12 +240,12 @@ export const updateCourseStatus = async (req, res) => {
             });
         }
 
-        const [result] = await pool.query(
-            'UPDATE Courses SET course_status = ? WHERE course_id = ?',
-            [course_status, courseId]
+        const result = await Course.updateOne(
+            { _id: courseId },
+            { $set: { course_status } }
         );
 
-        if (result.affectedRows === 0) {
+        if (result.matchedCount === 0) {
             return res.status(404).json({ 
                 success: false, 
                 message: 'Không tìm thấy khóa học' 
@@ -300,19 +302,42 @@ export const deleteCourseByAdmin = async (req, res) => {
  */
 export const getCourseStatistics = async (req, res) => {
     try {
-        const [stats] = await pool.query(`
-            SELECT 
-                COUNT(*) as total_courses,
-                SUM(CASE WHEN course_status = 'draft' THEN 1 ELSE 0 END) as draft_count,
-                SUM(CASE WHEN course_status = 'pending' THEN 1 ELSE 0 END) as pending_count,
-                SUM(CASE WHEN course_status = 'approved' THEN 1 ELSE 0 END) as approved_count,
-                SUM(CASE WHEN course_status = 'rejected' THEN 1 ELSE 0 END) as rejected_count,
-                SUM(CASE WHEN course_status = 'suspended' THEN 1 ELSE 0 END) as suspended_count,
-                SUM(CASE WHEN course_status = 'hidden' THEN 1 ELSE 0 END) as hidden_count
-            FROM Courses
-        `);
+        const stats = await Course.aggregate([
+            {
+                $facet: {
+                    total: [{ $count: 'count' }],
+                    draft: [{ $match: { course_status: 'draft' } }, { $count: 'count' }],
+                    pending: [{ $match: { course_status: 'pending' } }, { $count: 'count' }],
+                    approved: [{ $match: { course_status: 'approved' } }, { $count: 'count' }],
+                    rejected: [{ $match: { course_status: 'rejected' } }, { $count: 'count' }],
+                    suspended: [{ $match: { course_status: 'suspended' } }, { $count: 'count' }],
+                    hidden: [{ $match: { course_status: 'hidden' } }, { $count: 'count' }]
+                }
+            },
+            {
+                $project: {
+                    total_courses: { $arrayElemAt: ['$total.count', 0] },
+                    draft_count: { $arrayElemAt: ['$draft.count', 0] },
+                    pending_count: { $arrayElemAt: ['$pending.count', 0] },
+                    approved_count: { $arrayElemAt: ['$approved.count', 0] },
+                    rejected_count: { $arrayElemAt: ['$rejected.count', 0] },
+                    suspended_count: { $arrayElemAt: ['$suspended.count', 0] },
+                    hidden_count: { $arrayElemAt: ['$hidden.count', 0] }
+                }
+            }
+        ]);
 
-        res.json(stats[0]);
+        const result = {
+            total_courses: stats[0]?.total_courses || 0,
+            draft_count: stats[0]?.draft_count || 0,
+            pending_count: stats[0]?.pending_count || 0,
+            approved_count: stats[0]?.approved_count || 0,
+            rejected_count: stats[0]?.rejected_count || 0,
+            suspended_count: stats[0]?.suspended_count || 0,
+            hidden_count: stats[0]?.hidden_count || 0
+        };
+
+        res.json(result);
     } catch (error) {
         console.error('Error fetching course statistics:', error);
         res.status(500).json({ 
@@ -359,21 +384,32 @@ export const getPendingRevisions = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // Lấy thông tin course từ MySQL
+        // Lấy thông tin course từ MongoDB
         const revisionsWithCourseInfo = await Promise.all(
             revisions.map(async (revision) => {
-                const [courses] = await pool.query(
-                    `SELECT c.course_id, c.title, c.course_status, 
-                            u.fName, u.lName, u.email
-                     FROM Courses c
-                     LEFT JOIN Users u ON c.instructor_id = u.user_id
-                     WHERE c.course_id = ?`,
-                    [revision.courseId]
-                );
-
+                const course = await Course.findById(revision.courseId).lean();
+                
+                if (course) {
+                    const instructor = await User.findById(course.instructor_id)
+                        .select('_id email full_name')
+                        .lean();
+                    
+                    return {
+                        ...revision,
+                        currentCourse: {
+                            course_id: course._id,
+                            title: course.title,
+                            course_status: course.course_status,
+                            fName: instructor?.full_name?.split(' ')[0] || '',
+                            lName: instructor?.full_name?.split(' ').slice(1).join(' ') || '',
+                            email: instructor?.email
+                        }
+                    };
+                }
+                
                 return {
                     ...revision,
-                    currentCourse: courses[0] || null
+                    currentCourse: null
                 };
             })
         );
@@ -408,19 +444,28 @@ export const getRevisionDetail = async (req, res) => {
             });
         }
 
-        // Lấy thông tin course hiện tại từ MySQL
-        const [courses] = await pool.query(
-            `SELECT c.*, u.fName, u.lName, u.email
-             FROM Courses c
-             LEFT JOIN Users u ON c.instructor_id = u.user_id
-             WHERE c.course_id = ?`,
-            [revision.courseId]
-        );
+        // Lấy thông tin course hiện tại từ MongoDB
+        const course = await Course.findById(revision.courseId).lean();
+        
+        let currentCourse = null;
+        if (course) {
+            const instructor = await User.findById(course.instructor_id)
+                .select('_id email full_name')
+                .lean();
+            
+            currentCourse = {
+                ...course,
+                course_id: course._id,
+                fName: instructor?.full_name?.split(' ')[0] || '',
+                lName: instructor?.full_name?.split(' ').slice(1).join(' ') || '',
+                email: instructor?.email
+            };
+        }
 
         res.json({
             success: true,
             revision,
-            currentCourse: courses[0] || null
+            currentCourse
         });
     } catch (error) {
         logger.error('Error fetching revision detail:', error);
