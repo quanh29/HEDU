@@ -109,8 +109,7 @@ export const createOrder = async (req, res) => {
       voucherCode: voucherCode || null,
       items: cartItems.map(item => ({
         courseId: item.course_id,
-        price: parseFloat(item.price),
-        title: item.title
+        price: parseFloat(item.price)
       })),
       subtotal,
       discount,
@@ -127,7 +126,6 @@ export const createOrder = async (req, res) => {
       discount,
       items: cartItems.map(item => ({
         courseId: item.course_id,
-        title: item.title,
         price: item.price
       })),
       voucherCode: voucherCode || null
@@ -169,6 +167,16 @@ export const getOrderDetails = async (req, res) => {
       return res.status(403).json({ message: 'Không có quyền truy cập' });
     }
 
+    // Populate course titles from Course collection
+    const courseIds = order.items.map(item => item.courseId);
+    const courses = await Course.find({ _id: { $in: courseIds } }).lean();
+    const courseMap = new Map(courses.map(course => [course._id, course]));
+
+    const itemsWithTitles = order.items.map(item => ({
+      ...item.toObject(),
+      title: courseMap.get(item.courseId)?.title || 'Khóa học không tồn tại'
+    }));
+
     res.json({
       order: {
         orderId: order._id,
@@ -179,7 +187,7 @@ export const getOrderDetails = async (req, res) => {
         totalAmount: order.totalAmount,
         createdAt: order.createdAt
       },
-      items: order.items
+      items: itemsWithTitles
     });
 
   } catch (error) {
@@ -219,7 +227,12 @@ export const getOrderHistory = async (req, res) => {
       .limit(limitNum)
       .lean();
 
-    // Format orders with payment details
+    // Get all unique course IDs from all orders
+    const allCourseIds = [...new Set(orders.flatMap(order => order.items.map(item => item.courseId)))];
+    const courses = await Course.find({ _id: { $in: allCourseIds } }).lean();
+    const courseMap = new Map(courses.map(course => [course._id, course]));
+
+    // Format orders with payment details and course titles
     const ordersWithDetails = orders.map(order => ({
       orderId: order._id,
       orderStatus: order.orderStatus,
@@ -229,7 +242,11 @@ export const getOrderHistory = async (req, res) => {
       totalAmount: order.totalAmount,
       courseCount: order.items.length,
       createdAt: order.createdAt,
-      items: order.items
+      items: order.items.map(item => ({
+        courseId: item.courseId,
+        price: item.price,
+        title: courseMap.get(item.courseId)?.title || 'Khóa học không tồn tại'
+      }))
     }));
     
     // find each order's payment info from payment collection and assign its method to the order

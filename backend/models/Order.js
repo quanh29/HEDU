@@ -8,10 +8,6 @@ const orderItemSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true
-  },
-  title: {
-    type: String,
-    required: false
   }
 }, { _id: false });
 
