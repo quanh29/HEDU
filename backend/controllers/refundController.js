@@ -4,6 +4,8 @@ import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
 import Course from '../models/Course.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
 import axios from 'axios';
 import crypto from 'crypto';
 
@@ -122,7 +124,7 @@ export const getRefundHistory = async (req, res) => {
     const refundsWithCourse = await Promise.all(
       refunds.map(async (refund) => {
         try {
-          const [courses] = await Course.findByIds([refund.courseId]);
+          const courses = await Course.find({ _id: { $in: refund.courseId } }).lean();
           
           return {
             ...refund,
@@ -177,7 +179,7 @@ export const getAllRefunds = async (req, res) => {
     const refundsWithCourse = await Promise.all(
       refunds.map(async (refund) => {
         try {
-          const [courses] = await Course.findByIds([refund.courseId]);
+          const courses = await Course.find({ _id: { $in: refund.courseId } }).lean();
           
           return {
             ...refund,
@@ -283,8 +285,45 @@ export const processRefund = async (req, res) => {
 
       // Add MoMo error info to admin note if refund failed
       if (!momoRefundSuccess) {
-        const momoNote = `\n⚠️ LƯU Ý: Hoàn tiền qua MoMo thất bại.\n${momoErrorMessage}\nVui lòng xử lý hoàn tiền thủ công cho người dùng.`;
-        refund.adminNote = (refund.adminNote || '') + momoNote;
+        // Refund to user's wallet instead
+        try {
+          // Find or create user's wallet
+          let wallet = await Wallet.findOne({ user_id: refund.userId });
+          
+          if (!wallet) {
+            wallet = new Wallet({
+              user_id: refund.userId,
+              balance: 0
+            });
+          }
+
+          // Update wallet balance
+          const previousBalance = wallet.balance;
+          wallet.balance += refund.amount;
+          await wallet.save();
+
+          // Create transaction record
+          const transaction = new Transaction({
+            wallet_id: wallet._id.toString(),
+            operation: 'credit',
+            amount: refund.amount,
+            balance: wallet.balance,
+            description: `Hoàn tiền khóa học - MoMo thất bại, hoàn vào ví (Order: ${refund.orderId})`
+          });
+          await transaction.save();
+
+          // Update status to completed and add note
+          refund.status = 'completed';
+          // const walletNote = `\n Hoàn tiền qua MoMo thất bại.\n${momoErrorMessage}\n Đã hoàn ${refund.amount.toLocaleString('vi-VN')} VNĐ vào ví người dùng.\nSố dư trước: ${previousBalance.toLocaleString('vi-VN')} VNĐ\nSố dư sau: ${wallet.balance.toLocaleString('vi-VN')} VNĐ`;
+          const walletNote = `Đã hoàn ${refund.amount.toLocaleString('vi-VN')} VNĐ vào ví người dùng.\nSố dư trước: ${previousBalance.toLocaleString('vi-VN')} VNĐ\nSố dư sau: ${wallet.balance.toLocaleString('vi-VN')} VNĐ`;          
+          refund.adminNote = (refund.adminNote || '') + walletNote;
+          
+          console.log(`✅ Refunded ${refund.amount} VNĐ to user ${refund.userId}'s wallet (Transaction: ${transaction._id})`);
+        } catch (walletError) {
+          console.error('Error refunding to wallet:', walletError);
+          const errorNote = `\n⚠️ LƯU Ý: Hoàn tiền qua MoMo thất bại.\n${momoErrorMessage}\n⚠️ Hoàn tiền vào ví cũng thất bại: ${walletError.message}\nVui lòng xử lý hoàn tiền thủ công cho người dùng.`;
+          refund.adminNote = (refund.adminNote || '') + errorNote;
+        }
       }
 
       // Delete enrollment after approval regardless of MoMo refund status
