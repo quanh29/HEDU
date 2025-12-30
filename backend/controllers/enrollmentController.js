@@ -1,6 +1,9 @@
 import Enrollment from '../models/Enrollment.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import { pushNotification } from '../services/notificationService.js';
+import { io } from '../server.js';
+import { pushNotificationToUser } from '../sockets/notificationSocket.js';
 import Section from '../models/Section.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
@@ -326,6 +329,31 @@ export const enrollFreeCourse = async (req, res) => {
 
         // Xóa khóa học khỏi wishlist sau khi enrollment thành công
         await removeFromWishlistInternal(userId, courseId);
+        
+        // Send notification to student about successful enrollment
+        try {
+            const user = await User.findById(userId);
+            const studentNotification = await pushNotification({
+                receiver_id: userId,
+                event_type: 'course_enrollment',
+                event_title: `Đăng ký khóa học thành công`,
+                event_message: `Bạn đã đăng ký khóa học "${course.title}" thành công. Chúc bạn học tập hiệu quả!`,
+                event_url: `/course/${courseId}/content/`
+            });
+            pushNotificationToUser(io, userId, studentNotification);
+            
+            // Send notification to instructor about new enrollment
+            const instructorNotification = await pushNotification({
+                receiver_id: course.instructor_id,
+                event_type: 'course_enrollment',
+                event_title: `Có học viên mới`,
+                event_message: `${user?.full_name || 'Một học viên'} đã đăng ký khóa học "${course.title}" của bạn`,
+                event_url: `/instructor`
+            });
+            pushNotificationToUser(io, course.instructor_id, instructorNotification);
+        } catch (notifError) {
+            logger.error('Error sending enrollment notification:', notifError);
+        }
 
         // Tạo conversation với instructor nếu chưa tồn tại
         const instructorId = course.instructor_id;

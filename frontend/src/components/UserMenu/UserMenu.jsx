@@ -96,9 +96,6 @@ const UserMenu = () => {
                 )}
               </span>
             </li>
-            <li onClick={() => handleMenuItemClick('/notifications')}>
-              <span>Thông báo</span>
-            </li>
             <li onClick={() => handleMenuItemClick('/profile')}>
               <span>Thông tin tài khoản</span>
             </li>

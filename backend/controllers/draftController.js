@@ -1,4 +1,8 @@
 import CourseDraft from '../models/CourseDraft.js';
+import { pushNotification } from '../services/notificationService.js';
+import { io } from '../server.js';
+import { pushNotificationToUser, pushNotificationToMultipleUsers } from '../sockets/notificationSocket.js';
+import Enrollment from '../models/Enrollment.js';
 import { getCourseDraft } from '../utils/draftHelper.js';
 import Mux from '@mux/mux-node';
 
@@ -885,6 +889,37 @@ export const approveDraft = async (req, res) => {
             console.error(`⚠️ [Cleanup] Error deleting draft content:`, cleanupError.message);
             // Don't fail the approval if cleanup fails, just log it
         }
+        
+        // Send notification to instructor about approval
+        try {
+            const Course = (await import('../models/Course.js')).default;
+            const course = await Course.findById(courseId);
+            
+            if (course) {
+                const instructorNotification = await pushNotification({
+                    receiver_id: course.instructor_id,
+                    event_type: 'course_update',
+                    event_title: `Khóa học "​​${course.title}" đã được duyệt`,
+                    event_message: `Cập nhật khóa học của bạn đã được duyệt và đăng tải thành công.`,
+                    event_url: `/instructor`
+                });
+                pushNotificationToUser(io, course.instructor_id, instructorNotification);
+                
+                // Send notification to all enrolled students about course update
+                const enrollments = await Enrollment.find({ courseId: courseId });
+                if (enrollments.length > 0) {
+                    const studentIds = enrollments.map(e => e.userId);
+                    await pushNotificationToMultipleUsers(io, studentIds, {
+                        event_type: 'course_update',
+                        event_title: `Khóa học có cập nhật mới`,
+                        event_message: `Khóa học "${course.title}" đã có nội dung cập nhật mới. Hãy xem ngay!`,
+                        event_url: `/course/${courseId}/content/`
+                    });
+                }
+            }
+        } catch (notifError) {
+            console.error('Error sending approval notification:', notifError);
+        }
 
         res.status(200).json({
             success: true,
@@ -943,6 +978,25 @@ export const rejectDraft = async (req, res) => {
         await draft.save();
 
         console.log(`✅ [Reject Draft] Draft ${courseId} rejected`);
+        
+        // Send notification to instructor about rejection
+        try {
+            const Course = (await import('../models/Course.js')).default;
+            const course = await Course.findById(courseId);
+            
+            if (course) {
+                const instructorNotification = await pushNotification({
+                    receiver_id: course.instructor_id,
+                    event_type: 'course_update',
+                    event_title: `Khóa học "${course.title}" bị từ chối`,
+                    event_message: `Cập nhật khóa học của bạn đã bị từ chối. Lý do: ${reason || 'Không có lý do'}`,
+                    event_url: `/instructor/update-course/${courseId}`
+                });
+                pushNotificationToUser(io, course.instructor_id, instructorNotification);
+            }
+        } catch (notifError) {
+            console.error('Error sending rejection notification:', notifError);
+        }
 
         res.status(200).json({
             success: true,

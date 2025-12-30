@@ -3,6 +3,9 @@ import Transaction from '../models/Transaction.js';
 import crypto from 'crypto';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { pushNotification } from '../services/notificationService.js';
+import { pushNotificationToUser } from '../sockets/notificationSocket.js';
+import { io } from '../server.js';
 
 /**
  * Generate MoMo payment signature
@@ -870,6 +873,40 @@ export const payWithWallet = async (req, res) => {
       console.log(`✅ Cart cleared for user ${userId}`);
     } else {
       console.log(`ℹ️ Buy now mode - cart not cleared`);
+    }
+
+    // 11. Send notifications to students and instructors
+    try {
+      const User = (await import('../models/User.js')).default;
+      const user = await User.findById(userId);
+      
+      // Send notification to student for each course
+      for (const item of orderItems) {
+        const course = await Course.findById(item.courseId);
+        if (course) {
+          // Notification to student
+          const studentNotification = await pushNotification({
+            receiver_id: userId,
+            event_type: 'course_enrollment',
+            event_title: `Đăng ký khóa học thành công`,
+            event_message: `Bạn đã đăng ký khóa học "${course.title}" thành công. Chúc bạn học tập hiệu quả!`,
+            event_url: `/course/${item.courseId}/content/`
+          });
+          pushNotificationToUser(io, userId, studentNotification);
+          
+          // Notification to instructor
+          const instructorNotification = await pushNotification({
+            receiver_id: course.instructor_id,
+            event_type: 'course_enrollment',
+            event_title: `Có học viên mới`,
+            event_message: `${user?.full_name || 'Một học viên'} đã đăng ký khóa học "${course.title}" của bạn`,
+            event_url: `/instructor`
+          });
+          pushNotificationToUser(io, course.instructor_id, instructorNotification);
+        }
+      }
+    } catch (notifError) {
+      console.error('Error sending wallet payment notification:', notifError);
     }
 
     return res.status(200).json({

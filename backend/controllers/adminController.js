@@ -2,6 +2,9 @@ import Course from '../models/Course.js';
 import CourseRevision from '../models/CourseDraft.js';
 import logger from '../utils/logger.js';
 import User from '../models/User.js';
+import { pushNotification } from '../services/notificationService.js';
+import { io } from '../server.js';
+import { pushNotificationToUser } from '../sockets/notificationSocket.js';
 import Category from '../models/Category.js';
 import Labeling from '../models/Labeling.js';
 import Level from '../models/Level.js';
@@ -250,8 +253,30 @@ export const updateCourseStatus = async (req, res) => {
             });
         }
 
-        // TODO: Send notification to instructor about status change
-        // TODO: Log the status change with reason
+        // Send notification to instructor about status change
+        try {
+            const course = await Course.findById(courseId);
+            if (course) {
+                const statusText = {
+                    'approved': 'đã được duyệt',
+                    'rejected': 'đã bị từ chối',
+                    'suspended': 'đã bị tạm ngưng',
+                    'hidden': 'đã bị ẩn'
+                };
+                
+                const notification = await pushNotification({
+                    receiver_id: course.instructor_id,
+                    event_type: 'course_update',
+                    event_title: `Khóa học "${course.title}" ${statusText[course_status] || 'đã được cập nhật'}`,
+                    event_message: reason || `Trạng thái khóa học của bạn đã được thay đổi thành ${course_status}`,
+                    event_url: `/instructor`
+                });
+                
+                pushNotificationToUser(io, course.instructor_id, notification);
+            }
+        } catch (notifError) {
+            logger.error('Error sending notification:', notifError);
+        }
 
         res.json({ 
             success: true, 

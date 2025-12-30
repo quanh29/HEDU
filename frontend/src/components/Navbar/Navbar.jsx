@@ -6,6 +6,7 @@ import { useUser, useClerk } from '@clerk/clerk-react';
 import { LogOut } from 'lucide-react';
 import Cart from '../Cart/Cart.jsx';
 import Wishlist from '../Wishlist/Wishlist.jsx';
+import NotificationIcon from '../NotificationIcon/NotificationIcon.jsx';
 import UserMenu from '../UserMenu/UserMenu.jsx';
 import axios from 'axios';
 
@@ -197,6 +198,7 @@ const Navbar = () => {
         {/* Wishlist and Cart Icons - only show when user is signed in */}
         {isLoaded && isSignedIn && (
           <>
+            <NotificationIcon />
             <Wishlist />
             <Cart />
           </>

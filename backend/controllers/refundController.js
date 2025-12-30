@@ -5,6 +5,10 @@ import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
 import Course from '../models/Course.js';
 import Wallet from '../models/Wallet.js';
+import User from '../models/User.js';
+import { pushNotification } from '../services/notificationService.js';
+import { io } from '../server.js';
+import { pushNotificationToUser } from '../sockets/notificationSocket.js';
 import Transaction from '../models/Transaction.js';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -361,6 +365,39 @@ export const processRefund = async (req, res) => {
     }
 
     await refund.save();
+    
+    // Send notification to user about refund status
+    try {
+        const course = await Course.findById(refund.courseId);
+        const statusText = status === 'approved' ? 'đã được chấp nhận' : 'đã bị từ chối';
+        const userMessage = status === 'approved' 
+            ? `Yêu cầu hoàn tiền cho khóa học "${course?.title || 'Khóa học'}" đã được chấp nhận. Số tiền ${refund.amount.toLocaleString('vi-VN')}₫ sẽ được hoàn lại.`
+            : `Yêu cầu hoàn tiền cho khóa học "${course?.title || 'Khóa học'}" đã bị từ chối. ${adminNote || ''}`;
+        
+        const userNotification = await pushNotification({
+            receiver_id: refund.userId,
+            event_type: 'refund',
+            event_title: `Yêu cầu hoàn tiền ${statusText}`,
+            event_message: userMessage,
+            event_url: '/refund-history'
+        });
+        pushNotificationToUser(io, refund.userId, userNotification);
+        
+        // Send notification to instructor about approved refund
+        if (status === 'approved' && course) {
+            const user = await User.findById(refund.userId);
+            const instructorNotification = await pushNotification({
+                receiver_id: course.instructor_id,
+                event_type: 'refund',
+                event_title: `Có yêu cầu hoàn tiền được duyệt`,
+                event_message: `${user?.full_name || 'Một học viên'} đã được hoàn tiền cho khóa học "${course.title}"`,
+                event_url: `/instructor/view-course/${refund.courseId}`
+            });
+            pushNotificationToUser(io, course.instructor_id, instructorNotification);
+        }
+    } catch (notifError) {
+        console.error('Error sending refund notification:', notifError);
+    }
 
     return res.status(200).json({
       success: true,

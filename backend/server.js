@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 import { socketAuth } from './middleware/socketAuth.js';
 import { setupVideoSocketHandlers } from './sockets/videoSocket.js';
 import { setupMessageSocketHandlers } from './sockets/messageSocket.js';
+import { setupNotificationSocketHandlers } from './sockets/notificationSocket.js';
 import courseRouter from './routes/courseRoute.js';
 import sectionRouter from './routes/sectionRoute.js';
 import lessonRouter from './routes/lessonRoute.js';
@@ -36,6 +37,7 @@ import walletRouter from './routes/walletRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
 import messageRouter from './routes/messageRoute.js';
 import wishlistRouter from './routes/wishlistRoute.js';
+import notificationRouter from './routes/notificationRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -61,6 +63,9 @@ io.on('connection', (socket) => {
   setupVideoSocketHandlers(socket, io);
   
   // Setup message event handlers
+  
+  // Setup notification event handlers
+  setupNotificationSocketHandlers(socket, io);
   setupMessageSocketHandlers(socket, io);
 });
 
@@ -119,6 +124,7 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/message", messageRouter);
 app.use("/api/wishlist", wishlistRouter);
+app.use("/api/notifications", notificationRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

@@ -5,12 +5,16 @@ import Course from '../models/Course.js';
 import Cart from '../models/Cart.js';
 import Enrollment from '../models/Enrollment.js';
 import Conversation from '../models/Conversation.js';
+import User from '../models/User.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import axios from 'axios';
 import { updateOrderStatus } from './orderController.js';
 import { create } from 'domain';
 import { removeFromWishlistInternal } from './wishlistController.js';
+import { pushNotification } from '../services/notificationService.js';
+import { io } from '../server.js';
+import { pushNotificationToUser } from '../sockets/notificationSocket.js';
 
 /**
  * Generate MoMo payment signature
@@ -334,6 +338,39 @@ export const handleMoMoCallback = async (req, res) => {
           await removeFromWishlistInternal(userId, item.courseId);
         }
         console.log(`✅ Purchased courses removed from wishlist for user ${userId}`);
+        
+        // 10. Send notifications to students and instructors
+        try {
+          const user = await User.findById(userId);
+          
+          // Send notification to student for each course
+          for (const item of orderItems) {
+            const course = await Course.findById(item.courseId);
+            if (course) {
+              // Notification to student
+              const studentNotification = await pushNotification({
+                receiver_id: userId,
+                event_type: 'course_enrollment',
+                event_title: `Đăng ký khóa học thành công`,
+                event_message: `Bạn đã đăng ký khóa học "${course.title}" thành công. Chúc bạn học tập hiệu quả!`,
+                event_url: `/course/${item.courseId}/content/`
+              });
+              pushNotificationToUser(io, userId, studentNotification);
+              
+              // Notification to instructor
+              const instructorNotification = await pushNotification({
+                receiver_id: course.instructor_id,
+                event_type: 'course_enrollment',
+                event_title: `Có học viên mới`,
+                event_message: `${user?.full_name || 'Một học viên'} đã đăng ký khóa học "${course.title}" của bạn`,
+                event_url: `/instructor`
+              });
+              pushNotificationToUser(io, course.instructor_id, instructorNotification);
+            }
+          }
+        } catch (notifError) {
+          console.error('Error sending payment notification:', notifError);
+        }
         
         console.log('MoMo payment status:' , payment.paymentStatus);
       } else {
