@@ -107,10 +107,13 @@ const RevisionApproval = () => {
       setActionLoading(true);
       const token = await getToken();
       
-      // Use new draft reject API
+      // Use new draft reject API - update status to 'draft' when rejecting
       await axios.post(
         `${import.meta.env.VITE_BASE_URL}/api/course-draft/${draftId}/reject`,
-        { reason: rejectReason },
+        { 
+          reason: rejectReason,
+          status: 'draft'  // Temporarily reset status to draft on rejection
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -122,6 +125,40 @@ const RevisionApproval = () => {
       setShowModal(false);
       setSelectedRevision(null);
       setRejectReason('');
+      fetchPendingRevisions();
+    } catch (err) {
+      console.error('Error rejecting draft:', err);
+      alert('Có lỗi xảy ra khi từ chối: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleQuickReject = async (draftId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn từ chối cập nhật này?\n\nBản nháp sẽ được chuyển về trạng thái "draft" để giảng viên có thể chỉnh sửa lại.')) {
+      return;
+    }
+
+    const reason = prompt('Nhập lý do từ chối (tùy chọn):') || 'Không có lý do cụ thể';
+
+    try {
+      setActionLoading(true);
+      const token = await getToken();
+      
+      await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/course-draft/${draftId}/reject`,
+        { 
+          reason: reason,
+          status: 'draft'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      alert('Đã từ chối cập nhật!');
       fetchPendingRevisions();
     } catch (err) {
       console.error('Error rejecting draft:', err);
@@ -229,7 +266,7 @@ const RevisionApproval = () => {
                     Phê duyệt
                   </button>
                   <button 
-                    onClick={() => handleViewDetail(draft)}
+                    onClick={() => handleQuickReject(draft._id)}
                     className={styles.rejectButton}
                     disabled={actionLoading}
                   >

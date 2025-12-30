@@ -14,6 +14,7 @@ import {
     approveRevision, 
     rejectRevision 
 } from '../controllers/courseRevisionController.js';
+import { generateMaterialSignedUrl } from '../controllers/materialUploadController.js';
 import { protectAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
@@ -48,6 +49,9 @@ adminRouter.patch('/courses/:courseId/status', protectAdmin, updateCourseStatus)
 
 // PUT /api/admin/courses/:courseId - Cập nhật thông tin course
 adminRouter.put('/courses/:courseId', protectAdmin, updateCourseByAdmin);
+
+// POST /api/admin/materials/:materialId/signed-url - Generate signed URL for material download (admin access)
+adminRouter.post('/materials/:materialId/signed-url', protectAdmin, generateMaterialSignedUrl);
 
 // DELETE /api/admin/courses/:courseId - Xóa course
 adminRouter.delete('/courses/:courseId', protectAdmin, deleteCourseByAdmin);

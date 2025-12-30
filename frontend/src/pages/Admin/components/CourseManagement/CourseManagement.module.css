@@ -179,6 +179,9 @@
 .rating {
   color: #f39c12;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .reports {
@@ -193,6 +196,9 @@
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .reportCount:hover {
@@ -202,6 +208,9 @@
 .noReports {
   color: #28a745;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 /* Actions */
@@ -655,8 +664,11 @@
 }
 
 .lessonIcon {
-  font-size: 1.5rem;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667eea;
 }
 
 .lessonDetails {
@@ -688,6 +700,12 @@
   padding-left: 2.25rem;
   font-size: 0.85rem;
   color: #6c757d;
+}
+
+.lessonMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .videoStatus {
@@ -725,7 +743,7 @@
 
 .viewLessonBtn {
   padding: 0.4rem 0.8rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -734,11 +752,15 @@
   font-weight: 500;
   transition: all 0.3s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .viewLessonBtn:hover {
+  background: #2563eb;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Lesson Modal */
@@ -859,7 +881,7 @@
 .downloadBtn {
   display: inline-block;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: white;
   text-decoration: none;
   border-radius: 8px;
@@ -868,8 +890,9 @@
 }
 
 .downloadBtn:hover {
+  background: #2563eb;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Quiz Viewer */
@@ -974,6 +997,9 @@
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .explanation {

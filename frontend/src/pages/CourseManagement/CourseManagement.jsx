@@ -1237,6 +1237,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
             {sections.length > 0 && <LessonStatistics sections={sections} />}
             
             <Curriculum
+              courseId={courseId}
               sections={sections}
               errors={errors}
               addSection={addSection}

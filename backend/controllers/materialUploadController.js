@@ -288,6 +288,22 @@ export const deleteMaterial = async (req, res) => {
                     id => id.toString() !== materialId
                 );
                 await courseDraft.save();
+                // delete from cloudinary when changeType of MaterialDraft is 'new'
+                console.log('✅ Removed material from CourseDraft.draftMaterials');
+                if (material.changeType === 'new' && material.contentUrl) {
+                    try {
+                        const deleteResult = await cloudinary.uploader.destroy(
+                            material.contentUrl,
+                            { 
+                                resource_type: material.resource_type || 'raw',
+                                type: 'private'
+                            }
+                        );
+                        console.log('   Cloudinary delete result for new draft material:', deleteResult);
+                    } catch (cloudinaryError) {
+                        console.warn('⚠️ [Material Delete] Cloudinary delete failed for new draft material:', cloudinaryError.message);
+                    }
+                }
             }
         }
 

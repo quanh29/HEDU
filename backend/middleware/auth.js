@@ -90,8 +90,8 @@ export const protectCourseOwner = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Unauthorized - Please login' });
         }
 
-        // Get courseId from params
-        const courseId = req.params.courseId;
+        // Get courseId from params or body (for upload requests)
+        const courseId = req.params.courseId || req.body.courseId;
         logger.info(`🔐 [protectCourseOwner] userId: ${userId}, courseId: ${courseId}`);
         
         if (!courseId) {
@@ -99,9 +99,11 @@ export const protectCourseOwner = async (req, res, next) => {
         }
 
         // Query MongoDB to check if user is the instructor of this course
-        const course = await Course.findById(courseId).lean();
+        // Use findOne with _id since Course model uses string _id
+        const course = await Course.findOne({ _id: courseId });
 
         if (!course) {
+            logger.warn(`⚠️ [protectCourseOwner] Course not found: ${courseId}`);
             return res.status(404).json({ success: false, message: 'Course not found' });
         }
         

@@ -916,7 +916,7 @@ export const approveDraft = async (req, res) => {
 export const rejectDraft = async (req, res) => {
     try {
         const { courseId } = req.params;
-        const { reason } = req.body;
+        const { reason, status } = req.body;
 
         console.log(`❌ [Reject Draft] Course ID: ${courseId}`);
 
@@ -936,7 +936,8 @@ export const rejectDraft = async (req, res) => {
             });
         }
 
-        draft.status = 'rejected';
+        // Set status to 'draft' (for re-editing) or 'rejected' based on request
+        draft.status = status || 'draft';
         draft.rejectedAt = new Date();
         draft.rejectionReason = reason || 'No reason provided';
         await draft.save();

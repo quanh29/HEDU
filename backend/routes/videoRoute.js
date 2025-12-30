@@ -15,16 +15,16 @@ import { protectEnrolledUser } from '../middleware/auth.js';
 const videoRouter = express.Router();
 
 // Public routes
-videoRouter.get('/section/:sectionId', getVideosBySectionId);
+// videoRouter.get('/section/:sectionId', getVideosBySectionId);
 
 // Video playback routes - MUX signed URLs (protected for enrolled users)
 videoRouter.get('/playback/:videoId', protectEnrolledUser, getVideoPlayback);
 videoRouter.get('/thumbnail/:videoId', protectEnrolledUser, getVideoThumbnail);
 
 // Protected routes
-videoRouter.post('/', addVideo);
-videoRouter.get('/:videoId', getVideoById);
-videoRouter.put('/:videoId', updateVideo);
-videoRouter.delete('/:videoId', deleteVideo);
+// videoRouter.post('/', addVideo);
+// videoRouter.get('/:videoId', getVideoById);
+// videoRouter.put('/:videoId', updateVideo);
+// videoRouter.delete('/:videoId', deleteVideo);
 
 export default videoRouter;

@@ -1,14 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
 import styles from './MaterialUploader.module.css';
 
 const MaterialUploader = ({ 
     lessonTitle,
-    lessonId, // Add lessonId prop
+    lessonId,
+    courseId, // Add courseId prop for authentication
     onUploadComplete,
     onUploadError 
 }) => {
+    const { getToken } = useAuth();
     const [uploadStatus, setUploadStatus] = useState('idle');
     const [progress, setProgress] = useState(0);
     const [errorMessage, setErrorMessage] = useState('');
@@ -48,15 +51,23 @@ const MaterialUploader = ({
             setProgress(0);
             setErrorMessage('');
 
+            // Get authentication token
+            const token = await getToken();
+            if (!token) {
+                throw new Error('Vui lòng đăng nhập để upload tài liệu');
+            }
+
             // Upload file to backend - File sẽ được upload lên Cloudinary (private)
             const formData = new FormData();
             formData.append('file', file);
             formData.append('lessonTitle', lessonTitle);
-            formData.append('lessonId', lessonId); // Add lessonId to link material with lesson
+            formData.append('lessonId', lessonId);
+            formData.append('courseId', courseId); // Add courseId for authentication
 
             console.log('📤 [MaterialUploader] Uploading file:', file.name);
             console.log('   Lesson Title:', lessonTitle);
             console.log('   Lesson ID:', lessonId);
+            console.log('   Course ID:', courseId);
 
             const response = await axios.post(
                 `${import.meta.env.VITE_BASE_URL}/api/material/upload`,
@@ -64,6 +75,7 @@ const MaterialUploader = ({
                 {
                     headers: {
                         'Content-Type': 'multipart/form-data',
+                        'Authorization': `Bearer ${token}`
                     },
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round(

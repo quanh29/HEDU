@@ -10,7 +10,7 @@ import { useVideoSocket } from '../../context/SocketContext.jsx';
 import { useAuth } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 
-const Curriculum = ({ sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson, draftMode }) => {
+const Curriculum = ({ courseId, sections, errors, addSection, updateSection, removeSection, addLesson, updateLesson, removeLesson, draftMode }) => {
   const { getToken } = useAuth();
   const [uploadingLessons, setUploadingLessons] = useState({}); // Track multiple uploading lessons: { lessonId: true }
   const cancelFunctionsRef = useRef({}); // Store cancel functions for each lesson: { lessonId: cancelFunction }
@@ -311,9 +311,21 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
     console.log('🗑️ [Curriculum] Deleting material:', materialId);
 
     try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập để xóa tài liệu');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_BASE_URL}/api/material/delete/${materialId}${skipParam}`,
-        { method: 'DELETE' }
+        { 
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ courseId })
+        }
       );
 
       if (!response.ok) {
@@ -891,6 +903,7 @@ const Curriculum = ({ sections, errors, addSection, updateSection, removeSection
                           <MaterialUploader
                             lessonTitle={lesson.title}
                             lessonId={lesson._id || lesson.id}
+                            courseId={courseId}
                             onUploadComplete={(data) => handleMaterialUploadComplete(
                               section.id || section._id,
                               lesson.id || lesson._id,

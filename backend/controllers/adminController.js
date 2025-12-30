@@ -66,8 +66,7 @@ export const getAllCoursesForAdmin = async (req, res) => {
             // Map instructor fields
             const instructorData = instructor ? {
                 user_id: instructor._id,
-                fName: instructor.full_name?.split(' ')[0] || '',
-                lName: instructor.full_name?.split(' ').slice(1).join(' ') || '',
+                full_name: instructor.full_name || '',
                 email: instructor.email,
                 ava: instructor.profile_image_url
             } : null;
@@ -77,8 +76,7 @@ export const getAllCoursesForAdmin = async (req, res) => {
                 ...course,
                 instructor: instructorData,
                 instructor_user_id: course.instructor_id,
-                fName: instructorData?.fName,
-                lName: instructorData?.lName,
+                full_name: instructorData?.full_name,
                 instructor_email: instructorData?.email,
                 instructor_ava: instructorData?.ava,
                 categories: categories.map(cat => ({

@@ -3,6 +3,18 @@ import { useAuth } from '@clerk/clerk-react';
 import styles from './CourseManagement.module.css';
 import MuxVideoPlayer from '../../../../components/MuxVideoPlayer/MuxVideoPlayer';
 import { 
+  Video, 
+  FileText, 
+  HelpCircle, 
+  Eye, 
+  Star,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Paperclip,
+  BookOpen
+} from 'lucide-react';
+import { 
   getAllCoursesForAdmin,
   getCourseStatistics,
   getCourseByIdForAdmin,
@@ -10,6 +22,11 @@ import {
   updateCourseStatus, 
   deleteCourseByAdmin
 } from '../../../../services/adminService';
+
+// Silence console.log in this module (temporary; easiest way to "comment out" without changing every line)
+// To restore logs, remove the next two lines or set console.log = _origConsoleLog;
+const _origConsoleLog = console.log;
+console.log = () => {};
 
 const CourseManagement = () => {
   const { getToken } = useAuth();
@@ -53,8 +70,7 @@ const CourseManagement = () => {
     let filtered = courses.filter(course => {
       const matchesSearch = 
         course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructor?.fName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructor?.lName?.toLowerCase().includes(searchTerm.toLowerCase());
+        course.instructor?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || course.course_status === statusFilter;
       
@@ -121,13 +137,13 @@ const CourseManagement = () => {
   const getContentTypeIcon = (contentType) => {
     switch (contentType) {
       case 'video':
-        return '🎥';
+        return <Video size={16} />;
       case 'material':
-        return '📄';
+        return <FileText size={16} />;
       case 'quiz':
-        return '📝';
+        return <HelpCircle size={16} />;
       default:
-        return '📌';
+        return <BookOpen size={16} />;
     }
   };
 
@@ -157,6 +173,49 @@ const CourseManagement = () => {
     setSelectedLesson(null);
   };
 
+  const handleDownloadMaterial = async (materialId, fileName) => {
+    try {
+      console.log('🔽 [Download Material] Starting download...');
+      console.log('   Material ID:', materialId);
+      console.log('   File Name:', fileName);
+      
+      const token = await getToken();
+      console.log('   Token obtained:', !!token);
+      
+      const url = `${import.meta.env.VITE_BASE_URL}/api/admin/materials/${materialId}/signed-url`;
+      console.log('   Request URL:', url);
+      
+      // Call admin API to get signed URL
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ expiresIn: 3600 })
+      });
+
+      console.log('   Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('   Error response:', errorData);
+        throw new Error('Failed to generate download URL');
+      }
+
+      const data = await response.json();
+      console.log('   Signed URL received:', !!data.signedUrl);
+      
+      // Open signed URL in new tab
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+      
+      console.log('✅ Material download initiated');
+    } catch (error) {
+      console.error('❌ Error downloading material:', error);
+      alert('Không thể tải tài liệu. Vui lòng thử lại.');
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       draft: { label: 'Nháp', className: 'draft' },
@@ -174,7 +233,7 @@ const CourseManagement = () => {
 
   const getInstructorName = (instructor) => {
     if (!instructor) return 'N/A';
-    return `${instructor.fName || ''} ${instructor.lName || ''}`.trim() || instructor.email || 'N/A';
+    return instructor.full_name || instructor.email || 'N/A';
   };
 
   const getCategoryNames = (categories) => {
@@ -298,17 +357,17 @@ const CourseManagement = () => {
                   <td>{(course.currentPrice || 0).toLocaleString('vi-VN')} ₫</td>
                   <td>
                     <div className={styles.rating}>
-                      ⭐ {course.rating || 0}
+                      <Star size={16} fill="#f59e0b" color="#f59e0b" /> {course.rating || 0}
                     </div>
                   </td>
                   <td>
                     <div className={styles.reports}>
                       {course.reports > 0 ? (
                         <span className={styles.reportCount} onClick={() => handleViewReports(course)}>
-                          ⚠️ {course.reports}
+                          <AlertTriangle size={16} /> {course.reports}
                         </span>
                       ) : (
-                        <span className={styles.noReports}>✅ 0</span>
+                        <span className={styles.noReports}><CheckCircle size={16} /> 0</span>
                       )}
                     </div>
                   </td>
@@ -372,7 +431,7 @@ const CourseManagement = () => {
               <p><strong>Giá gốc:</strong> {(selectedCourse.originalPrice || 0).toLocaleString('vi-VN')} ₫</p>
               <p><strong>Giá hiện tại:</strong> {(selectedCourse.currentPrice || 0).toLocaleString('vi-VN')} ₫</p>
               <p><strong>Số học viên:</strong> {selectedCourse.students || 0}</p>
-              <p><strong>Đánh giá:</strong> ⭐ {selectedCourse.rating || 0} ({selectedCourse.reviewCount || 0} đánh giá)</p>
+              <p><strong>Đánh giá:</strong> <Star size={16} fill="#f59e0b" color="#f59e0b" /> {selectedCourse.rating || 0} ({selectedCourse.reviewCount || 0} đánh giá)</p>
               
               {selectedCourse.des && (
                 <div className={styles.description}>
@@ -386,12 +445,12 @@ const CourseManagement = () => {
                 <div className={styles.courseContent}>
                   <h5>Nội dung khóa học</h5>
                   <div className={styles.contentStats}>
-                    <span>📚 {selectedCourse.sections.length} chương</span>
-                    <span>🎥 {selectedCourse.sections.reduce((total, section) => 
+                    <span><BookOpen size={16} /> {selectedCourse.sections.length} chương</span>
+                    <span><Video size={16} /> {selectedCourse.sections.reduce((total, section) => 
                       total + (section.lessons?.filter(l => l.contentType === 'video').length || 0), 0)} videos</span>
-                    <span>📄 {selectedCourse.sections.reduce((total, section) => 
+                    <span><FileText size={16} /> {selectedCourse.sections.reduce((total, section) => 
                       total + (section.lessons?.filter(l => l.contentType === 'material').length || 0), 0)} tài liệu</span>
-                    <span>📝 {selectedCourse.sections.reduce((total, section) => 
+                    <span><HelpCircle size={16} /> {selectedCourse.sections.reduce((total, section) => 
                       total + (section.lessons?.filter(l => l.contentType === 'quiz').length || 0), 0)} quiz</span>
                   </div>
                   
@@ -426,14 +485,14 @@ const CourseManagement = () => {
                                     onClick={() => handleViewLesson(lesson)}
                                     title="Xem nội dung"
                                   >
-                                    👁️ Xem
+                                    <Eye size={16} /> Xem
                                   </button>
                                 </div>
                                 
                                 {/* Hiển thị thông tin chi tiết theo loại */}
                                 {lesson.contentType === 'video' && (
                                   <div className={styles.lessonMeta}>
-                                    {lesson.duration && <span>⏱️ {lesson.duration}</span>}
+                                    {lesson.duration && <span><Clock size={14} /> {lesson.duration}s</span>}
                                     {lesson.status && (
                                       <span className={`${styles.videoStatus} ${styles[lesson.status]}`}>
                                         {lesson.status}
@@ -444,13 +503,13 @@ const CourseManagement = () => {
                                 
                                 {lesson.contentType === 'material' && lesson.fileName && (
                                   <div className={styles.lessonMeta}>
-                                    <span>📎 {lesson.fileName}</span>
+                                    <span><Paperclip size={14} /> {lesson.fileName}</span>
                                   </div>
                                 )}
                                 
                                 {lesson.contentType === 'quiz' && lesson.questions && (
                                   <div className={styles.lessonMeta}>
-                                    <span>❓ {lesson.questions.length} câu hỏi</span>
+                                    <span><HelpCircle size={14} /> {lesson.questions.length} câu hỏi</span>
                                   </div>
                                 )}
                                 
@@ -570,16 +629,14 @@ const CourseManagement = () => {
               {/* Video Player */}
               {selectedLesson.contentType === 'video' && (
                 <div className={styles.videoPreview}>
-                  {selectedLesson.videoId || selectedLesson._id ? (
+                  {selectedLesson.videoId ? (
                     <div className={styles.muxPlayerWrapper}>
                       <MuxVideoPlayer
-                        videoId={selectedLesson.videoId || selectedLesson._id}
+                        videoId={selectedLesson.videoId}
+                        courseId={selectedCourse.course_id}
                         autoPlay={false}
                         onReady={(data) => {
                           console.log('Video ready:', data);
-                        }}
-                        onTimeUpdate={(data) => {
-                          console.log('Time update:', data);
                         }}
                         onEnded={() => {
                           console.log('Video ended');
@@ -618,56 +675,71 @@ const CourseManagement = () => {
                 </div>
               )}
 
-              {/* Material Viewer */}
+              {/* Material Download */}
               {selectedLesson.contentType === 'material' && (
                 <div className={styles.materialPreview}>
                   {selectedLesson.contentUrl ? (
                     <>
                       <div className={styles.materialInfo}>
                         <p><strong>Tên file:</strong> {selectedLesson.fileName || 'N/A'}</p>
-                        <p><strong>URL:</strong> <a href={selectedLesson.contentUrl} target="_blank" rel="noopener noreferrer">
-                          {selectedLesson.contentUrl}
-                        </a></p>
+                        <p><strong>Loại file:</strong> {selectedLesson.fileName ? selectedLesson.fileName.split('.').pop()?.toUpperCase() : 'N/A'}</p>
+                        <p><strong>Public ID:</strong> {selectedLesson.contentUrl}</p>
                       </div>
                       
                       <div className={styles.materialViewer}>
-                        {/* Nếu là PDF, hiển thị iframe */}
-                        {selectedLesson.contentUrl.toLowerCase().includes('.pdf') ? (
-                          <iframe
-                            src={selectedLesson.contentUrl}
-                            style={{
-                              width: '100%',
-                              height: '600px',
-                              border: '1px solid #dee2e6',
-                              borderRadius: '8px'
-                            }}
-                            title={selectedLesson.title}
-                          />
-                        ) : selectedLesson.contentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                          /* Nếu là ảnh */
-                          <img 
-                            src={selectedLesson.contentUrl} 
-                            alt={selectedLesson.title}
-                            style={{
-                              maxWidth: '100%',
-                              height: 'auto',
-                              borderRadius: '8px'
-                            }}
-                          />
-                        ) : (
-                          /* Các loại file khác */
-                          <div className={styles.downloadPrompt}>
-                            <p>📎 File tài liệu</p>
-                            <a 
-                              href={selectedLesson.contentUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className={styles.downloadBtn}
-                            >
-                              Tải xuống hoặc xem trong tab mới
-                            </a>
-                          </div>
-                        )}
+                        {(() => {
+                          const publicId = selectedLesson.contentUrl;
+                          const fileName = selectedLesson.fileName || 'document';
+                          const materialId = selectedLesson.materialId || selectedLesson.draftMaterialId || selectedLesson._id;
+                          const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+                          const fileExtension = fileName ? fileName.split('.').pop()?.toUpperCase() : 'File';
+                          
+                          console.log('📁 Material data:', { 
+                            lessonId: selectedLesson._id, 
+                            materialId: selectedLesson.materialId,
+                            draftMaterialId: selectedLesson.draftMaterialId,
+                            usedMaterialId: materialId,
+                            publicId, 
+                            fileName 
+                          });
+                          
+                          return (
+                            <div className={styles.downloadPrompt}>
+                              <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                                <FileText size={64} style={{ color: '#3b82f6', marginBottom: '15px' }} />
+                                <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#1f2937' }}>
+                                  {fileName}
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#6c757d', marginBottom: '5px' }}>
+                                  Định dạng: {fileExtension}
+                                </p>
+                                {selectedLesson.description && (
+                                  <p style={{ fontSize: '14px', color: '#6c757d', marginTop: '10px', fontStyle: 'italic' }}>
+                                    {selectedLesson.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button 
+                                  onClick={() => handleDownloadMaterial(materialId, fileName)}
+                                  className={styles.downloadBtn}
+                                  style={{ 
+                                    padding: '12px 24px',
+                                    fontSize: '16px',
+                                    fontWeight: '500',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Paperclip size={20} /> Tải xuống tài liệu
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </>
                   ) : (
@@ -697,12 +769,12 @@ const CourseManagement = () => {
                             <span className={styles.questionNumber}>Câu {index + 1}</span>
                             {question.type && (
                               <span className={styles.questionType}>
-                                {question.type === 'multiple-choice' ? '📋 Trắc nghiệm' : '✍️ Tự luận'}
+                                {question.type === 'multiple-choice' ? 'Trắc nghiệm' : 'Tự luận'}
                               </span>
                             )}
                           </div>
                           
-                          <p className={styles.questionText}>{question.question}</p>
+                          <p className={styles.questionText}>{question.questionText || question.question}</p>
                           
                           {question.options && question.options.length > 0 && (
                             <div className={styles.optionsList}>
@@ -718,7 +790,7 @@ const CourseManagement = () => {
                                   </span>
                                   <span className={styles.optionText}>{option}</span>
                                   {question.correctAnswer === optionIndex && (
-                                    <span className={styles.correctBadge}>✓ Đáp án đúng</span>
+                                    <span className={styles.correctBadge}><CheckCircle size={14} /> Đáp án đúng</span>
                                   )}
                                 </div>
                               ))}
