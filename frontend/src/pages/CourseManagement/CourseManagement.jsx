@@ -1150,8 +1150,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
                   <Upload size={16} />
                   {saving ? 'Đang gửi...' : 'Gửi duyệt cập nhật'}
                 </button>
-              ) : isEditMode && courseStatus === 'draft' ? (
-                // Course is draft: Show submit for first approval
+              ) : isEditMode && (courseStatus === 'draft' || courseStatus === 'rejected') ? (
+                // Course is draft or rejected: Show submit for (re)approval
                 <button
                   onClick={() => saveCourseWithStatus('pending')}
                   disabled={saving}
@@ -1159,7 +1159,7 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
                   style={{ background: '#3b82f6', color: 'white' }}
                 >
                   <Upload size={16} />
-                  {saving ? 'Đang gửi...' : 'Gửi xét duyệt'}
+                  {saving ? 'Đang gửi...' : (courseStatus === 'rejected' ? 'Gửi lại xét duyệt' : 'Gửi xét duyệt')}
                 </button>
               ) : !isEditMode ? (
                 // Creating new course: Show create button

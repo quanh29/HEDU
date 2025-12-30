@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import Mux from '@mux/mux-node';
+import cloudinary from '../config/cloudinary.js';
 // MongoDB models
 import Course from '../models/Course.js';
 import Section from '../models/Section.js';
@@ -15,6 +16,7 @@ import Level from '../models/Level.js';
 import Labeling from '../models/Labeling.js';
 import Rating from '../models/Rating.js';
 import Enrollment from '../models/Enrollment.js';
+import logger from '../utils/logger.js';
 
 /**
  * Helper functions
@@ -1365,6 +1367,29 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
  */
 export const deleteCourseService = async (courseId) => {
     try {
+        // kiểm tra course tồn tại
+        const course = await Course.findById(courseId).lean();
+        if (!course) {
+            throw new Error('Course not found');
+        }
+
+        // kiểm tra xem có người học nào đã đăng ký khóa học này không? Chỉ cho phép xóa nếu không có học viên nào đăng ký
+        const enrollmentsCount = await Enrollment.countDocuments({ courseId: courseId });
+        if (enrollmentsCount > 0) {
+            throw new Error('Cannot delete course with enrolled students');
+        }
+        
+        // lấy thumbnail từ thumbnail_url để xóa ảnh trên Cloudinary
+        // example thumbnail_url: https://res.cloudinary.com/your-cloud-name/image/upload/v1696543210/course-thumbnails/abc123.jpg
+        const thumbnailUrl = course.thumbnail_url;
+        if (thumbnailUrl) {
+            const publicIdMatch = thumbnailUrl.match(/\/v\d+\/(.+)\.[a-zA-Z]+$/);
+            if (publicIdMatch && publicIdMatch[1]) {
+                const publicId = publicIdMatch[1];
+                await deleteCloudinaryImage(publicId);
+            }
+        };
+
         // Xóa course từ MongoDB
         await Course.findByIdAndDelete(courseId);
         
@@ -1528,4 +1553,28 @@ export const getFullCourseDataForManagementService = async (courseId) => {
     }
 
     return course;
+};
+
+const deleteCloudinaryImage = async (publicId) => {
+    try {
+
+        console.log('🗑️ [Thumbnail Delete] Deleting thumbnail:', publicId);
+
+        const deleteResult = await cloudinary.uploader.destroy(
+            publicId,
+            { 
+                resource_type: 'image',
+                type: 'upload' // Public images
+            }
+        );
+
+        console.log('   Delete result:', deleteResult);
+
+        if (deleteResult.result === 'ok') {
+            console.log('✅ [Thumbnail Delete] Thumbnail deleted successfully');
+        }
+
+    } catch (error) {
+        console.error('❌ [Thumbnail Delete] Error:', error);
+    }
 };

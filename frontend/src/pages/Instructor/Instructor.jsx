@@ -475,7 +475,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                               {course.status === 'inactive' ? 'Bỏ ẩn khóa học' : 'Ẩn khóa học'}
                             </button>
                             
-                            {course.status === 'draft' && (
+                            {(course.status === 'draft' || course.status === 'rejected') && (
                               <button
                                 onClick={() => deleteCourse(course.id)}
                                 style={{
