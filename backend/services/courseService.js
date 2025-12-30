@@ -757,7 +757,7 @@ export const getFullCourseContentService = async (courseId) => {
  */
 export const getCourseContentForEnrolledUserService = async (courseId) => {
     // Lấy course từ MongoDB
-    const mongoCourse = await Course.findOne({ _id: courseId, course_status: 'approved' }).lean();
+    const mongoCourse = await Course.findOne({ _id: courseId, course_status: { $in: ['approved', 'inactive'] } }).lean();
 
     if (!mongoCourse) {
         return null;

@@ -20,6 +20,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useLocation, Outlet } from 'react-router-dom';
@@ -184,6 +185,33 @@ const Instructor = ({ activeTab: propActiveTab }) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
+  const toggleCourseVisibility = async (courseId, hide) => {
+    const action = hide ? 'ẩn' : 'bỏ ẩn';
+    if (!confirm(`Bạn có chắc muốn ${action} khóa học này?`)) return;
+    
+    try {
+      setLoading(true);
+      const token = await getToken();
+      await axios.patch(`${BASE_URL}/api/course/${courseId}/visibility`, 
+        { hide },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      // Refresh data sau khi toggle
+      await fetchInstructorData();
+      toast.success(`${hide ? 'Ẩn' : 'Bỏ ẩn'} khóa học thành công!`);
+      setMenuOpenId(null);
+    } catch (err) {
+      console.error('Error toggling course visibility:', err);
+      toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} thất bại. Vui lòng thử lại: ` + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteCourse = async (courseId) => {
     if (!confirm('Bạn có chắc muốn xóa khóa học này? Hành động này không thể hoàn tác.')) return;
     try {
@@ -196,11 +224,11 @@ const Instructor = ({ activeTab: propActiveTab }) => {
       });
       // Refresh data sau khi xóa
       await fetchInstructorData();
-      alert('Xóa khóa học thành công!');
+      toast.success('Xóa khóa học thành công!');
       setMenuOpenId(null);
     } catch (err) {
       console.error('Error deleting course:', err);
-      alert('Xóa thất bại. Vui lòng thử lại: ' + (err.response?.data?.message || err.message));
+      toast.error('Xóa thất bại. Vui lòng thử lại: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -210,7 +238,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   const viewCourse = (courseId) => {
     console.log('Viewing course with ID:', courseId);
     if (!courseId) {
-      alert('Không tìm thấy ID khóa học');
+      toast.error('Không tìm thấy ID khóa học');
       return;
     }
     navigate(`/instructor/view-course/${courseId}`);
@@ -220,7 +248,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   const editCourse = (courseId) => {
     console.log('Editing course with ID:', courseId);
     if (!courseId) {
-      alert('Không tìm thấy ID khóa học');
+      toast.error('Không tìm thấy ID khóa học');
       return;
     }
     navigate(`/instructor/update-course/${courseId}`);
@@ -229,7 +257,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   // Create new draft course
   const createNewCourse = async () => {
     if (!user?.id) {
-      alert('Vui lòng đăng nhập để tạo khóa học');
+      toast.error('Vui lòng đăng nhập để tạo khóa học');
       return;
     }
 
@@ -261,7 +289,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
       }
     } catch (error) {
       console.error('Error creating draft course:', error);
-      alert('Không thể tạo khóa học. Vui lòng thử lại: ' + (error.response?.data?.message || error.message));
+      toast.error('Không thể tạo khóa học. Vui lòng thử lại: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -367,18 +395,21 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                       fontWeight: '500',
                       background: 
                         course.hasPendingRevision ? '#fef3c7' :
+                        course.status === 'inactive' ? '#f3f4f6' :
                         course.status === 'approved' ? '#dcfce7' :
                         course.status === 'pending' ? '#dbeafe' :
                         course.status === 'rejected' ? '#fecaca' :
                         '#fef3c7',
                       color: 
                         course.hasPendingRevision ? '#92400e' :
+                        course.status === 'inactive' ? '#6b7280' :
                         course.status === 'approved' ? '#166534' :
                         course.status === 'pending' ? '#1e40af' :
                         course.status === 'rejected' ? '#dc2626' :
                         '#92400e'
                     }}>
                       {course.hasPendingRevision ? 'Chờ duyệt cập nhật' :
+                       course.status === 'inactive' ? 'Đã ẩn' :
                        course.status === 'approved' ? 'Đã duyệt' :
                        course.status === 'pending' ? 'Chờ duyệt' :
                        course.status === 'rejected' ? 'Từ chối' :
@@ -422,12 +453,12 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                             borderRadius: '8px',
                             padding: '6px',
                             zIndex: 50,
-                            minWidth: '120px'
+                            minWidth: '140px'
                           }}>
                             <button
                               onClick={() => {
-                                alert('Chức năng ẩn khóa học');
-                                setMenuOpenId(null);
+                                const isHidden = course.status === 'inactive';
+                                toggleCourseVisibility(course.id, !isHidden);
                               }}
                               style={{
                                 display: 'block',
@@ -441,7 +472,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                                 fontSize: '14px'
                               }}
                             >
-                              Ẩn khóa học
+                              {course.status === 'inactive' ? 'Bỏ ẩn khóa học' : 'Ẩn khóa học'}
                             </button>
                             
                             {course.status === 'draft' && (

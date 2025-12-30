@@ -376,3 +376,49 @@ export const getInstructorOtherCourses = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+
+// Toggle course visibility (hide/unhide)
+export const toggleCourseVisibility = async (req, res) => {
+    const { courseId } = req.params;
+    const { hide } = req.body; // true to hide, false to unhide
+
+    try {
+        // Get current course
+        const course = await Course.findById(courseId).lean();
+        
+        if (!course) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        const currentStatus = course.course_status;
+        let newStatus;
+
+        if (hide) {
+            // Hide: Set to inactive
+            newStatus = 'inactive';
+        } else {
+            // Unhide: Restore to previous status
+            // If currently inactive, restore to approved (most common case)
+            // Otherwise keep current status
+            newStatus = currentStatus === 'inactive' ? 'approved' : currentStatus;
+        }
+
+        logger.info(`🔄 [toggleCourseVisibility] Course ${courseId}: ${currentStatus} -> ${newStatus}`);
+
+        // Update course status
+        const affectedRows = await courseService.updateCourseStatusService(courseId, newStatus);
+
+        if (affectedRows === 0) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: hide ? 'Course hidden successfully' : 'Course unhidden successfully',
+            course_status: newStatus 
+        });
+    } catch (error) {
+        logger.error('❌ [toggleCourseVisibility] Error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};

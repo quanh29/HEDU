@@ -13,7 +13,8 @@ import {
     deleteCourse,
     getFullCourseDataForManagement,
     getRelatedCourses,
-    getInstructorOtherCourses
+    getInstructorOtherCourses,
+    toggleCourseVisibility
 } from "../controllers/courseController.js";
 import { protectEnrolledUser, protectCourseOwner } from "../middleware/auth.js";
 
@@ -67,6 +68,10 @@ courseRouter.get("/manage/:courseId/full", protectCourseOwner, async (req, res) 
 
 courseRouter.patch("/:courseId/status", async (req, res) => {
     updateCourseStatus(req, res);
+});
+
+courseRouter.patch("/:courseId/visibility", protectCourseOwner, async (req, res) => {
+    toggleCourseVisibility(req, res);
 });
 
 courseRouter.put("/:courseId", protectCourseOwner, async (req, res) => {

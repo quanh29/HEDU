@@ -12,11 +12,11 @@ const courseSchema = new mongoose.Schema({
     },
     sub_title:{
         type: String,
-        required: true,
+        required: false,
     },
     description:{
         type: String,
-        required: true,
+        required: false,
     },
     thumbnail_url:{
         type: String,
