@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { updateOrderStatus } from './orderController.js';
 import { create } from 'domain';
+import { removeFromWishlistInternal } from './wishlistController.js';
 
 /**
  * Generate MoMo payment signature
@@ -272,7 +273,7 @@ export const handleMoMoCallback = async (req, res) => {
           try {
             // Get instructor_id from MongoDB
             const course = await Course.findById(item.courseId).lean();
-            console.log('Course for earning:', course);
+            console.log('Course for earning:', course.instructor_id);
             if (course) {
               const instructorId = course.instructor_id;
               const amount = item.price;
@@ -327,6 +328,13 @@ export const handleMoMoCallback = async (req, res) => {
           { $set: { items: [] } }
         );
         console.log(`✅ Cart cleared for user ${userId}`);
+        
+        // 9. Remove purchased courses from wishlist
+        for (const item of orderItems) {
+          await removeFromWishlistInternal(userId, item.courseId);
+        }
+        console.log(`✅ Purchased courses removed from wishlist for user ${userId}`);
+        
         console.log('MoMo payment status:' , payment.paymentStatus);
       } else {
         // Payment failed

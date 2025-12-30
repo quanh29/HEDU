@@ -7,6 +7,7 @@ import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
 import Conversation from '../models/Conversation.js';
 import logger from '../utils/logger.js';
+import { removeFromWishlistInternal } from './wishlistController.js';
 
 /**
  * Tạo enrollment mới khi user đăng ký khóa học
@@ -57,6 +58,9 @@ export const createEnrollment = async (req, res) => {
         });
 
         await newEnrollment.save();
+
+        // Xóa khóa học khỏi wishlist sau khi enrollment thành công
+        await removeFromWishlistInternal(userId, courseId);
 
         res.status(201).json({
             success: true,
@@ -319,6 +323,9 @@ export const enrollFreeCourse = async (req, res) => {
 
         await newEnrollment.save();
         logger.info(`✅ [enrollFreeCourse] Enrollment created for user ${userId} in course ${courseId}`);
+
+        // Xóa khóa học khỏi wishlist sau khi enrollment thành công
+        await removeFromWishlistInternal(userId, courseId);
 
         // Tạo conversation với instructor nếu chưa tồn tại
         const instructorId = course.instructor_id;

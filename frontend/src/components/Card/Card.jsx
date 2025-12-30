@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { Heart } from 'lucide-react';
 
 const Card = ({ 
   courseId, // Thêm courseId prop
@@ -20,8 +22,10 @@ const Card = ({
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const [isHovered, setIsHovered] = useState(false);
   const isFree = currentPrice === 0;
+  const isWishlisted = isInWishlist(courseId);
   
   const handleStarHover = (e, isEntering) => {
     if (isEntering) {
@@ -129,6 +133,23 @@ const Card = ({
     }
   };
 
+  // Xử lý thêm/xóa khỏi wishlist
+  const handleToggleWishlist = async (e) => {
+    e.stopPropagation(); // Ngăn click event bubbling lên card
+
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for wishlist');
+      return;
+    }
+
+    await toggleWishlist(courseId);
+  };
+
   return (
     <div 
       className="course-card" 
@@ -226,6 +247,45 @@ const Card = ({
             Khóa học
           </div>
         </div>
+
+        {/* Wishlist button - only show for paid courses */}
+        {!isFree && (
+          <button
+            onClick={handleToggleWishlist}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: isWishlisted ? 'rgba(239, 68, 68, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              zIndex: 10
+            }}
+            onMouseEnter={e => {
+              e.target.style.transform = 'scale(1.1)';
+              e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)';
+            }}
+            onMouseLeave={e => {
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+            }}
+          >
+            <Heart 
+              size={18} 
+              fill={isWishlisted ? 'white' : 'none'}
+              color={isWishlisted ? 'white' : '#ef4444'}
+              strokeWidth={2.5}
+            />
+          </button>
+        )}
 
         {/* Overlay gradient để text dễ đọc hơn nếu cần */}
         <div 

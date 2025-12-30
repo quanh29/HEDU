@@ -35,6 +35,7 @@ import userRouter from './routes/userRoute.js';
 import walletRouter from './routes/walletRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
 import messageRouter from './routes/messageRoute.js';
+import wishlistRouter from './routes/wishlistRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -117,6 +118,7 @@ app.use("/api/user", userRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/message", messageRouter);
+app.use("/api/wishlist", wishlistRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

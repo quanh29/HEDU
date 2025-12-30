@@ -18,6 +18,7 @@ import Admin from './pages/Admin/Admin.jsx'
 import AdminLogin from './pages/AdminLogin/AdminLogin.jsx'
 import UploadDemo from './pages/UploadDemo/UploadDemo.jsx'
 import { CartProvider } from './context/CartContext.jsx'
+import { WishlistProvider } from './context/WishlistContext.jsx'
 import Checkout from './pages/Checkout/Checkout.jsx'
 import PaymentStatus from './pages/PaymentStatus/PaymentStatus.jsx'
 import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
@@ -36,9 +37,10 @@ function App() {
 
   return (
     <CartProvider>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <Toaster/>
-        {!isAdminRoute && <Navbar/>}
+      <WishlistProvider>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <Toaster/>
+          {!isAdminRoute && <Navbar/>}
       <div style={{ flex: 1 }}>
         <Routes >
           <Route path='/' element={<Home/>}/>
@@ -106,6 +108,7 @@ function App() {
       </div>
       {!isAdminRoute && <Footer/>}
     </div>
+      </WishlistProvider>
     </CartProvider>
   )
 }

@@ -6,7 +6,9 @@ import axios from 'axios';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
+import { Heart } from 'lucide-react';
 
 function CoursePage() {
   // Lấy params từ URL - chỉ courseId (no slug)
@@ -15,6 +17,7 @@ function CoursePage() {
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
 
   // State management
   const [course, setCourse] = useState(null);
@@ -238,6 +241,21 @@ function CoursePage() {
         toast.error('Có lỗi xảy ra khi đăng ký khóa học');
       }
     }
+  };
+
+  // Handler for wishlist toggle
+  const handleToggleWishlist = async () => {
+    if (!isSignedIn) {
+      navigate('/auth/login');
+      return;
+    }
+
+    if (!courseId) {
+      console.warn('Missing courseId for wishlist');
+      return;
+    }
+
+    await toggleWishlist(courseId);
   };
 
   // Loading state
@@ -542,6 +560,43 @@ function CoursePage() {
 
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+                  {/* Wishlist button - only for paid courses */}
+                  {courseData?.currentPrice > 0 && (
+                    <button
+                      onClick={handleToggleWishlist}
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        border: '2px solid #ef4444',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        background: isInWishlist(courseId) ? '#ef4444' : 'white',
+                        color: isInWishlist(courseId) ? 'white' : '#ef4444',
+                        transition: 'all 0.3s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                      }}
+                      title={isInWishlist(courseId) ? 'Đã yêu thích' : 'Thêm vào yêu thích'}
+                    >
+                      <Heart 
+                        size={22} 
+                        fill={isInWishlist(courseId) ? 'white' : 'none'}
+                        strokeWidth={2.5}
+                      />
+                    </button>
+                  )}
+
                   {courseData?.currentPrice === 0 ? (
                     // Free course - show enroll button
                     <button

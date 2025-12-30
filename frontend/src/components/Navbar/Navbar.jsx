@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { LogOut } from 'lucide-react';
 import Cart from '../Cart/Cart.jsx';
+import Wishlist from '../Wishlist/Wishlist.jsx';
 import UserMenu from '../UserMenu/UserMenu.jsx';
 import axios from 'axios';
 
@@ -193,8 +194,13 @@ const Navbar = () => {
           </li>
         </ul>
 
-        {/* Cart Icon - only show when user is signed in */}
-        {isLoaded && isSignedIn && <Cart />}
+        {/* Wishlist and Cart Icons - only show when user is signed in */}
+        {isLoaded && isSignedIn && (
+          <>
+            <Wishlist />
+            <Cart />
+          </>
+        )}
         
         <div className={styles.authButtons}>
           {!isLoaded ? (
