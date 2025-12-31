@@ -67,7 +67,7 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   // Redirect to /auth if not signed in
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      navigate('/sign-in', { replace: true });
+      navigate('../auth/login', { replace: true });
     }
   }, [isLoaded, isSignedIn, navigate]);
 

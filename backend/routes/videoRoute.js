@@ -19,12 +19,12 @@ const videoRouter = express.Router();
 
 // Video playback routes - MUX signed URLs (protected for enrolled users)
 videoRouter.get('/playback/:videoId', protectEnrolledUser, getVideoPlayback);
-videoRouter.get('/thumbnail/:videoId', protectEnrolledUser, getVideoThumbnail);
+// videoRouter.get('/thumbnail/:videoId', protectEnrolledUser, getVideoThumbnail);
 
 // Protected routes
 // videoRouter.post('/', addVideo);
 // videoRouter.get('/:videoId', getVideoById);
 // videoRouter.put('/:videoId', updateVideo);
-// videoRouter.delete('/:videoId', deleteVideo);
+videoRouter.delete('/:videoId', deleteVideo);
 
 export default videoRouter;
