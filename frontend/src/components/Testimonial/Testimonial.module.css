@@ -1,126 +1,251 @@
+/* Testimonial Section - Modern & Clean Design */
+
+/* Animations */
 @keyframes marqueeScroll {
   0% { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
 }
 
+/* Section Container */
+.testimonialSection {
+  padding: 4rem 0;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+/* Header */
+.headerContainer {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 0 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.025em;
+}
+
+.sectionSubtitle {
+  font-size: 1.125rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Marquee Container */
+.marqueeRow {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 1.5rem 0;
+}
+
 .marqueeInner {
-  animation: marqueeScroll 25s linear infinite;
+  display: flex;
+  gap: 1.5rem;
+  animation: marqueeScroll 40s linear infinite;
+  will-change: transform;
 }
 
 .marqueeReverse {
   animation-direction: reverse;
 }
 
-.marqueeRow {
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 80rem;
-  overflow: hidden;
-  position: relative;
+.marqueeInner:hover {
+  animation-play-state: paused;
 }
 
-.gradientLeft {
+/* Fade Edges (Not Gradient) */
+.fadeLeft {
   position: absolute;
   left: 0;
   top: 0;
   height: 100%;
-  width: 5rem;
+  width: 100px;
   z-index: 10;
   pointer-events: none;
-  background: linear-gradient(to right, #fff, transparent);
+  background: #f8fafc;
+  opacity: 1;
 }
 
-.gradientRight {
+.fadeRight {
   position: absolute;
   right: 0;
   top: 0;
   height: 100%;
-  width: 5rem;
+  width: 100px;
   z-index: 10;
   pointer-events: none;
-  background: linear-gradient(to left, #fff, transparent);
+  background: #f8fafc;
+  opacity: 1;
 }
 
+/* Card Styling */
 .card {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  margin: 0 1rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  transition: box-shadow 0.2s, transform 0.2s;
-  width: 18rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 360px;
   flex-shrink: 0;
-  background: #fff;
-}
-.card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  transform: translateY(-2px) scale(1.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+}
+
+/* Card Header */
 .cardHeader {
   display: flex;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.875rem;
+  margin-bottom: 1rem;
 }
 
 .cardImage {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 9999px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .cardInfo {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .cardNameRow {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
 }
 
 .cardName {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.verifiedBadge {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .cardHandle {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #64748b;
+  line-height: 1.4;
 }
 
+/* Rating Stars */
+.ratingRow {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Card Text */
 .cardText {
-  font-size: 0.95rem;
-  padding: 1rem 0;
-  color: #334155;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0 0 1rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
+/* Card Footer */
 .cardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #64748b;
-  font-size: 0.8rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
 }
 
-.cardFooterLeft {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+.dateText {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
-.cardFooterLink {
-  color: inherit;
-  transition: color 0.2s;
-}
-.cardFooterLink:hover {
-  color: #0ea5e9;
-}
-
+/* Responsive Design */
 @media (max-width: 768px) {
-  .card {
-    width: 14rem;
+  .testimonialSection {
+    padding: 3rem 0;
   }
-  .gradientLeft, .gradientRight {
-    width: 3rem;
+
+  .headerContainer {
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 1rem;
+  }
+
+  .card {
+    width: 300px;
+    padding: 1.25rem;
+  }
+
+  .fadeLeft,
+  .fadeRight {
+    width: 60px;
+  }
+
+  .marqueeInner {
+    gap: 1rem;
+    animation-duration: 30s;
+  }
+}
+
+@media (max-width: 480px) {
+  .testimonialSection {
+    padding: 2.5rem 0;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 0.9375rem;
+  }
+
+  .card {
+    width: 280px;
+    padding: 1rem;
+  }
+
+  .cardImage {
+    width: 40px;
+    height: 40px;
+  }
+
+  .fadeLeft,
+  .fadeRight {
+    width: 40px;
   }
 }

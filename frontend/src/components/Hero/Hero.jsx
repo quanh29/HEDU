@@ -9,7 +9,7 @@ function Hero() {
           <h1>Học tập không giới hạn cùng các khóa học chất lượng cao</h1>
           <p>Tiết kiệm thời gian và chi phí với phương pháp học tập trực tuyến linh hoạt. Phát triển sự nghiệp, nâng cao tư duy chỉ với vài cú click.</p>
           <div className={styles.heroButtons}>
-            <a href="#courses" className={styles.btnHero}>Tham gia ngay</a>
+            <a href="/auth/signup" className={styles.btnHero}>Tham gia ngay</a>
             <a href="#demo" className={styles.btnHero}>Xem demo</a>
           </div>
         </div>

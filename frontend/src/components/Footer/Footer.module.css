@@ -1,59 +1,279 @@
-/* Footer.module.css */
+/* Footer.module.css - Modern & Clean Design */
 .footerRoot {
-  background: rgba(30, 41, 59, 0.85);
-  color: #fff;
-  padding: 3rem 0 1rem;
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  border-top: 1px solid #e2e8f0;
+  padding: 4rem 0 0;
   margin-top: auto;
+  color: #475569;
 }
+
 .footerContainer {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 2rem;
 }
+
 .footerContent {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
-  margin-bottom: 2rem;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 3rem;
+  padding-bottom: 3rem;
 }
+
+/* Brand Section */
+.footerSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #3b82f6;
+  margin-bottom: 0.5rem;
+}
+
+.logoImage {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.logo h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1e293b;
+}
+
+.description {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Section Headings */
 .footerSection h3 {
-  margin-bottom: 1rem;
-  color: #ffffff;
-  font-size: 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1.25rem 0;
+  letter-spacing: 0.5px;
 }
+
+/* Lists */
 .footerSection ul {
   list-style: none;
   padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
+
 .footerSection ul li {
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
-.footerSection ul li a {
-  color: #cbd5e1;
+
+.footerSection ul li a,
+.footerSection ul li span {
+  color: #64748b;
   text-decoration: none;
-  transition: color 0.3s;
-}
-.footerSection ul li a:hover {
-  color: #fff;
-}
-.footerBottom {
-  text-align: center;
-  padding-top: 2rem;
-  border-top: 1px solid #334155;
-  color: #cbd5e1;
   font-size: 0.95rem;
+  transition: all 0.2s ease;
+  display: inline-block;
 }
-@media (max-width: 900px) {
+
+.footerSection ul li a:hover {
+  color: #3b82f6;
+  transform: translateX(3px);
+}
+
+/* Contact List */
+.contactList li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contactList svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.contactList a,
+.contactList span {
+  color: #64748b;
+}
+
+.contactList a:hover {
+  color: #3b82f6;
+  transform: none;
+}
+
+/* Social Links */
+.socialLinks {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.socialLinks a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.socialLinks a:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Government Notification */
+.govNotification {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.govLogo {
+  height: 60px;
+  width: auto;
+  transition: opacity 0.2s ease;
+}
+
+.govLogo:hover {
+  opacity: 0.8;
+}
+
+/* Footer Bottom */
+.footerBottom {
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  width: 100%;
+}
+
+.footerBottomContainer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+.footerBottomContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footerBottomContent p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.footerLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.footerLinks a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footerLinks a:hover {
+  color: #3b82f6;
+}
+
+.separator {
+  color: #cbd5e1;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
   .footerContent {
     grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem;
   }
 }
-@media (max-width: 600px) {
+
+@media (max-width: 768px) {
+  .footerRoot {
+    padding: 3rem 0 0;
+  }
+
   .footerContent {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 2rem;
+    padding-bottom: 2rem;
   }
+
+  .footerContainer {
+    padding: 0 1.5rem;
+  }
+
+  .footerBottomContainer {
+    padding: 1.5rem 1.5rem;
+  }
+
+  .footerBottomContent {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+
+  .socialLinks {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
   .footerContainer {
     padding: 0 1rem;
+  }
+
+  .footerBottomContainer {
+    padding: 1.5rem 1rem;
+  }
+
+  .logo h3 {
+    font-size: 1.25rem;
+  }
+
+  .footerSection h3 {
+    font-size: 0.95rem;
+  }
+
+  .description,
+  .footerSection ul li a,
+  .footerSection ul li span {
+    font-size: 0.9rem;
+  }
+
+  .govLogo {
+    height: 50px;
   }
 }

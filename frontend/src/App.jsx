@@ -28,6 +28,7 @@ import Dashboard from './pages/Instructor/Dashboard.jsx'
 import Messaging from './pages/Messaging/Messaging.jsx'
 import Profile from './pages/Profile/Profile.jsx'
 import PublicProfile from './pages/PublicProfile/PublicProfile.jsx'
+import NotFound from './pages/NotFound/NotFound.jsx'
 
 function App() {
   const location = useLocation();
@@ -104,6 +105,9 @@ function App() {
           <Route path='/admin/settings' element={<Admin/>}/>
           
           <Route path='/upload-demo' element={<UploadDemo/>}/>
+
+          {/* Catch-all route for 404 - Not Found */}
+          <Route path='*' element={<NotFound/>}/>
         </Routes>
       </div>
       {!isAdminRoute && <Footer/>}
