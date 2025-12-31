@@ -533,10 +533,18 @@ const Curriculum = ({ courseId, sections, errors, addSection, updateSection, rem
           }
         } else if (editingLesson.contentType === 'material' && editingLesson.materialId) {
           try {
+            const token = await getToken();
             const skipParam = draftMode ? '?skipCloudinaryDeletion=true' : '';
             await fetch(
               `${import.meta.env.VITE_BASE_URL}/api/material/delete/${editingLesson.materialId}${skipParam}`,
-              { method: 'DELETE' }
+              { 
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ courseId })
+              }
             );
             console.log('✅ Old material deleted');
           } catch (error) {
