@@ -12,7 +12,7 @@ function Footer() {
           <div className={styles.footerSection}>
             <div className={styles.brandSection}>
               <div className={styles.logo}>
-                <img src='./public/logo.png' alt="HEDU Logo" className={styles.logoImage} />
+                <img src='/logo.png' alt="HEDU Logo" className={styles.logoImage} />
                 <h3>HEDU</h3>
               </div>
               <p className={styles.description}>
