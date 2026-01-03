@@ -9,6 +9,7 @@ import Category from '../models/Category.js';
 import Labeling from '../models/Labeling.js';
 import Level from '../models/Level.js';
 import Language from '../models/Language.js';
+import { clerkClient } from '@clerk/express';
 
 /**
  * Admin Controller - Quản lý courses cho admin
@@ -496,6 +497,174 @@ export const getRevisionDetail = async (req, res) => {
             success: false, 
             message: 'Lỗi khi lấy chi tiết revision',
             error: error.message 
+        });
+    }
+};
+
+/**
+ * Get all users for admin management
+ */
+export const getAllUsers = async (req, res) => {
+    try {
+        const { status, role, search, page = 1, limit = 100 } = req.query;
+        const skip = (page - 1) * limit;
+
+        let query = {};
+        
+        // Filter by status
+        if (status && status !== 'all') {
+            query.is_active = status === 'active';
+        }
+
+        // Filter by role
+        if (role && role !== 'all') {
+            query.is_admin = role === 'admin';
+        }
+
+        // Search by name, email, or ID
+        if (search) {
+            query.$or = [
+                { full_name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { _id: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const users = await User.find(query)
+            .select('_id email full_name is_admin is_active createdAt profile_image_url')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await User.countDocuments(query);
+
+        logger.info(`✅ [Admin] Fetched ${users.length} users`);
+
+        res.status(200).json({
+            success: true,
+            data: users,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        logger.error('Error fetching users for admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch users',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Toggle user active status
+ */
+export const toggleUserStatus = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { is_active } = req.body;
+
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Update user status
+        user.is_active = is_active;
+        await user.save();
+
+        // Also update Clerk user status
+        try {
+            await clerkClient.users.updateUser(userId, {
+                publicMetadata: {
+                    is_active: is_active
+                }
+            });
+        } catch (clerkError) {
+            logger.warn('Failed to update Clerk user status:', clerkError);
+        }
+
+        logger.info(`✅ [Admin] User ${userId} status updated to ${is_active ? 'active' : 'inactive'}`);
+
+        res.status(200).json({
+            success: true,
+            message: `User ${is_active ? 'activated' : 'deactivated'} successfully`,
+            data: user
+        });
+    } catch (error) {
+        logger.error('Error toggling user status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update user status',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Create admin user
+ */
+export const createAdminUser = async (req, res) => {
+    try {
+        const { email, password, full_name } = req.body;
+
+        // Validate required fields
+        if (!email || !password || !full_name) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, password, and full name are required'
+            });
+        }
+
+        // Create user in Clerk with admin role
+        const clerkUser = await clerkClient.users.createUser({
+            emailAddress: [email],
+            password: password,
+            firstName: full_name.split(' ')[0],
+            lastName: full_name.split(' ').slice(1).join(' ') || '',
+            privateMetadata: {
+                role: 'admin'
+            }
+        });
+
+        // User will be created in MongoDB via webhook
+        logger.info(`✅ [Admin] Admin user created: ${email}`);
+
+        res.status(201).json({
+            success: true,
+            message: 'Admin user created successfully',
+            data: {
+                id: clerkUser.id,
+                email: email,
+                full_name: full_name,
+                is_admin: true
+            }
+        });
+    } catch (error) {
+        logger.error('Error creating admin user:', error);
+        
+        // Handle Clerk specific errors
+        if (error.errors) {
+            return res.status(400).json({
+                success: false,
+                message: error.errors[0]?.message || 'Failed to create admin user',
+                error: error.errors
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create admin user',
+            error: error.message
         });
     }
 };

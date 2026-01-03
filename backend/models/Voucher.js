@@ -4,7 +4,8 @@ import mongoose from 'mongoose';
 const voucherSchema = new mongoose.Schema({
   voucher_code: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   discount_type: {
     type: String,
@@ -14,10 +15,18 @@ const voucherSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true,
-  }
+  },
+  expiration_date: {
+    type: Date,
+    required: true,
+  },
+  usage_limit: {
+    type: Number,
+    required: true,
+    default: 0
+  }, // 0 means unlimited
 }, { 
-  timestamps: true,
-  _id: false
+  timestamps: true
 });
 
 voucherSchema.index({ voucher_code: 1 }, { unique: true });

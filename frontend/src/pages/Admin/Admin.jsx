@@ -42,7 +42,8 @@ const Admin = () => {
   const [adminInfo, setAdminInfo] = useState({
     name: 'Admin',
     role: 'Admin',
-    initials: 'A'
+    initials: 'A',
+    avatarUrl: null
   });
 
   // Sync activeTab with URL
@@ -95,8 +96,23 @@ const Admin = () => {
           setAdminInfo({
             name: fullName,
             role: 'Admin',
-            initials: initials
+            initials: initials,
+            avatarUrl: null
           });
+          // Fetch public profile to get avatar and full_name mapping
+          try {
+            const pub = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/user/public-profile/${user.id}`);
+            if (pub.data?.success && pub.data.data?.user) {
+              const u = pub.data.data.user;
+              setAdminInfo(prev => ({
+                ...prev,
+                name: u.full_name || prev.name,
+                avatarUrl: u.profile_image_url || prev.avatarUrl
+              }));
+            }
+          } catch (pfErr) {
+            console.warn('Failed to fetch public profile for sidebar:', pfErr?.message || pfErr);
+          }
         }
       } catch (error) {
         console.error('Admin verification failed:', error);
@@ -210,7 +226,11 @@ const Admin = () => {
         </nav>
 
         <div className={styles.sidebarUser}>
-          <div className={styles.userAvatar}>{adminInfo.initials}</div>
+          {adminInfo.avatarUrl ? (
+            <img src={adminInfo.avatarUrl} alt={adminInfo.name} className={styles.userAvatarImage} />
+          ) : (
+            <div className={styles.userAvatar}>{adminInfo.initials}</div>
+          )}
           <div className={styles.userInfo}>
             <div className={styles.userName}>{adminInfo.name}</div>
             <div className={styles.userRole}>{adminInfo.role}</div>

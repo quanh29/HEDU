@@ -8,7 +8,10 @@ import {
     getCourseStatistics,
     updateCourseByAdmin,
     getPendingRevisions,
-    getRevisionDetail
+    getRevisionDetail,
+    getAllUsers,
+    toggleUserStatus,
+    createAdminUser
 } from '../controllers/adminController.js';
 import { 
     approveRevision, 
@@ -68,5 +71,15 @@ adminRouter.post('/revisions/:revisionId/approve', protectAdmin, approveRevision
 
 // POST /api/admin/revisions/:revisionId/reject - Reject revision
 adminRouter.post('/revisions/:revisionId/reject', protectAdmin, rejectRevision);
+
+// User management routes
+// GET /api/admin/users - Get all users with filters
+adminRouter.get('/users', protectAdmin, getAllUsers);
+
+// PATCH /api/admin/users/:userId/status - Toggle user active status
+adminRouter.patch('/users/:userId/status', protectAdmin, toggleUserStatus);
+
+// POST /api/admin/users/create-admin - Create new admin user
+adminRouter.post('/users/create-admin', protectAdmin, createAdminUser);
 
 export default adminRouter;
