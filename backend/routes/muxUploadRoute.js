@@ -6,12 +6,12 @@ import {
     listAllVideos,
     cancelUpload
 } from '../controllers/muxUploadController.js';
-import { protectUser } from '../middleware/auth.js';
+import { protectCourseOwner } from '../middleware/auth.js';
 
 const muxUploadRouter = express.Router();
 
 // Tạo direct upload URL (requires authentication)
-muxUploadRouter.post('/create-upload', protectUser, createDirectUpload);
+muxUploadRouter.post('/create-upload', protectCourseOwner, createDirectUpload);
 
 // Webhook từ MUX (không cần auth middleware)
 // Raw body đã được xử lý ở server.js, không cần thêm middleware

@@ -969,6 +969,7 @@ const Curriculum = ({ courseId, sections, errors, addSection, updateSection, rem
                         {/* Upload button hoặc inline uploader - chỉ hiện khi chưa có playbackId, chưa ready và không đang processing */}
                         {!uploadingLessons[lesson.id || lesson._id] && !lesson.playbackId && lesson.status !== 'ready' && lesson.status !== 'processing' && (
                           <MuxUploader
+                            courseId={courseId}
                             lessonTitle={lesson.title}
                             sectionId={section._id || section.id}
                             lessonId={lesson._id || lesson.id}

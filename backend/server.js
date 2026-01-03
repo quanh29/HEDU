@@ -22,7 +22,6 @@ import importRouter from './routes/importRoute.js';
 import levelRouter from './routes/levelRoute.js';
 import languageRouter from './routes/languageRoute.js';
 import muxUploadRouter from './routes/muxUploadRoute.js';
-import cloudinaryRouter from './routes/cloudinaryRoute.js';
 import thumbnailRouter from './routes/thumbnailRoute.js';
 import adminRouter from './routes/adminRoute.js';
 import enrollmentRouter from './routes/enrollmentRoute.js';
@@ -109,7 +108,6 @@ app.use("/api/import", importRouter);
 app.use("/api/levels", levelRouter);
 app.use("/api/languages", languageRouter);
 app.use("/api/mux", muxUploadRouter);
-app.use("/api/cloudinary", cloudinaryRouter);
 app.use("/api/thumbnail", thumbnailRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/enrollment", enrollmentRouter);
@@ -136,19 +134,19 @@ server.listen(port, () => {
 import ngrok from '@ngrok/ngrok';
 
 // Setup ngrok tunnel for MUX webhooks
-// if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
-// 	ngrok.connect({ 
-// 		addr: 3000, 
-// 		authtoken: process.env.NGROK_AUTH_TOKEN 
-// 	})
-// In Docker Compose we want ngrok to forward to the nginx proxy
 if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
-  ngrok.connect({
-    addr: 'nginx:80',
-    proto: 'http',
-    authtoken: process.env.NGROK_AUTH_TOKEN,
-    host_header: 'rewrite',
-  })
+	ngrok.connect({ 
+		addr: 3000, 
+		authtoken: process.env.NGROK_AUTH_TOKEN 
+	})
+// In Docker Compose we want ngrok to forward to the nginx proxy
+// if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
+//   ngrok.connect({
+//     addr: 'nginx:80',
+//     proto: 'http',
+//     authtoken: process.env.NGROK_AUTH_TOKEN,
+//     host_header: 'rewrite',
+//   })
   .then(listener => {
     console.log('\n🌐 Ngrok tunnel established!');
     console.log(`📡 Public URL: ${listener.url()}`);

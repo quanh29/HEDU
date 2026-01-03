@@ -9,6 +9,7 @@ const MuxUploader = ({
     lessonTitle, 
     sectionId,
     lessonId, // Add lessonId prop
+    courseId, // Add courseId prop for protectCourseOwner middleware
     onUploadStart,
     onUploadComplete,
     onUploadError,
@@ -169,7 +170,8 @@ const MuxUploader = ({
                 body: JSON.stringify({
                     lessonTitle: lessonTitle || '', // Backend sẽ tự tạo title tạm thời nếu trống
                     sectionId: sectionId || 'temp-section', // Handle temporary sectionId
-                    lessonId: lessonId // Add lessonId to link video with lesson
+                    lessonId: lessonId, // Add lessonId to link video with lesson
+                    courseId: courseId // Add courseId for protectCourseOwner middleware
                 })
             });
 
