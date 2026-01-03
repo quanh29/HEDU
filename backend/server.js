@@ -136,19 +136,27 @@ server.listen(port, () => {
 import ngrok from '@ngrok/ngrok';
 
 // Setup ngrok tunnel for MUX webhooks
+// if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
+// 	ngrok.connect({ 
+// 		addr: 3000, 
+// 		authtoken: process.env.NGROK_AUTH_TOKEN 
+// 	})
+// In Docker Compose we want ngrok to forward to the nginx proxy
 if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTH_TOKEN) {
-	ngrok.connect({ 
-		addr: 3000, 
-		authtoken: process.env.NGROK_AUTH_TOKEN 
-	})
-	.then(listener => {
-		console.log('\n🌐 Ngrok tunnel established!');
-		console.log(`📡 Public URL: ${listener.url()}`);
-		console.log(`🔗 Webhook URL for MUX: ${listener.url()}/api/mux/webhook`);
-	})
-	.catch(err => {
-		console.error('❌ Failed to establish ngrok tunnel:', err);
-	});
+  ngrok.connect({
+    addr: 'nginx:80',
+    proto: 'http',
+    authtoken: process.env.NGROK_AUTH_TOKEN,
+    host_header: 'rewrite',
+  })
+  .then(listener => {
+    console.log('\n🌐 Ngrok tunnel established!');
+    console.log(`📡 Public URL: ${listener.url()}`);
+    console.log(`🔗 Webhook URL for MUX: ${listener.url()}/api/mux/webhook`);
+  })
+  .catch(err => {
+    console.error('❌ Failed to establish ngrok tunnel:', err);
+  });
 }
 
 export default app;

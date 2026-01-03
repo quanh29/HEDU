@@ -14,7 +14,7 @@ import {
 import styles from './Wallet.module.css';
 import vietnamBanks from '../../data/vietnamBanks';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
 const Wallet = () => {
   const { user } = useUser();

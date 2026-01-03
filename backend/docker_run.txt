@@ -1,0 +1,4 @@
+docker build -t backend .
+docker run --env-file .env -p 3000:3000 backend
+
+docker compose up --build --scale app=3
