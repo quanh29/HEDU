@@ -1,0 +1,5 @@
+
+/* Background gradient for TrustedBrand component */
+.container {
+	background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+}

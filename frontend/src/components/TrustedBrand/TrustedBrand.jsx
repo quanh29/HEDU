@@ -1,9 +1,10 @@
 
 import React from 'react';
+import styles from './TrustedBrand.module.css';
 
 function TrustedBrand() {
-  return (
-    <div className="flex flex-col items-center justify-center w-full">
+    return (
+        <div className={`${styles.container} flex flex-col items-center justify-center w-full`}>
       <h3 className="text-lg font-medium text-slate-600 text-center">Trusted by world&apos;s leading companies</h3> 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 mt-16 w-max mx-auto justify-items-center">
             <div className="hover:bg-slate-50 h-16 w-44 sm:w-60 sm:h-20 border border-slate-200 border-t-0 border-x-0"></div>

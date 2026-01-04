@@ -1,6 +1,6 @@
 /* Hero Section */
 .hero {
-    background: #FFFFFF;
+    background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
     padding: 80px 0 30px;
     position: relative;
     overflow: hidden;
