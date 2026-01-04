@@ -258,6 +258,7 @@ export const searchCoursesService = async (filters) => {
                 sub_title: { $regex: kw, $options: 'i' }
             })));
         }
+        console.log('Search keywords:', keywords);
     }
 
     // Practice and Certificate filters
