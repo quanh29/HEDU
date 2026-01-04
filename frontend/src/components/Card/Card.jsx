@@ -120,7 +120,7 @@ const Card = ({
       if (response.data.success) {
         toast.success('Đăng ký khóa học thành công!');
         setTimeout(() => {
-          navigate(`/learning/${courseId}`);
+          navigate(`/course/${courseId}/content`);
         }, 1500);
       }
     } catch (error) {

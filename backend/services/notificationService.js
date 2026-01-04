@@ -1,5 +1,7 @@
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import logger from '../utils/logger.js';
+import { queueNotificationEmail, queueBulkNotificationEmails } from '../utils/emailQueue.js';
 
 /**
  * Create and push a new notification
@@ -9,11 +11,12 @@ import logger from '../utils/logger.js';
  * @param {string} notificationData.event_title - Title of the notification
  * @param {string} notificationData.event_message - Message content
  * @param {string} notificationData.event_url - Optional URL to navigate to
+ * @param {string} notificationData.courseTitle - Optional course title for email template
  * @returns {Promise<Object>} Created notification
  */
 export const pushNotification = async (notificationData) => {
   try {
-    const { receiver_id, event_type, event_title, event_message, event_url } = notificationData;
+    const { receiver_id, event_type, event_title, event_message, event_url, courseTitle } = notificationData;
 
     // Validate required fields
     if (!receiver_id || !event_type || !event_title || !event_message) {
@@ -40,6 +43,19 @@ export const pushNotification = async (notificationData) => {
 
     logger.info(`Notification created for user ${receiver_id}: ${event_title}`);
 
+    // Queue email notification (async, non-blocking)
+    try {
+      const user = await User.findById(receiver_id);
+      if (user && user.email) {
+        await queueNotificationEmail(notification, user.email, courseTitle || '');
+      } else {
+        logger.warn(`User ${receiver_id} not found or has no email - skipping email notification`);
+      }
+    } catch (emailError) {
+      logger.error(`Failed to queue email for notification ${notification._id}: ${emailError.message}`);
+      // Don't throw - notification is still created successfully
+    }
+
     return notification;
   } catch (error) {
     logger.error(`Error pushing notification: ${error.message}`);
@@ -54,13 +70,63 @@ export const pushNotification = async (notificationData) => {
  */
 export const pushBulkNotifications = async (notificationsData) => {
   try {
-    const notifications = await Promise.all(
-      notificationsData.map(data => pushNotification(data))
-    );
+    // Create all notifications first
+    const notifications = [];
+    for (const data of notificationsData) {
+      const { receiver_id, event_type, event_title, event_message, event_url, courseTitle } = data;
+
+      // Validate required fields
+      if (!receiver_id || !event_type || !event_title || !event_message) {
+        logger.warn('Skipping notification with missing required fields');
+        continue;
+      }
+
+      // Validate event_type
+      const validEventTypes = ['course_update', 'system_alert', 'course_enrollment', 'course_review', 'refund', 'other'];
+      if (!validEventTypes.includes(event_type)) {
+        logger.warn(`Skipping notification with invalid event_type: ${event_type}`);
+        continue;
+      }
+
+      // Create notification
+      const notification = new Notification({
+        receiver_id,
+        event_type,
+        event_title,
+        event_message,
+        event_url: event_url || '',
+        is_read: false
+      });
+
+      await notification.save();
+      notifications.push({ notification, courseTitle });
+    }
 
     logger.info(`${notifications.length} notifications created successfully`);
 
-    return notifications;
+    // Queue all emails (async, non-blocking)
+    try {
+      const emailPairs = [];
+      for (const { notification, courseTitle } of notifications) {
+        const user = await User.findById(notification.receiver_id);
+        if (user && user.email) {
+          emailPairs.push({
+            notification,
+            userEmail: user.email,
+            courseTitle: courseTitle || ''
+          });
+        }
+      }
+
+      if (emailPairs.length > 0) {
+        await queueBulkNotificationEmails(emailPairs);
+      }
+    } catch (emailError) {
+      logger.error(`Failed to queue bulk emails: ${emailError.message}`);
+      // Don't throw - notifications are still created successfully
+    }
+
+    return notifications.map(n => n.notification);
   } catch (error) {
     logger.error(`Error pushing bulk notifications: ${error.message}`);
     throw error;

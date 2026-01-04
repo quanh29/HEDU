@@ -15,6 +15,7 @@
     "@clerk/express": "^1.7.10",
     "@mux/mux-node": "^12.8.0",
     "@ngrok/ngrok": "^1.5.2",
+    "amqplib": "^0.10.9",
     "axios": "^1.10.0",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
