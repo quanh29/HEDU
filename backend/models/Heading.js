@@ -3,8 +3,7 @@ import mongoose from "mongoose";
 const headingSchema = new mongoose.Schema({
     _id: {
         type: String,
-        required: true,
-        // _id sẽ chứa trực tiếp heading_id từ MySQL
+        required: true
     },
     title: {
         type: String,

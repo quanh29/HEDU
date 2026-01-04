@@ -26,6 +26,19 @@ import {
     toggleVoucherStatus,
     deleteVoucher
 } from '../controllers/voucherController.js';
+import {
+    getCategoryStatistics,
+    createHeading,
+    updateHeading,
+    deleteHeading,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    addCategoryToHeading,
+    removeCategoryFromHeading,
+    getAllHeadingsWithCategories,
+    getAllCategories
+} from '../controllers/headingController.js';
 import { protectAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
@@ -108,5 +121,39 @@ adminRouter.patch('/vouchers/:voucherId/status', protectAdmin, toggleVoucherStat
 
 // DELETE /api/admin/vouchers/:voucherId - Delete voucher
 adminRouter.delete('/vouchers/:voucherId', protectAdmin, deleteVoucher);
+
+// Category and Heading management routes
+// GET /api/admin/categories/statistics - Get category statistics
+adminRouter.get('/categories/statistics', protectAdmin, getCategoryStatistics);
+
+// GET /api/admin/categories/headings - Get all headings with categories
+adminRouter.get('/categories/headings', protectAdmin, getAllHeadingsWithCategories);
+
+// GET /api/admin/categories - Get all categories with pagination
+adminRouter.get('/categories', protectAdmin, getAllCategories);
+
+// POST /api/admin/categories/headings - Create new heading
+adminRouter.post('/categories/headings', protectAdmin, createHeading);
+
+// PUT /api/admin/categories/headings/:headingId - Update heading
+adminRouter.put('/categories/headings/:headingId', protectAdmin, updateHeading);
+
+// DELETE /api/admin/categories/headings/:headingId - Delete heading
+adminRouter.delete('/categories/headings/:headingId', protectAdmin, deleteHeading);
+
+// POST /api/admin/categories - Create new category
+adminRouter.post('/categories', protectAdmin, createCategory);
+
+// PUT /api/admin/categories/:categoryId - Update category
+adminRouter.put('/categories/:categoryId', protectAdmin, updateCategory);
+
+// DELETE /api/admin/categories/:categoryId - Delete category
+adminRouter.delete('/categories/:categoryId', protectAdmin, deleteCategory);
+
+// POST /api/admin/categories/assign - Add category to heading
+adminRouter.post('/categories/assign', protectAdmin, addCategoryToHeading);
+
+// DELETE /api/admin/categories/:headingId/:categoryId - Remove category from heading
+adminRouter.delete('/categories/:headingId/:categoryId', protectAdmin, removeCategoryFromHeading);
 
 export default adminRouter;
