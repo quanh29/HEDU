@@ -1,5 +1,5 @@
 import CourseDraft from '../models/CourseDraft.js';
-import { pushNotification } from '../services/notificationService.js';
+import { pushNotification, pushBulkNotifications } from '../services/notificationService.js';
 import { io } from '../server.js';
 import { pushNotificationToUser, pushNotificationToMultipleUsers } from '../sockets/notificationSocket.js';
 import Enrollment from '../models/Enrollment.js';
@@ -909,12 +909,28 @@ export const approveDraft = async (req, res) => {
                 const enrollments = await Enrollment.find({ courseId: courseId });
                 if (enrollments.length > 0) {
                     const studentIds = enrollments.map(e => e.userId);
-                    await pushNotificationToMultipleUsers(io, studentIds, {
+                    
+                    // Create notifications data for all students
+                    const notificationsData = studentIds.map(studentId => ({
+                        receiver_id: studentId,
                         event_type: 'course_update',
                         event_title: `Khóa học có cập nhật mới`,
                         event_message: `Khóa học "${course.title}" đã có nội dung cập nhật mới. Hãy xem ngay!`,
-                        event_url: `/course/${courseId}/content/`
+                        event_url: `/course/${courseId}/content/`,
+                        courseTitle: course.title
+                    }));
+                    
+                    // Create notifications in DB and queue emails
+                    const createdNotifications = await pushBulkNotifications(notificationsData);
+                    console.log(`📧 Created notifications and queued emails for ${studentIds.length} students`);
+                    
+                    // Send socket notifications using helper function
+                    createdNotifications.forEach(notification => {
+                        const receiverId = notification.receiver_id.toString();
+                        console.log(`🔔 Sending socket notification to student: ${receiverId}`);
+                        pushNotificationToUser(io, receiverId, notification);
                     });
+                    console.log(`🔔 Sent socket notifications to ${createdNotifications.length} students`);
                 }
             }
         } catch (notifError) {
