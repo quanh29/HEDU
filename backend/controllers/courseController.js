@@ -422,3 +422,57 @@ export const toggleCourseVisibility = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+
+// Update course price
+export const updateCoursePrice = async (req, res) => {
+    const { courseId } = req.params;
+    const { current_price } = req.body;
+
+    try {
+        // Validation
+        if (typeof current_price !== 'number' || current_price < 0) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Invalid price' 
+            });
+        }
+
+        // Get course to check original price
+        const course = await Course.findById(courseId);
+        if (!course) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Course not found' 
+            });
+        }
+
+        // Validate: current_price không thể cao hơn original_price
+        if (current_price > course.original_price) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Current price cannot be higher than original price' 
+            });
+        }
+
+        // Update price
+        await Course.findByIdAndUpdate(courseId, { 
+            current_price,
+            updatedAt: new Date()
+        });
+
+        logger.info(`✅ [updateCoursePrice] Updated course ${courseId} price to ${current_price}`);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Price updated successfully',
+            current_price 
+        });
+    } catch (error) {
+        logger.error('❌ [updateCoursePrice] Error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error', 
+            error: error.message 
+        });
+    }
+};

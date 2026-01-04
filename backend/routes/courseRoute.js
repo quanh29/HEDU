@@ -14,7 +14,8 @@ import {
     getFullCourseDataForManagement,
     getRelatedCourses,
     getInstructorOtherCourses,
-    toggleCourseVisibility
+    toggleCourseVisibility,
+    updateCoursePrice
 } from "../controllers/courseController.js";
 import { protectEnrolledUser, protectCourseOwner } from "../middleware/auth.js";
 
@@ -72,6 +73,11 @@ courseRouter.patch("/:courseId/status", async (req, res) => {
 
 courseRouter.patch("/:courseId/visibility", protectCourseOwner, async (req, res) => {
     toggleCourseVisibility(req, res);
+});
+
+// Quick price update route - cho phép instructor update giá nhanh
+courseRouter.patch("/:courseId/price", protectCourseOwner, async (req, res) => {
+    updateCoursePrice(req, res);
 });
 
 courseRouter.put("/:courseId", protectCourseOwner, async (req, res) => {

@@ -54,6 +54,8 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   });
   const [loading, setLoading] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [tempPrice, setTempPrice] = useState('');
   const { user, isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
   const navigate = useNavigate();
@@ -119,7 +121,8 @@ const Instructor = ({ activeTab: propActiveTab }) => {
           subtitle: course.subtitle,
           thumbnail: course.thumbnail,
           description: course.description,
-          originalPrice: course.originalPrice || course.original_price, // MySQL uses original_price
+          original_price: course.originalPrice || course.original_price || 0, // Giá gốc
+          current_price: course.currentPrice || course.current_price || 0, // Giá hiện tại
           level: course.level,
           language: course.language,
           tags: course.tags,
@@ -254,6 +257,67 @@ const Instructor = ({ activeTab: propActiveTab }) => {
     navigate(`/instructor/update-course/${courseId}`);
   };
 
+  // Update course price
+  const updateCoursePrice = async (courseId, newPrice, originalPrice) => {
+    // Parse và format số
+    const priceString = newPrice.toString().replace(/[^0-9]/g, '');
+    const price = parseFloat(priceString);
+    
+    if (isNaN(price) || price < 0) {
+      alert('Giá không hợp lệ');
+      return;
+    }
+    
+    if (price > originalPrice) {
+      alert(`Giá hiện tại không thể cao hơn giá gốc (${formatPrice(originalPrice)})`);
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const response = await axios.patch(
+        `${BASE_URL}/api/course/${courseId}/price`,
+        { current_price: price },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Update local state
+        setCourses(courses.map(course => 
+          course.id === courseId 
+            ? { ...course, current_price: price }
+            : course
+        ));
+        setEditingPriceId(null);
+        setTempPrice('');
+        toast.success('Cập nhật giá thành công!');
+      }
+    } catch (error) {
+      console.error('Error updating price:', error);
+      alert('Cập nhật giá thất bại: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const startEditPrice = (course) => {
+    setEditingPriceId(course.id);
+    setTempPrice(course.current_price.toString());
+  };
+
+  const handlePriceInputChange = (value) => {
+    // Chỉ cho phép nhập số
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setTempPrice(numericValue);
+  };
+
+  const cancelEditPrice = () => {
+    setEditingPriceId(null);
+    setTempPrice('');
+  };
+
   // Create new draft course
   const createNewCourse = async () => {
     if (!user?.id) {
@@ -366,9 +430,8 @@ const Instructor = ({ activeTab: propActiveTab }) => {
             <thead style={{ background: '#f9fafb' }}>
               <tr>
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Khóa học</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Học viên</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Đánh giá</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Doanh thu</th>
+                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Giá gốc</th>
+                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Giá hiện tại</th>
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Trạng thái</th>
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Hành động</th>
               </tr>
@@ -379,14 +442,77 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                   <td style={{ padding: '16px' }}>
                     <div style={{ fontWeight: '500', color: '#111827', marginBottom: '4px' }}>{course.title}</div>
                   </td>
-                  <td style={{ padding: '16px', color: '#6b7280' }}>{course.students}</td>
+                  <td style={{ padding: '16px', color: '#6b7280' }}>{formatPrice(course.original_price)}</td>
                   <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#f59e0b' }}>★</span>
-                      <span style={{ color: '#6b7280' }}>{course.rating}</span>
-                    </div>
+                    {editingPriceId === course.id ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          value={tempPrice}
+                          onChange={(e) => handlePriceInputChange(e.target.value)}
+                          placeholder="Nhập giá"
+                          autoFocus
+                          style={{
+                            width: '150px',
+                            padding: '6px 8px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              updateCoursePrice(course.id, tempPrice, course.original_price);
+                            } else if (e.key === 'Escape') {
+                              cancelEditPrice();
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => updateCoursePrice(course.id, tempPrice, course.original_price)}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          onClick={cancelEditPrice}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#6b7280',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          cursor: 'pointer',
+                          color: '#111827',
+                          fontWeight: '500'
+                        }}
+                        onClick={() => startEditPrice(course)}
+                      >
+                        <span>{formatPrice(course.current_price)}</span>
+                        <Edit3 size={14} style={{ color: '#6b7280' }} />
+                      </div>
+                    )}
                   </td>
-                  <td style={{ padding: '16px', color: '#6b7280' }}>{formatPrice(course.revenue)}</td>
                   <td style={{ padding: '16px' }}>
                     <span style={{
                       padding: '4px 12px',
