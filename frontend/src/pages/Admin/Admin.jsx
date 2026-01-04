@@ -16,16 +16,18 @@ import {
   ChevronRight,
   Menu,
   LogOut,
-  DollarSign
+  DollarSign,
+  Ticket
 } from 'lucide-react';
 import Dashboard from './components/Dashboard/Dashboard';
 import CourseApproval from './components/CourseApproval/CourseApproval';
 import CourseManagement from './components/CourseManagement/CourseManagement';
 import PromotionManagement from './components/PromotionManagement/PromotionManagement';
-import AdminManagement from './components/AdminManagement/AdminManagement';
+import AdminManagement from './components/UserManagement/AdminManagement';
 import SupportTickets from './components/SupportTickets/SupportTickets';
 import RevisionApproval from './components/RevisionApproval/RevisionApproval';
 import RefundManagement from './components/RefundManagement/RefundManagement';
+import VoucherManagement from './components/VoucherManagement/VoucherManagement';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Admin = () => {
@@ -53,6 +55,7 @@ const Admin = () => {
     else if (path === '/admin/courses') setActiveTab('course-management');
     else if (path === '/admin/revisions') setActiveTab('revision-approval');
     else if (path === '/admin/refunds') setActiveTab('refund-management');
+    else if (path === '/admin/vouchers') setActiveTab('voucher-management');
     else if (path === '/admin/users') setActiveTab('admin-management');
     else if (path === '/admin/statistics') setActiveTab('promotions');
     else if (path === '/admin/support') setActiveTab('support-tickets');
@@ -149,6 +152,7 @@ const Admin = () => {
     { id: 'revision-approval', label: 'Duyệt cập nhật', icon: Bell, path: '/admin/revisions' },
     { id: 'refund-management', label: 'Hoàn tiền', icon: DollarSign, path: '/admin/refunds' },
     { id: 'admin-management', label: 'Người dùng', icon: Users, path: '/admin/users' },
+    { id: 'voucher-management', label: 'Voucher', icon: Ticket, path: '/admin/vouchers' },
     { id: 'promotions', label: 'Thống kê', icon: BarChart3, path: '/admin/statistics' },
     { id: 'support-tickets', label: 'Hỗ trợ', icon: HelpCircle, path: '/admin/support' },
     { id: 'settings', label: 'Cài đặt', icon: Settings, path: '/admin/settings' }
@@ -166,6 +170,8 @@ const Admin = () => {
         return <RevisionApproval />;
       case 'refund-management':
         return <RefundManagement />;
+      case 'voucher-management':
+        return <VoucherManagement />;
       case 'promotions':
         return <PromotionManagement />;
       case 'admin-management':

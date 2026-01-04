@@ -18,6 +18,14 @@ import {
     rejectRevision 
 } from '../controllers/courseRevisionController.js';
 import { generateMaterialSignedUrl } from '../controllers/materialUploadController.js';
+import {
+    getAllVouchers,
+    getVoucherStatistics,
+    createVoucher,
+    updateVoucher,
+    toggleVoucherStatus,
+    deleteVoucher
+} from '../controllers/voucherController.js';
 import { protectAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
@@ -81,5 +89,24 @@ adminRouter.patch('/users/:userId/status', protectAdmin, toggleUserStatus);
 
 // POST /api/admin/users/create-admin - Create new admin user
 adminRouter.post('/users/create-admin', protectAdmin, createAdminUser);
+
+// Voucher management routes
+// GET /api/admin/vouchers/statistics - Get voucher statistics
+adminRouter.get('/vouchers/statistics', protectAdmin, getVoucherStatistics);
+
+// GET /api/admin/vouchers - Get all vouchers with filters
+adminRouter.get('/vouchers', protectAdmin, getAllVouchers);
+
+// POST /api/admin/vouchers - Create new voucher
+adminRouter.post('/vouchers', protectAdmin, createVoucher);
+
+// PUT /api/admin/vouchers/:voucherId - Update voucher
+adminRouter.put('/vouchers/:voucherId', protectAdmin, updateVoucher);
+
+// PATCH /api/admin/vouchers/:voucherId/status - Toggle voucher status
+adminRouter.patch('/vouchers/:voucherId/status', protectAdmin, toggleVoucherStatus);
+
+// DELETE /api/admin/vouchers/:voucherId - Delete voucher
+adminRouter.delete('/vouchers/:voucherId', protectAdmin, deleteVoucher);
 
 export default adminRouter;
