@@ -5,8 +5,9 @@ import {
     checkEnrollment,
     updateCompletedLessons,
     enrollFreeCourse,
+    getInstructorStudents,
 } from '../controllers/enrollmentController.js';
-import { protectUserAction } from '../middleware/auth.js';
+import { protectUserAction, protectCourseOwner } from '../middleware/auth.js';
 
 const enrollmentRouter = express.Router();
 
@@ -43,6 +44,12 @@ enrollmentRouter.put('/:courseId/complete-lesson', protectUserAction, updateComp
  * Tạo enrollment và conversation với instructor
  */
 enrollmentRouter.post('/free', protectUserAction, enrollFreeCourse);
+
+/**
+ * GET /api/enrollment/instructor/:instructorId/students
+ * Lấy danh sách học viên của giảng viên kèm tiến độ theo từng khóa học
+ */
+enrollmentRouter.get('/instructor/:instructorId/students', protectUserAction, getInstructorStudents);
 
 
 export default enrollmentRouter;

@@ -27,6 +27,7 @@ import { useLocation, Outlet } from 'react-router-dom';
 import styles from './Instructor.module.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import Dashboard from './Dashboard';
+import StudentManagement from './StudentManagement';
 
 const Instructor = ({ activeTab: propActiveTab }) => {
   useDocumentTitle('Quản lý giảng dạy');
@@ -37,13 +38,13 @@ const Instructor = ({ activeTab: propActiveTab }) => {
   const getActiveTabFromPath = () => {
     if (propActiveTab) return propActiveTab;
     if (location.pathname.includes('/instructor/courses')) return 'courses';
+    if (location.pathname.includes('/instructor/students')) return 'students';
     if (location.pathname.includes('/instructor/dashboard')) return 'dashboard';
     return 'dashboard';
   };
   
   const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
   const [courses, setCourses] = useState([]);
-  const [students, setStudents] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null); // Chi tiết khóa học đang xem
   const [courseContent, setCourseContent] = useState(null); // Nội dung chi tiết của khóa học
   const [stats, setStats] = useState({
@@ -150,13 +151,6 @@ const Instructor = ({ activeTab: propActiveTab }) => {
         totalRevenue: transformedCourses.reduce((sum, course) => sum + course.revenue, 0),
         totalHours: 0 // TODO: Calculate total hours from sections/lessons
       });
-      
-      // Mock students data for now (TODO: implement actual student fetching)
-      setStudents([
-        { id: 1, name: 'Nguyen Van A', email: 'a@example.com', progress: 75, enrolledDate: '2024-01-15' },
-        { id: 2, name: 'Tran Thi B', email: 'b@example.com', progress: 45, enrolledDate: '2024-02-20' },
-        { id: 3, name: 'Le Van C', email: 'c@example.com', progress: 90, enrolledDate: '2024-01-10' }
-      ]);
       
     } catch (error) {
       console.error('Error fetching instructor data:', error);
@@ -625,124 +619,6 @@ const Instructor = ({ activeTab: propActiveTab }) => {
                           </div>
                         )}
                       </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Student Management Component
-  const StudentManagement = () => (
-    <div className="space-y-6">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '600' }}>Quản lý học viên</h2>
-      </div>
-
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden'
-      }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: '1' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#6b7280' }} />
-              <input
-                type="text"
-                placeholder="Tìm kiếm học viên..."
-                style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: '#f9fafb',
-              border: '1px solid #d1d5db',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}>
-              <Filter size={16} />
-              Bộ lọc
-            </button>
-          </div>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: '#f9fafb' }}>
-              <tr>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Học viên</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Email</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Tiến độ</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Ngày đăng ký</th>
-                <th style={{ padding: '16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student) => (
-                <tr key={student.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#3b82f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: '600',
-                        fontSize: '14px'
-                      }}>
-                        {student.name.charAt(0)}
-                      </div>
-                      <div style={{ fontWeight: '500', color: '#111827' }}>{student.name}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', color: '#6b7280' }}>{student.email}</td>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{
-                        width: '60px',
-                        height: '8px',
-                        background: '#e5e7eb',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          width: `${student.progress}%`,
-                          height: '100%',
-                          background: '#10b981'
-                        }}></div>
-                      </div>
-                      <span style={{ fontSize: '12px', color: '#6b7280' }}>{student.progress}%</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', color: '#6b7280' }}>{formatDate(student.enrolledDate)}</td>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                        <Eye size={16} style={{ color: '#6b7280' }} />
-                      </button>
-                      <button style={{ padding: '6px', border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                        <MoreVertical size={16} style={{ color: '#6b7280' }} />
-                      </button>
                     </div>
                   </td>
                 </tr>

@@ -25,6 +25,7 @@ import PaymentHistory from './pages/PaymentHistory/PaymentHistory.jsx'
 import RefundHistory from './pages/RefundHistory/RefundHistory.jsx'
 import Wallet from './pages/Wallet/Wallet.jsx'
 import Dashboard from './pages/Instructor/Dashboard.jsx'
+import StudentManagement from './pages/Instructor/StudentManagement.jsx'
 import Messaging from './pages/Messaging/Messaging.jsx'
 import Profile from './pages/Profile/Profile.jsx'
 import PublicProfile from './pages/PublicProfile/PublicProfile.jsx'
@@ -84,7 +85,7 @@ function App() {
             <Route index element={<Navigate to="/instructor/dashboard" replace />} />
             <Route path='dashboard' element={<Dashboard/>}/>
             <Route path='courses' element={<Instructor activeTab="courses" />}/>
-            <Route path='students' element={<Instructor activeTab="students" />}/>
+            <Route path='students' element={<StudentManagement/>}/>
           </Route>
           <Route path='/instructor/create-course' element={<CreateUpdateCourse/>}/>
           <Route path='/instructor/view-course/:courseId' element={<CreateUpdateCourse mode="view"/>}/>

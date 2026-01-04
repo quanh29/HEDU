@@ -406,3 +406,150 @@ export const enrollFreeCourse = async (req, res) => {
         });
     }
 };
+
+/**
+ * Lấy danh sách học viên của giảng viên kèm tiến độ theo từng khóa học
+ * GET /api/enrollment/instructor/:instructorId/students
+ */
+export const getInstructorStudents = async (req, res) => {
+    try {
+        const { instructorId } = req.params;
+        const { userId } = req; // Từ protectUserAction middleware
+
+        if (!instructorId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Instructor ID is required'
+            });
+        }
+
+        // Kiểm tra xem userId có khớp với instructorId không
+        if (userId !== instructorId) {
+            logger.warn(`⚠️ [getInstructorStudents] Access denied. userId: ${userId}, instructorId: ${instructorId}`);
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied - You can only view your own students'
+            });
+        }
+
+        logger.info(`📚 [getInstructorStudents] Fetching students for instructor ${instructorId}`);
+
+        // Tìm tất cả khóa học của instructor
+        const courses = await Course.find({ 
+            instructor_id: instructorId,
+            course_status: { $in: ['approved', 'inactive'] } // Chỉ lấy khóa học đã duyệt hoặc không hoạt động
+        }).lean();
+
+        if (!courses || courses.length === 0) {
+            logger.info(`ℹ️ [getInstructorStudents] No courses found for instructor ${instructorId}`);
+            return res.json({
+                success: true,
+                data: []
+            });
+        }
+
+        const courseIds = courses.map(course => course._id);
+        logger.info(`📋 [getInstructorStudents] Found ${courses.length} courses:`, courseIds);
+
+        // Tìm tất cả enrollments cho các khóa học của instructor
+        const enrollments = await Enrollment.find({
+            courseId: { $in: courseIds }
+        }).lean();
+
+        logger.info(`👥 [getInstructorStudents] Found ${enrollments.length} enrollments`);
+
+        if (!enrollments || enrollments.length === 0) {
+            return res.json({
+                success: true,
+                data: []
+            });
+        }
+
+        // Lấy thông tin user cho mỗi enrollment
+        const userIds = [...new Set(enrollments.map(e => e.userId))];
+        const users = await User.find({ _id: { $in: userIds } }).lean();
+        const userMap = new Map(users.map(u => [u._id, u]));
+
+        // Tạo map course để dễ tra cứu
+        const courseMap = new Map(courses.map(c => [c._id, c]));
+
+        // Import Lesson model
+        const Lesson = (await import('../models/Lesson.js')).default;
+
+        // Tính toán tổng số lessons và lấy danh sách lesson IDs cho mỗi khóa học
+        const courseLessonData = new Map();
+        
+        for (const course of courses) {
+            // Lấy tất cả sections của khóa học
+            const sections = await Section.find({ course_id: course._id }).lean();
+            const sectionIds = sections.map(s => s._id.toString());
+            
+            // Lấy tất cả lessons của các sections
+            const lessons = await Lesson.find({ 
+                section: { $in: sectionIds } 
+            }).lean();
+            
+            // Lưu tổng số lessons và danh sách lesson IDs
+            const lessonIds = lessons.map(l => l._id.toString());
+            courseLessonData.set(course._id, {
+                totalLessons: lessons.length,
+                lessonIds: lessonIds
+            });
+        }
+
+        // Nhóm enrollments theo khóa học
+        const studentsByCourse = [];
+
+        for (const course of courses) {
+            const courseEnrollments = enrollments.filter(e => e.courseId === course._id);
+            const lessonData = courseLessonData.get(course._id) || { totalLessons: 0, lessonIds: [] };
+            const { totalLessons, lessonIds } = lessonData;
+
+            const students = courseEnrollments.map(enrollment => {
+                const user = userMap.get(enrollment.userId);
+                
+                // Chỉ đếm những lesson trong completedLessons có id trùng khớp với lesson của khóa học
+                const completedLessonIds = enrollment.completedLessons || [];
+                const validCompletedLessons = completedLessonIds.filter(lessonId => 
+                    lessonIds.includes(lessonId.toString())
+                );
+                const completedCount = validCompletedLessons.length;
+                const progress = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+
+                return {
+                    userId: enrollment.userId,
+                    full_name: user?.full_name || 'Unknown User',
+                    email: user?.email || 'N/A',
+                    profile_image_url: user?.profile_image_url || null,
+                    enrolledDate: enrollment.createdAt,
+                    completedLessons: completedCount,
+                    totalLessons: totalLessons,
+                    progress: progress
+                };
+            });
+
+            studentsByCourse.push({
+                courseId: course._id,
+                courseTitle: course.title,
+                courseThumbnail: course.thumbnail_url,
+                totalStudents: students.length,
+                students: students
+            });
+        }
+
+        logger.info(`✅ [getInstructorStudents] Returning ${studentsByCourse.length} courses with students`);
+
+        res.json({
+            success: true,
+            data: studentsByCourse
+        });
+
+    } catch (error) {
+        logger.error('❌ [getInstructorStudents] Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching instructor students',
+            error: error.message
+        });
+    }
+};
