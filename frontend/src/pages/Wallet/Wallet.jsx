@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import styles from './Wallet.module.css';
 import vietnamBanks from '../../data/vietnamBanks';
+import momoLogo from '../../assets/MOMO-Logo-App.png';
 
 const API_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
@@ -39,6 +40,10 @@ const Wallet = () => {
   });
   const [bankSearch, setBankSearch] = useState('');
   const [showBankDropdown, setShowBankDropdown] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const TRANSACTIONS_PER_PAGE = 10;
 
   useEffect(() => {
     if (user) {
@@ -46,7 +51,7 @@ const Wallet = () => {
     }
   }, [user]);
 
-  const fetchWalletData = async () => {
+  const fetchWalletData = async (page = 1) => {
     try {
       setLoading(true);
       const token = await getToken();
@@ -65,8 +70,8 @@ const Wallet = () => {
       const walletData = await walletResponse.json();
       setWallet(walletData.data);
 
-      // Fetch transactions
-      const transactionsResponse = await fetch(`${API_URL}/api/wallet/transactions`, {
+      // Fetch transactions with pagination
+      const transactionsResponse = await fetch(`${API_URL}/api/wallet/transactions?page=${page}&limit=${TRANSACTIONS_PER_PAGE}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -75,6 +80,9 @@ const Wallet = () => {
       if (transactionsResponse.ok) {
         const transactionsData = await transactionsResponse.json();
         setTransactions(transactionsData.data || []);
+        setCurrentPage(transactionsData.pagination?.page || 1);
+        setTotalPages(transactionsData.pagination?.totalPages || 1);
+        setTotalTransactions(transactionsData.pagination?.total || 0);
       }
 
       setError(null);
@@ -304,6 +312,13 @@ const Wallet = () => {
     setShowBankDropdown(false);
   };
 
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      fetchWalletData(newPage);
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -393,6 +408,30 @@ const Wallet = () => {
             ))}
           </div>
         )}
+        
+        {/* Pagination */}
+        {transactions.length > 0 && totalPages > 1 && (
+          <div className={styles.pagination}>
+            <button 
+              className={styles.pageBtn}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ← Trước
+            </button>
+            <div className={styles.pageInfo}>
+              <span>Trang {currentPage} / {totalPages}</span>
+              <span className={styles.totalInfo}>({totalTransactions} giao dịch)</span>
+            </div>
+            <button 
+              className={styles.pageBtn}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Sau →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Payment Methods Section */}
@@ -417,7 +456,12 @@ const Wallet = () => {
               <div key={index} className={styles.paymentMethodItem}>
                 <div className={styles.methodInfo}>
                   <div className={styles.methodType}>
-                    {method.type === 'momo' ? '📱 MoMo' : '🏦 Ngân hàng'}
+                    {method.type === 'momo' ? (
+                      <>
+                        <img src={momoLogo} alt="MoMo" style={{width: '16px', height: '16px', marginRight: '5px'}} />
+                        MoMo
+                      </>
+                    ) : '🏦 Ngân hàng'}
                     {method.is_default && <span className={styles.defaultBadge}>Mặc định</span>}
                   </div>
                   <div className={styles.methodDetails}>
@@ -504,7 +548,7 @@ const Wallet = () => {
                   {wallet.payment_methods.map((method, index) => (
                     <option key={index} value={index}>
                       {method.type === 'momo' 
-                        ? `📱 MoMo - ${method.phone_number}${method.is_default ? ' (Mặc định)' : ''} - Nhanh chóng`
+                        ? `MoMo - ${method.phone_number}${method.is_default ? ' (Mặc định)' : ''} - Nhanh chóng`
                         : `🏦 ${method.bank_name} - ${method.account_number}${method.is_default ? ' (Mặc định)' : ''} - 1-3 ngày`
                       }
                     </option>
