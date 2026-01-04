@@ -11,7 +11,7 @@ import User from '../models/User.js';
 export const getInstructorStats = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { courseFilter } = req.query;
+    const { courseFilter, month, year } = req.query;
 
     // Get courses filter
     let coursesQuery = { instructor_id: instructorId };
@@ -35,9 +35,28 @@ export const getInstructorStats = async (req, res) => {
 
     // Calculate date ranges for comparison
     const now = new Date();
-    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    let startOfThisMonth, startOfLastMonth, endOfLastMonth;
+    
+    // Nếu có filter theo tháng cụ thể
+    if (month && year) {
+      const selectedMonth = parseInt(month);
+      const selectedYear = parseInt(year);
+      startOfThisMonth = new Date(selectedYear, selectedMonth - 1, 1);
+      const endOfThisMonth = new Date(selectedYear, selectedMonth, 0, 23, 59, 59);
+      startOfLastMonth = new Date(selectedYear, selectedMonth - 2, 1);
+      endOfLastMonth = new Date(selectedYear, selectedMonth - 1, 0, 23, 59, 59);
+      
+      // Adjust for year boundary
+      if (selectedMonth === 1) {
+        startOfLastMonth = new Date(selectedYear - 1, 11, 1);
+        endOfLastMonth = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
+      }
+    } else {
+      // Default: current month vs last month
+      startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    }
 
     // Get total revenue (all time)
     const earnings = await Earning.find({
@@ -223,6 +242,7 @@ export const getRevenueChart = async (req, res) => {
       }
       return {
         month: label,
+        monthNumber: e._id.month || null, // Thêm month number để frontend có thể filter
         year: e._id.year,
         revenue: e.revenue,
         courses: e.count
@@ -251,7 +271,7 @@ export const getRevenueChart = async (req, res) => {
 export const getRevenueByCourse = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { courseFilter } = req.query;
+    const { courseFilter, month, year } = req.query;
 
     let matchQuery = {
       instructor_id: instructorId,
@@ -260,6 +280,15 @@ export const getRevenueByCourse = async (req, res) => {
 
     if (courseFilter && courseFilter !== 'all') {
       matchQuery.course_id = courseFilter;
+    }
+
+    // Filter by specific month and year if provided
+    if (month && year) {
+      const selectedMonth = parseInt(month);
+      const selectedYear = parseInt(year);
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59);
+      matchQuery.createdAt = { $gte: startDate, $lte: endDate };
     }
 
     const earnings = await Earning.aggregate([
@@ -325,7 +354,7 @@ export const getRevenueByCourse = async (req, res) => {
 export const getCourseRatings = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { courseFilter } = req.query;
+    const { courseFilter, month, year } = req.query;
 
     let coursesQuery = {
       instructor_id: instructorId,
@@ -391,7 +420,7 @@ export const getCourseRatings = async (req, res) => {
 export const getRecentActivities = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { courseFilter } = req.query;
+    const { courseFilter, month, year } = req.query;
 
     let coursesQuery = { instructor_id: instructorId };
     if (courseFilter && courseFilter !== 'all') {
@@ -411,14 +440,24 @@ export const getRecentActivities = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
+    // Date filter query
+    let dateQuery = {};
+    if (month && year) {
+      const selectedMonth = parseInt(month);
+      const selectedYear = parseInt(year);
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59);
+      dateQuery = { createdAt: { $gte: startDate, $lte: endDate } };
+    }
+
     // Get recent enrollments
-    const enrollments = await Enrollment.find({ courseId: { $in: courseIds } })
+    const enrollments = await Enrollment.find({ courseId: { $in: courseIds }, ...dateQuery })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
     // Get recent ratings
-    const ratings = await Rating.find({ course_id: { $in: courseIds } })
+    const ratings = await Rating.find({ course_id: { $in: courseIds }, ...dateQuery })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -546,7 +585,7 @@ export const getAvailableYears = async (req, res) => {
 export const getTopCoursesByStudents = async (req, res) => {
   try {
     const instructorId = req.userId;
-    const { courseFilter } = req.query;
+    const { courseFilter, month, year } = req.query;
 
     let coursesQuery = {
       instructor_id: instructorId,
@@ -565,10 +604,20 @@ export const getTopCoursesByStudents = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
+    // Date filter query
+    let dateQuery = {};
+    if (month && year) {
+      const selectedMonth = parseInt(month);
+      const selectedYear = parseInt(year);
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59);
+      dateQuery = { createdAt: { $gte: startDate, $lte: endDate } };
+    }
+
     // Get enrollment counts for each course
     const enrollmentCounts = await Promise.all(
       courses.map(async (course) => {
-        const studentCount = await Enrollment.countDocuments({ courseId: course._id });
+        const studentCount = await Enrollment.countDocuments({ courseId: course._id, ...dateQuery });
         return {
           name: course.title,
           value: studentCount,

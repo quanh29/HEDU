@@ -25,6 +25,7 @@ const Dashboard = ({ stats, formatPrice }) => {
   const [instructorCourses, setInstructorCourses] = useState([]);
   const [topCoursesByStudents, setTopCoursesByStudents] = useState([]);
   const [availableYears, setAvailableYears] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState(null); // State để lưu period được chọn
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -37,14 +38,18 @@ const Dashboard = ({ stats, formatPrice }) => {
     if (hasLoadedRef.current) {
       fetchDashboardData();
     }
-  }, [timeFilter, selectedCourseFilter]);
+  }, [timeFilter, selectedCourseFilter, selectedPeriod]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       const token = await getToken();
 
-      const filterParam = selectedCourseFilter !== 'all' ? `?courseFilter=${selectedCourseFilter}` : '';
+      // Build filter params
+      let filterParam = selectedCourseFilter !== 'all' ? `?courseFilter=${selectedCourseFilter}` : '';
+      if (selectedPeriod) {
+        filterParam += (filterParam ? '&' : '?') + `month=${selectedPeriod.month}&year=${selectedPeriod.year}`;
+      }
 
       // Fetch all dashboard data in parallel
       const [statsRes, revenueByRes, ratingsRes, activitiesRes, coursesRes, topCoursesRes, yearsRes] = await Promise.all([
@@ -122,7 +127,10 @@ const Dashboard = ({ stats, formatPrice }) => {
   const fetchRevenueChart = async () => {
     try {
       const token = await getToken();
-      const filterParam = selectedCourseFilter !== 'all' ? `&courseFilter=${selectedCourseFilter}` : '';
+      let filterParam = selectedCourseFilter !== 'all' ? `&courseFilter=${selectedCourseFilter}` : '';
+      if (selectedPeriod) {
+        filterParam += `&month=${selectedPeriod.month}&year=${selectedPeriod.year}`;
+      }
       const res = await fetch(`${API_URL}/api/dashboard/instructor/revenue-chart?timeFilter=${timeFilter}${filterParam}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -134,6 +142,19 @@ const Dashboard = ({ stats, formatPrice }) => {
     } catch (error) {
       console.error('Error fetching revenue chart:', error);
     }
+  };
+
+  // Handler khi click vào điểm trên đồ thị
+  const handleChartPointClick = (dataPoint) => {
+    setSelectedPeriod({
+      month: dataPoint.monthNumber,
+      year: dataPoint.year
+    });
+  };
+
+  // Handler để clear selected period
+  const clearSelectedPeriod = () => {
+    setSelectedPeriod(null);
   };
 
   if (loading) {
@@ -260,6 +281,38 @@ const Dashboard = ({ stats, formatPrice }) => {
             ))}
           </select>
         </div>
+
+        {/* Selected Period Badge */}
+        {selectedPeriod && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            background: '#dbeafe',
+            borderRadius: '8px',
+            fontSize: '14px',
+            color: '#1e40af',
+            fontWeight: '500'
+          }}>
+            <span>Đã chọn: Tháng {selectedPeriod.month}/{selectedPeriod.year}</span>
+            <button
+              onClick={clearSelectedPeriod}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#1e40af',
+                cursor: 'pointer',
+                fontSize: '16px',
+                lineHeight: 1,
+                padding: '0 4px'
+              }}
+              title="Xóa lọc theo tháng"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -370,46 +423,73 @@ const Dashboard = ({ stats, formatPrice }) => {
                 const x = 90 + (i * spacing);
                 const y = 335 - (d.revenue / maxRevenue * chartHeight);
                 const revenueInMillion = (d.revenue / 1000000).toFixed(1);
+                const isSelected = selectedPeriod && 
+                  selectedPeriod.month === d.monthNumber && 
+                  selectedPeriod.year === d.year;
+                
                 return (
                   <g key={i}>
                     <circle
                       cx={x}
                       cy={y}
-                      r="6"
-                      fill="#3b82f6"
+                      r={isSelected ? "8" : "6"}
+                      fill={isSelected ? "#1e40af" : "#3b82f6"}
+                      style={{ transition: 'all 0.3s ease' }}
                     />
+                    {/* Selection ring */}
+                    {isSelected && (
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r="12"
+                        fill="none"
+                        stroke="#1e40af"
+                        strokeWidth="2"
+                        opacity="0.5"
+                      />
+                    )}
                     {/* Tooltip on hover */}
                     <g className="chart-label" style={{ opacity: 0, transition: 'opacity 0.2s' }}>
                       <rect
-                        x={x - 45}
-                        y={y - 55}
-                        width="90"
-                        height="45"
+                        x={x - 50}
+                        y={y - 65}
+                        width="100"
+                        height="55"
                         rx="6"
                         fill="#111827"
                         opacity="0.95"
                       />
                       <text
                         x={x}
-                        y={y - 37}
+                        y={y - 45}
                         textAnchor="middle"
                         fontSize="13"
                         fill="white"
                         fontWeight="600"
                       >
-                        {d.month}
+                        {d.month} {d.year}
                       </text>
                       <text
                         x={x}
-                        y={y - 22}
+                        y={y - 28}
                         textAnchor="middle"
                         fontSize="12"
                         fill="white"
                       >
                         {revenueInMillion}M VND
                       </text>
+                      <text
+                        x={x}
+                        y={y - 13}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fill="#60a5fa"
+                        fontStyle="italic"
+                      >
+                        Click để xem chi tiết
+                      </text>
                     </g>
-                    {/* Hover area */}
+                    {/* Hover and click area */}
                     <circle
                       cx={x}
                       cy={y}
@@ -424,6 +504,7 @@ const Dashboard = ({ stats, formatPrice }) => {
                         const label = e.currentTarget.previousSibling;
                         if (label) label.style.opacity = '0';
                       }}
+                      onClick={() => handleChartPointClick(d)}
                     />
                   </g>
                 );
