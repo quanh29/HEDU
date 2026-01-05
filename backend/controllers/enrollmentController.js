@@ -5,6 +5,7 @@ import { pushNotification } from '../services/notificationService.js';
 import { io } from '../server.js';
 import { pushNotificationToUser } from '../sockets/notificationSocket.js';
 import Section from '../models/Section.js';
+import Lesson from '../models/Lesson.js';
 import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
@@ -114,33 +115,51 @@ export const getUserEnrollments = async (req, res) => {
                     .sort({ order: 1 })
                     .lean();
 
-                // Lấy số lượng lessons trong mỗi section
+                // Lấy tất cả lesson IDs trong khóa học và số lượng lessons trong mỗi section
+                const allLessonIds = [];
                 const sectionsWithLessons = await Promise.all(
                     sections.map(async (section) => {
                         const sectionIdStr = section._id.toString();
                         
-                        const [videoCount, materialCount, quizCount] = await Promise.all([
-                            Video.countDocuments({ section: sectionIdStr }),
-                            Material.countDocuments({ section: sectionIdStr }),
-                            Quiz.countDocuments({ section: sectionIdStr })
-                        ]);
+                        // Lấy tất cả lessons trong section này
+                        const lessons = await Lesson.find({ section: sectionIdStr })
+                            .select('_id')
+                            .lean();
+                        
+                        // Thêm lesson IDs vào mảng tổng
+                        lessons.forEach(lesson => {
+                            allLessonIds.push(lesson._id.toString());
+                        });
 
                         return {
                             _id: section._id,
                             title: section.title,
                             order: section.order,
                             lessons: {
-                                count: videoCount + materialCount + quizCount
+                                count: lessons.length
                             }
                         };
                     })
                 );
 
+                // Chỉ đếm những completed lessons thực sự tồn tại trong khóa học
+                const validCompletedLessons = enrollment.completedLessons.filter(
+                    lessonId => allLessonIds.includes(lessonId)
+                );
+
+                // Tính tiến độ
+                const totalLessons = allLessonIds.length;
+                const progress = totalLessons > 0 
+                    ? Math.round((validCompletedLessons.length / totalLessons) * 100)
+                    : 0;
+
                 return {
                     enrollmentId: enrollment._id,
                     userId: enrollment.userId,
                     courseId: enrollment.courseId,
-                    completedLessons: enrollment.completedLessons,
+                    completedLessons: validCompletedLessons, // Chỉ trả về lessons thực sự tồn tại
+                    totalLessons: totalLessons,
+                    progress: progress, // Tiến độ tính dựa trên valid lessons
                     enrolledAt: enrollment.createdAt,
                     course: {
                         course_id: course._id,

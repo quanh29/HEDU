@@ -960,6 +960,38 @@ export const approveDraft = async (req, res) => {
 
         console.log(`✅ [Approve Draft] Draft ${courseId} fully approved and published`);
 
+        // STEP 7: Reorder sections and lessons
+        console.log(`🔢 [Reorder] Re-numbering sections and lessons for course ${courseId}`);
+        
+        try {
+            // Get all published sections for this course, sorted by order
+            const allSections = await Section.find({ course_id: courseId }).sort({ order: 1 });
+            
+            // Renumber sections starting from 1
+            for (let i = 0; i < allSections.length; i++) {
+                const section = allSections[i];
+                section.order = i + 1;
+                await section.save();
+                console.log(`   ✅ Section "${section.title}" reordered to position ${i + 1}`);
+                
+                // Get all lessons for this section, sorted by order
+                const allLessons = await Lesson.find({ section: section._id.toString() }).sort({ order: 1 });
+                
+                // Renumber lessons starting from 1
+                for (let j = 0; j < allLessons.length; j++) {
+                    const lesson = allLessons[j];
+                    lesson.order = j + 1;
+                    await lesson.save();
+                }
+                console.log(`      ✅ Reordered ${allLessons.length} lessons in section "${section.title}"`);
+            }
+            
+            console.log(`✅ [Reorder] Completed renumbering ${allSections.length} sections and their lessons`);
+        } catch (reorderError) {
+            console.error(`⚠️ [Reorder] Error renumbering sections and lessons:`, reorderError.message);
+            // Don't fail the approval if reordering fails, just log it
+        }
+
         // Delete all draft content after successful approval
         console.log(`🗑️ [Cleanup] Deleting draft content for course ${courseId}`);
         

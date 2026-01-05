@@ -97,9 +97,20 @@ function CourseContent() {
 
 	// Calculate progress percentage
 	const calculateProgress = () => {
-		const totalLessons = sections.reduce((sum, section) => sum + section.lessons.length, 0);
+		// Lấy tất cả lesson IDs có trong khóa học
+		const allLessonIds = sections.flatMap(section => 
+			section.lessons.map(lesson => lesson.lessonId)
+		);
+		
+		const totalLessons = allLessonIds.length;
 		if (totalLessons === 0) return 0;
-		return Math.round((completedLessons.length / totalLessons) * 100);
+		
+		// Chỉ đếm những completed lessons thực sự tồn tại trong khóa học
+		const validCompletedCount = completedLessons.filter(
+			lessonId => allLessonIds.includes(lessonId)
+		).length;
+		
+		return Math.round((validCompletedCount / totalLessons) * 100);
 	};
 
 	// Fetch dữ liệu khóa học
