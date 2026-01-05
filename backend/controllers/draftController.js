@@ -265,16 +265,120 @@ export const getDraftStatus = async (req, res) => {
 export const getPendingDrafts = async (req, res) => {
     try {
         const drafts = await CourseDraft.find({ status: 'pending' })
-            .sort({ submittedAt: -1 });
+            .sort({ submittedAt: -1 })
+            .lean();
 
+        // For each draft, populate sections with their lessons
+        const SectionDraft = (await import('../models/SectionDraft.js')).default;
+        const LessonDraft = (await import('../models/LessonDraft.js')).default;
+        const VideoDraft = (await import('../models/VideoDraft.js')).default;
+        const MaterialDraft = (await import('../models/MaterialDraft.js')).default;
+        const QuizDraft = (await import('../models/QuizDraft.js')).default;
+
+        const enrichedDrafts = await Promise.all(drafts.map(async (draft) => {
+            // Get sections for this draft
+            const sections = await SectionDraft.find({ courseDraftId: draft._id })
+                .sort({ order: 1 })
+                .lean();
+
+            console.log(`📦 [Draft ${draft._id}] Found ${sections.length} sections`);
+
+            // For each section, get lessons
+            const sectionsWithLessons = await Promise.all(sections.map(async (section) => {
+                // Fix: Use correct field name 'draftSectionId' 
+                const lessons = await LessonDraft.find({ draftSectionId: section._id })
+                    .sort({ order: 1 })
+                    .lean();
+
+                console.log(`  📝 Section ${section._id}: Found ${lessons.length} lessons`);
+
+                // For each lesson, populate content based on type
+                const lessonsWithContent = await Promise.all(lessons.map(async (lesson) => {
+                    let contentData = { ...lesson };
+
+                    if (lesson.contentType === 'video' && lesson.draftVideoId) {
+                        const video = await VideoDraft.findById(lesson.draftVideoId).lean();
+                        if (video) {
+                            contentData = {
+                                ...contentData,
+                                videoId: video._id,
+                                assetId: video.assetId,
+                                playbackId: video.playbackId,
+                                duration: video.duration,
+                                status: video.status
+                            };
+                            console.log(`    🎥 Loaded video for lesson ${lesson.title}: ${video._id}`);
+                        } else {
+                            console.log(`    ⚠️ Video not found for lesson ${lesson.title}: ${lesson.draftVideoId}`);
+                        }
+                    } else if (lesson.contentType === 'material' && lesson.draftMaterialId) {
+                        const material = await MaterialDraft.findById(lesson.draftMaterialId).lean();
+                        if (material) {
+                            contentData = {
+                                ...contentData,
+                                materialId: material._id,
+                                draftMaterialId: material._id,
+                                fileName: material.originalFilename || material.title || 'material',
+                                contentUrl: material.contentUrl,
+                                fileSize: material.fileSize,
+                                mimeType: material.mimeType || 'application/octet-stream',
+                                extension: material.extension
+                            };
+                            console.log(`    📄 Loaded material for lesson ${lesson.title}:`, {
+                                fileName: material.originalFilename,
+                                contentUrl: material.contentUrl,
+                                fileSize: material.fileSize
+                            });
+                        } else {
+                            console.log(`    ⚠️ Material not found for lesson ${lesson.title}: ${lesson.draftMaterialId}`);
+                        }
+                    } else if (lesson.contentType === 'quiz' && lesson.draftQuizId) {
+                        const quiz = await QuizDraft.findById(lesson.draftQuizId).lean();
+                        if (quiz) {
+                            contentData = {
+                                ...contentData,
+                                quizId: quiz._id,
+                                questions: quiz.questions || [],
+                                passingScore: quiz.passingScore
+                            };
+                            console.log(`    ❓ Loaded quiz for lesson ${lesson.title}: ${quiz.questions?.length || 0} questions`);
+                        } else {
+                            console.log(`    ⚠️ Quiz not found for lesson ${lesson.title}: ${lesson.draftQuizId}`);
+                        }
+                    }
+
+                    return contentData;
+                }));
+
+                return {
+                    ...section,
+                    lessons: lessonsWithContent
+                };
+            }));
+
+            // Get all lessons across sections (fix field name)
+            const allLessons = await LessonDraft.find({ courseDraftId: draft._id }).lean();
+            
+            return {
+                ...draft,
+                draftSections: sectionsWithLessons,
+                draftLessons: allLessons,
+                draftVideos: await VideoDraft.find({ courseDraftId: draft._id }).lean(),
+                draftMaterials: await MaterialDraft.find({ courseDraftId: draft._id }).lean(),
+                draftQuizzes: await QuizDraft.find({ courseDraftId: draft._id }).lean()
+            };
+        }));
+
+        console.log(`✅ [Get Pending Drafts] Found ${enrichedDrafts.length} pending drafts with full content`);
+        
         res.status(200).json({
             success: true,
-            count: drafts.length,
-            data: drafts
+            count: enrichedDrafts.length,
+            data: enrichedDrafts
         });
 
     } catch (error) {
-        console.error('Error getting pending drafts:', error);
+        console.error('❌ Error getting pending drafts:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to get pending drafts',

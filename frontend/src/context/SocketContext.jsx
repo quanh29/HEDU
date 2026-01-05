@@ -248,4 +248,41 @@ export const useVideoSocket = (onStatusUpdate, onError) => {
     };
 };
 
+/**
+ * useNotificationSocket - Hook for notification updates
+ * Listens for real-time notification events
+ * 
+ * @param {Function} onNotification - Callback when new notification arrives
+ * @returns {Object} - { isConnected, error }
+ */
+export const useNotificationSocket = (onNotification) => {
+    const { socket, isConnected, connectionError } = useSocket();
+
+    useEffect(() => {
+        if (!socket || !isConnected) {
+            return;
+        }
+
+        // Listen for new notifications
+        const handleNewNotification = (notification) => {
+            console.log('🔔 New notification received:', notification);
+            if (onNotification) {
+                onNotification(notification);
+            }
+        };
+
+        socket.on('newNotification', handleNewNotification);
+
+        // Cleanup listener on unmount
+        return () => {
+            socket.off('newNotification', handleNewNotification);
+        };
+    }, [socket, isConnected, onNotification]);
+
+    return {
+        isConnected,
+        error: connectionError,
+    };
+};
+
 export default SocketContext;

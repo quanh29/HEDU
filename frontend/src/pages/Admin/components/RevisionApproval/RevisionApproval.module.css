@@ -479,3 +479,616 @@
   color: #6b7280;
   font-style: italic;
 }
+/* Course Content Styles */
+.courseContent {
+  margin-top: 24px;
+}
+
+.contentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.contentHeader h5 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 8px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn:hover {
+  color: #374151;
+}
+
+.toggleBtn.active {
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.contentStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.contentStats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.contentStats svg {
+  color: #6b7280;
+}
+
+/* Section Styles */
+.sectionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionItem {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.sectionItem.new {
+  border-left: 4px solid #10b981;
+  background: #f0fdf4;
+}
+
+.sectionItem.modified {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.sectionItem.deleted {
+  border-left: 4px solid #ef4444;
+  background: #fef2f2;
+  opacity: 0.7;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sectionHeader:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sectionInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.sectionInfo h6 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.lessonCount {
+  font-size: 13px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* Lesson Styles */
+.lessonsList {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lessonItem {
+  padding: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.lessonItem:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.lessonItem.new {
+  border-left: 3px solid #10b981;
+  background: #f0fdf4;
+}
+
+.lessonItem.modified {
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.lessonItem.deleted {
+  border-left: 3px solid #ef4444;
+  background: #fef2f2;
+  opacity: 0.6;
+}
+
+.lessonInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lessonIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.lessonDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lessonTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.originalValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+  font-style: italic;
+  padding: 2px 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.originalValue svg {
+  flex-shrink: 0;
+}
+
+.lessonType {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.viewLessonBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.viewLessonBtn:hover {
+  background: #2563eb;
+}
+
+.lessonMeta {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.lessonMeta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lessonDescription {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Change Badge Styles */
+.changeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.changeBadge.new {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.changeBadge.modified {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.changeBadge.deleted {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Lesson Modal Styles */
+.lessonModalContent {
+  max-width: 1000px;
+}
+
+.videoPreview,
+.materialPreview,
+.quizPreview {
+  margin-top: 16px;
+}
+
+.muxPlayerWrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.noContent {
+  padding: 40px;
+  text-align: center;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+}
+
+.contentDescription {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.contentDescription h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.contentDescription p {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.contentInfo {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.contentInfo p {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.contentInfo p:last-child {
+  margin-bottom: 0;
+}
+
+/* Material Styles */
+.materialInfo {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.materialInfo p {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.materialInfo p:last-child {
+  margin-bottom: 0;
+}
+
+.materialViewer {
+  margin-top: 16px;
+}
+
+.downloadPrompt {
+  padding: 32px;
+  text-align: center;
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.downloadBtn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Quiz Styles */
+.quizDescription {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.quizDescription h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.questionsList {
+  margin-top: 16px;
+}
+
+.questionsList h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.questionItem {
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.questionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.questionNumber {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #dbeafe;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.questionType {
+  font-size: 12px;
+  color: #6b7280;
+  background: white;
+  padding: 4px 10px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.questionText {
+  font-size: 14px;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.optionItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.optionItem:hover {
+  border-color: #3b82f6;
+}
+
+.optionItem.correctAnswer {
+  background: #f0fdf4;
+  border-color: #10b981;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.correctAnswer .optionLabel {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.optionText {
+  flex: 1;
+  font-size: 14px;
+  color: #374151;
+}
+
+.correctBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065f46;
+}
+
+.explanation {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+}
+
+.explanation strong {
+  font-size: 13px;
+  color: #92400e;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.explanation p {
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.videoStatus {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.videoStatus.ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.videoStatus.processing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.videoStatus.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .viewToggle {
+    width: 100%;
+  }
+
+  .toggleBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .contentStats {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .lessonInfo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .viewLessonBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .changesSummary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

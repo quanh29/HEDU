@@ -8,8 +8,8 @@ import {
   markAllNotificationsAsRead,
   getUnreadNotificationCount 
 } from '../../services/notificationService';
+import { useNotificationSocket } from '../../context/SocketContext';
 import styles from './NotificationIcon.module.css';
-import { io } from 'socket.io-client';
 
 const NotificationIcon = () => {
   const navigate = useNavigate();
@@ -23,7 +23,13 @@ const NotificationIcon = () => {
   const [hasMore, setHasMore] = useState(true);
   const notificationMenuRef = useRef(null);
   const scrollRef = useRef(null);
-  const socketRef = useRef(null);
+
+  // Use notification socket hook for real-time updates
+  useNotificationSocket((notification) => {
+    console.log('🔔 [NotificationIcon] Received new notification:', notification);
+    setNotifications(prev => [notification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  });
 
   // Close notification menu when clicking outside
   useEffect(() => {
@@ -41,68 +47,6 @@ const NotificationIcon = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showNotifications]);
-
-  // Setup socket connection
-  useEffect(() => {
-    if (!isSignedIn || !user) return;
-
-    const setupSocket = async () => {
-      try {
-        const token = await getToken();
-        
-        if (!token) {
-          console.error('❌ [Notification Socket] No token available');
-          return;
-        }
-        
-        console.log('🔌 [Notification Socket] Connecting to:', import.meta.env.VITE_BASE_URL);
-        
-        const socket = io(import.meta.env.VITE_BASE_URL, {
-          auth: { token },
-          transports: ['websocket', 'polling']
-        });
-
-        socket.on('connect', () => {
-          console.log('✅ [Notification Socket] Connected with socket id:', socket.id);
-        });
-
-        socket.on('notificationReady', (data) => {
-          console.log('✅ [Notification Socket] System ready:', data);
-        });
-
-        socket.on('newNotification', (notification) => {
-          console.log('📬 [Notification Socket] New notification:', notification);
-          setNotifications(prev => [notification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        });
-
-        socket.on('connect_error', (error) => {
-          console.error('❌ [Notification Socket] Connection error:', error.message);
-        });
-
-        socket.on('error', (error) => {
-          console.error('❌ [Notification Socket] Error:', error);
-        });
-        
-        socket.on('disconnect', (reason) => {
-          console.log('🔌 [Notification Socket] Disconnected:', reason);
-        });
-
-        socketRef.current = socket;
-      } catch (error) {
-        console.error('❌ [Notification Socket] Setup error:', error);
-      }
-    };
-
-    setupSocket();
-
-    return () => {
-      if (socketRef.current) {
-        console.log('🔌 [Notification Socket] Cleaning up connection');
-        socketRef.current.disconnect();
-      }
-    };
-  }, [isSignedIn, user]);
 
   // Fetch notifications
   const fetchNotifications = async (pageNum = 1, append = false) => {

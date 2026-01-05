@@ -216,6 +216,37 @@ export const getVideoPlayback = async (req, res) => {
 };
 
 /**
+ * GET /api/videos/playback-draft/:videoId
+ * Return signed video playback URL and token for draft videos (admin only)
+ */
+export const getDraftVideoPlayback = async (req, res) => {
+    const { videoId } = req.params;
+
+    try {
+        const data = await videoPlaybackService.getPlaybackForDraftVideo(videoId);
+        if (!data) {
+            return res.status(404).json({ success: false, message: 'Draft video not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                videoId: data.video._id,
+                title: data.video.title,
+                description: data.video.description,
+                playbackId: data.playbackId,
+                playbackUrl: data.playbackUrl,
+                token: data.token,
+                expiresIn: data.expiresIn
+            }
+        });
+    } catch (error) {
+        logger.error('Error getting draft video playback: ' + (error.message || error));
+        res.status(500).json({ success: false, message: 'Error generating draft video playback URL', error: error.message });
+    }
+};
+
+/**
  * GET /api/videos/thumbnail/:videoId
  * Return signed thumbnail URL and token (protected)
  */
