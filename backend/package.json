@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "server": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "cronjob:earnings": "node scripts/clearPendingEarnings.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "socket.io": "^4.8.1",
     "svix": "^1.82.0"
   },
