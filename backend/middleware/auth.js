@@ -2,10 +2,34 @@ import { clerkClient, getAuth } from '@clerk/express';
 import Enrollment from '../models/Enrollment.js';
 import logger from '../utils/logger.js';
 import Course from '../models/Course.js';
+import User from '../models/User.js';
+
+/**
+ * Helper function to check if user is active in MongoDB
+ */
+const checkUserActive = async (userId) => {
+    const user = await User.findById(userId);
+    
+    if (!user) {
+        // User doesn't exist in MongoDB yet, allow (will be created on first interaction)
+        return true;
+    }
+    
+    return user.is_active !== false; // Default to true if undefined
+};
 
 export const protectAdmin = async (req, res, next) => {
     try {
         const { userId } = req.auth();
+
+        // Check if user is active
+        const isActive = await checkUserActive(userId);
+        if (!isActive) {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.' 
+            });
+        }
 
         const user = await clerkClient.users.getUser(userId);
 
@@ -27,6 +51,15 @@ export const protectEnrolledUser = async (req, res, next) => {
         
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Unauthorized - Please login' });
+        }
+
+        // Check if user is active
+        const isActive = await checkUserActive(userId);
+        if (!isActive) {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.' 
+            });
         }
 
         // Get courseId from params, query, or body
@@ -67,6 +100,15 @@ export const protectCourseOwner = async (req, res, next) => {
         
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Unauthorized - Please login' });
+        }
+
+        // Check if user is active
+        const isActive = await checkUserActive(userId);
+        if (!isActive) {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.' 
+            });
         }
 
         // Get courseId from params or body (for upload requests)
@@ -118,6 +160,15 @@ export const protectUserAction = async (req, res, next) => {
             return res.status(401).json({ 
                 success: false, 
                 message: 'Unauthorized - Please login to perform this action' 
+            });
+        }
+
+        // Check if user is active
+        const isActive = await checkUserActive(userId);
+        if (!isActive) {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.' 
             });
         }
 

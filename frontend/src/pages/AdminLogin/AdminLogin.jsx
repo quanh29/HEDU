@@ -34,7 +34,7 @@ const AdminLogin = () => {
           
           // Verify if current user is admin
           const response = await axios.get(
-            `${import.meta.env.VITE_BASE_URL}/api/admin/verify`,
+            `${import.meta.env.VITE_BASE_URL}/api/admin/is-admin`,
             {
               headers: {
                 Authorization: `Bearer ${token}`
@@ -88,7 +88,7 @@ const AdminLogin = () => {
         // Verify admin role via backend BEFORE completing login
         try {
           const verifyResponse = await axios.get(
-            `${import.meta.env.VITE_BASE_URL}/api/admin/verify`,
+            `${import.meta.env.VITE_BASE_URL}/api/admin/is-admin`,
             {
               headers: {
                 Authorization: `Bearer ${token}`
@@ -96,7 +96,7 @@ const AdminLogin = () => {
             }
           );
 
-          if (verifyResponse.data.success) {
+          if (verifyResponse.data.success && verifyResponse.data.isAdmin) {
             // User is admin, allow login and redirect to dashboard
             navigate('/admin/dashboard');
           } else {
@@ -110,8 +110,10 @@ const AdminLogin = () => {
           // Not an admin or verification failed, sign out immediately
           await signOut({ redirectUrl: null });
           
-          if (verifyError.response?.status === 401) {
+          if (verifyError.response?.status === 403) {
             setError('Bạn không có quyền truy cập trang quản trị. Chỉ tài khoản admin mới có thể đăng nhập.');
+          } else if (verifyError.response?.status === 401) {
+            setError('Phiên đăng nhập không hợp lệ. Vui lòng thử lại.');
           } else {
             setError('Không thể xác thực quyền admin. Vui lòng thử lại.');
           }
@@ -174,7 +176,7 @@ const AdminLogin = () => {
               <Lock size={20} className={styles.lockIcon} />
             </div>
             <h1 className={styles.title}>Admin Portal</h1>
-            <p className={styles.subtitle}>Hệ thống quản trị EduCommerce</p>
+            <p className={styles.subtitle}>Hệ thống quản trị HEDU</p>
           </div>
         </div>
 

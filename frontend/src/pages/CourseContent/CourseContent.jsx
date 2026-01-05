@@ -323,7 +323,7 @@ function CourseContent() {
 					<p style={{ marginBottom: '1.5rem' }}>{error}</p>
 					{error.includes('đăng nhập') && (
 						<button 
-							onClick={() => navigate('/sign-in')}
+							onClick={() => navigate('/auth/sign-in')}
 							style={{
 								padding: '0.75rem 1.5rem',
 								background: '#333',

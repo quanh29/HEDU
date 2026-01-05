@@ -16,6 +16,53 @@ import { clerkClient } from '@clerk/express';
  */
 
 /**
+ * Kiểm tra user có phải admin không
+ */
+export const isAdmin = async (req, res) => {
+    try {
+        const { userId } = req.auth();
+        
+        if (!userId) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Unauthorized' 
+            });
+        }
+
+        // Get user from Clerk to check metadata
+        const user = await clerkClient.users.getUser(userId);
+        
+        // Check if user has admin role in privateMetadata
+        const isAdminUser = user.privateMetadata?.role === 'admin';
+        
+        if (!isAdminUser) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin role required',
+                isAdmin: false
+            });
+        }
+        
+        logger.info(`✅ [isAdmin] Admin check successful for userId: ${userId}`);
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'User is admin',
+            isAdmin: true,
+            userId: userId
+        });
+
+    } catch (error) {
+        logger.error('Error checking admin status:', error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server error',
+            isAdmin: false
+        });
+    }
+};
+
+/**
  * Lấy tất cả courses cho admin (bao gồm tất cả status)
  */
 export const getAllCoursesForAdmin = async (req, res) => {

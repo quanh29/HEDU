@@ -1,4 +1,5 @@
 import { verifyToken } from '@clerk/express';
+import User from '../models/User.js';
 
 /**
  * Socket.IO authentication middleware
@@ -26,6 +27,14 @@ export const socketAuth = async (socket, next) => {
             if (!payload || !payload.sub) {
                 const error = new Error('Authentication error: Invalid token');
                 error.data = { code: 'INVALID_TOKEN' };
+                return next(error);
+            }
+
+            // Check if user is active in MongoDB
+            const user = await User.findById(payload.sub);
+            if (user && user.is_active === false) {
+                const error = new Error('Authentication error: Account deactivated');
+                error.data = { code: 'ACCOUNT_DEACTIVATED' };
                 return next(error);
             }
 

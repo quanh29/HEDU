@@ -82,7 +82,7 @@ const Admin = () => {
         
         // Call backend to verify admin role
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}/api/admin/verify`,
+          `${import.meta.env.VITE_BASE_URL}/api/admin/is-admin`,
           {
             headers: {
               Authorization: `Bearer ${token}`

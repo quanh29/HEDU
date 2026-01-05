@@ -11,7 +11,8 @@ import {
     getRevisionDetail,
     getAllUsers,
     toggleUserStatus,
-    createAdminUser
+    createAdminUser,
+    isAdmin
 } from '../controllers/adminController.js';
 import { 
     approveRevision, 
@@ -43,18 +44,14 @@ import { protectAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
 
+
+// GET /api/admin/is-admin
+adminRouter.get('/is-admin', protectAdmin, isAdmin);
+
 /**
  * Admin Routes - Quản lý courses
  * Tất cả routes này cần authentication và admin role
  */
-
-// GET /api/admin/verify - Verify admin access
-adminRouter.get('/verify', protectAdmin, (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: 'Admin access verified'
-    });
-});
 
 // GET /api/admin/courses - Lấy tất cả courses với filters
 adminRouter.get('/courses', protectAdmin, getAllCoursesForAdmin);
