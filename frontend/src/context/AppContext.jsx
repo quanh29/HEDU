@@ -18,7 +18,7 @@ export const AppProvider = ({ children }) => {
   // Use ref instead of state to prevent multiple toasts
   const deactivationHandledRef = useRef(false);
 
-  const { user } = useUser();
+  const { user, isLoaded: isUserLoaded } = useUser();
   const { getToken, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const location  = useLocation();
@@ -99,6 +99,12 @@ export const AppProvider = ({ children }) => {
 
   // Fetch user authentication status and profile
   const fetchUserAuthenticationStatus = async () => {
+    // Wait for Clerk to load before proceeding
+    if (!isUserLoaded) {
+      setLoading(true);
+      return;
+    }
+
     if (!user || !isSignedIn) {
       setIsUserAuthenticated(false);
       setIsAdmin(false);
@@ -211,19 +217,13 @@ export const AppProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchUserAuthenticationStatus();
-    } else {
-      setIsUserAuthenticated(false);
-      setIsAdmin(false);
-      setUserProfile(null);
-      setLoading(false);
-    }
-  }, [user, isSignedIn]);
+    fetchUserAuthenticationStatus();
+  }, [user, isSignedIn, isUserLoaded]);
 
   // Auto-redirect for protected routes
   useEffect(() => {
-    if (loading) return;
+    // Wait for Clerk to load and our loading state to finish
+    if (!isUserLoaded || loading) return;
 
     const path = location.pathname;
 

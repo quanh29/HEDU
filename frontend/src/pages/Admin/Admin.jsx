@@ -214,7 +214,7 @@ const Admin = () => {
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''}`}>
         <div className={styles.sidebarLogo}>
-          <div className={styles.logoText}>EduCommerce</div>
+          <div className={styles.logoText}>HEDU</div>
           <div className={styles.logoSubtitle}>Admin Dashboard</div>
         </div>
         
