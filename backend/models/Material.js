@@ -15,7 +15,7 @@ const materialSchema = new mongoose.Schema({
         type: String,
         required: false, // Sẽ set khi link với lesson
     },
-    contentUrl: { // Lưu public ID của Cloudinary
+    contentUrl: { // Lưu public ID của Cloudinary. Ví dụ: course-materials/file_yiu5tt.pdf
         type: String,
         required: true,
     },

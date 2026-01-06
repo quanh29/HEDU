@@ -37,6 +37,7 @@ import dashboardRouter from './routes/dashboardRoute.js';
 import messageRouter from './routes/messageRoute.js';
 import wishlistRouter from './routes/wishlistRoute.js';
 import notificationRouter from './routes/notificationRoute.js';
+import certificateRouter from './routes/certificateRoute.js';
 
 const app = express();
 const server = createServer(app);
@@ -123,6 +124,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/message", messageRouter);
 app.use("/api/wishlist", wishlistRouter);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/certificates", certificateRouter);
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

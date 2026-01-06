@@ -1,0 +1,387 @@
+/* CertificateView.module.css */
+
+.container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.certificateWrapper {
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Loading State */
+.loadingContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: #374151;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    color: #3b82f6;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.errorContainer {
+    background: white;
+    border-radius: 1rem;
+    padding: 3rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.errorIcon {
+    color: #ef4444;
+    margin-bottom: 1rem;
+}
+
+.errorContainer h2 {
+    font-size: 1.5rem;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.errorContainer p {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+
+.homeButton {
+    padding: 0.75rem 1.5rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.homeButton:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+}
+
+/* Header Actions */
+.headerActions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.5rem;
+}
+
+.printButton {
+    padding: 0.75rem 1.5rem;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.printButton:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+/* Certificate Card */
+.certificateCard {
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    position: relative;
+}
+
+/* Decorative Border */
+.decorativeBorder {
+    border: 4px solid #3b82f6;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    position: relative;
+}
+
+.decorativeBorder::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border: 2px solid #93c5fd;
+    border-radius: 0.75rem;
+    pointer-events: none;
+}
+
+.innerBorder {
+    border: 2px solid #dbeafe;
+    border-radius: 0.5rem;
+    padding: 2.5rem 2rem;
+    text-align: center;
+}
+
+/* Award Icon */
+.awardIcon {
+    color: #3b82f6;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+/* Certificate Title */
+.certificateTitle {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+}
+
+.divider {
+    width: 120px;
+    height: 3px;
+    background: #3b82f6;
+    margin: 0 auto 2rem;
+}
+
+/* Student Section */
+.studentSection {
+    margin-bottom: 2rem;
+}
+
+.certifiedText {
+    font-size: 1.125rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+    font-style: italic;
+}
+
+.studentName {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Course Section */
+.courseSection {
+    margin-bottom: 2rem;
+}
+
+.completionText {
+    font-size: 1rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.courseName {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #3b82f6;
+    margin: 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.courseName:hover {
+    color: #2563eb;
+    transform: scale(1.02);
+}
+
+/* Thumbnail */
+.thumbnailContainer {
+    margin: 2rem 0;
+    display: flex;
+    justify-content: center;
+}
+
+.courseThumbnail {
+    max-width: 400px;
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Details Section */
+.detailsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 2rem auto;
+    max-width: 500px;
+}
+
+.detailItem {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border-radius: 0.5rem;
+    text-align: left;
+}
+
+.detailItem svg {
+    color: #3b82f6;
+    flex-shrink: 0;
+}
+
+.detailItem div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detailLabel {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.detailValue {
+    font-size: 1rem;
+    color: #111827;
+    font-weight: 600;
+}
+
+/* Signature Section */
+.signatureSection {
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
+}
+
+.signature {
+    text-align: center;
+}
+
+.instructorImage {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 0.5rem;
+    border: 3px solid #3b82f6;
+}
+
+.signatureLine {
+    width: 200px;
+    height: 2px;
+    background: #111827;
+    margin: 0 auto 0.5rem;
+}
+
+.signatureName {
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.signatureTitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Footer Info */
+.footerInfo {
+    margin-top: 2rem;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.verifyText {
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+}
+
+.verifyLink {
+    color: #3b82f6;
+    word-break: break-all;
+    font-weight: 500;
+}
+
+/* Print Styles */
+@media print {
+    .container {
+        background: white;
+        padding: 0;
+    }
+
+    .headerActions {
+        display: none;
+    }
+
+    .certificateCard {
+        box-shadow: none;
+        page-break-inside: avoid;
+    }
+
+    .footerInfo {
+        display: none;
+    }
+
+    .courseName {
+        color: #3b82f6;
+        cursor: default;
+    }
+
+    .courseName:hover {
+        transform: none;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem 0.5rem;
+    }
+
+    .certificateCard {
+        padding: 1rem;
+    }
+
+    .innerBorder {
+        padding: 1.5rem 1rem;
+    }
+
+    .certificateTitle {
+        font-size: 1.5rem;
+    }
+
+    .studentName {
+        font-size: 1.75rem;
+    }
+
+    .courseName {
+        font-size: 1.25rem;
+    }
+
+    .courseThumbnail {
+        max-width: 100%;
+    }
+
+    .detailsSection {
+        max-width: 100%;
+    }
+}

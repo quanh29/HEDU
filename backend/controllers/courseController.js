@@ -392,6 +392,10 @@ export const toggleCourseVisibility = async (req, res) => {
 
         const currentStatus = course.course_status;
         let newStatus;
+        
+        if (course.course_status === 'rejected' || course.course_status === 'draft' || course.course_status === 'pending') {
+            return res.status(400).json({ message: 'Cannot change visibility of course' });
+        }
 
         if (hide) {
             // Hide: Set to inactive

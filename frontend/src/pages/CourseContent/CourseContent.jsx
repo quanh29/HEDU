@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download, Star } from 'lucide-react';
+import { FileText, Video, CheckSquare, ChevronDown, ChevronRight, Download, Star, Award } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import styles from './CourseContent.module.css';
@@ -7,6 +7,7 @@ import axios from 'axios';
 import { getAuthConfigFromHook } from '../../utils/clerkAuth';
 import RatingSection from '../../components/RatingSection/RatingSection';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 function CourseContent() {
 	const { courseId } = useParams();
@@ -25,6 +26,8 @@ function CourseContent() {
 	const [completedLessons, setCompletedLessons] = useState([]);
 	const [updatingProgress, setUpdatingProgress] = useState(false);
 	const [showRatingModal, setShowRatingModal] = useState(false);
+	const [certificateData, setCertificateData] = useState(null);
+	const [creatingCertificate, setCreatingCertificate] = useState(false);
 
 	// Helper function để format duration từ giây thành MM:SS
 	const formatDuration = (seconds) => {
@@ -52,6 +55,55 @@ function CourseContent() {
 			}
 		} catch (error) {
 			console.error('Error fetching enrollment progress:', error);
+		}
+	};
+
+	// Check if user has certificate
+	const checkCertificate = async () => {
+		try {
+			const authConfig = await getAuthConfigFromHook(getToken);
+			const response = await axios.get(
+				`${import.meta.env.VITE_BASE_URL}/api/certificates/check/${courseId}`,
+				authConfig
+			);
+			
+			if (response.data.success && response.data.hasCertificate) {
+				setCertificateData(response.data.certificate);
+			}
+		} catch (error) {
+			console.error('Error checking certificate:', error);
+		}
+	};
+
+	// Create certificate
+	const handleCreateCertificate = async () => {
+		try {
+			setCreatingCertificate(true);
+			const authConfig = await getAuthConfigFromHook(getToken);
+			
+			const response = await axios.post(
+				`${import.meta.env.VITE_BASE_URL}/api/certificates/create`,
+				{ courseId },
+				authConfig
+			);
+			
+			if (response.data.success) {
+				toast.success('Chứng chỉ đã được tạo thành công!');
+				setCertificateData(response.data.certificate);
+			}
+		} catch (error) {
+			console.error('Error creating certificate:', error);
+			const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi tạo chứng chỉ';
+			toast.error(errorMessage);
+		} finally {
+			setCreatingCertificate(false);
+		}
+	};
+
+	// View certificate in new tab
+	const handleViewCertificate = () => {
+		if (certificateData && certificateData.certificateId) {
+			window.open(`/certificate/${certificateData.certificateId}`, '_blank');
 		}
 	};
 
@@ -113,6 +165,17 @@ function CourseContent() {
 		return Math.round((validCompletedCount / totalLessons) * 100);
 	};
 
+	// Helper function to get valid completed lessons count
+	const getValidCompletedCount = () => {
+		const allLessonIds = sections.flatMap(section => 
+			section.lessons.map(lesson => lesson.lessonId)
+		);
+		
+		return completedLessons.filter(
+			lessonId => allLessonIds.includes(lessonId)
+		).length;
+	};
+
 	// Fetch dữ liệu khóa học
 	useEffect(() => {
 		const fetchCourseContent = async () => {
@@ -146,11 +209,17 @@ function CourseContent() {
 				}
 
 				const data = response.data;
+				console.log('📚 Course data:', data.course);
+				console.log('🎓 Has certificate:', data.course?.hasCertificate);
+				console.log('📋 Full response:', data);
 				setCourse(data.course);
 				setSections(data.sections);
 				
 				// Fetch enrollment để lấy completed lessons
 				await fetchEnrollmentProgress();
+				
+				// Check certificate status
+				await checkCertificate();
 				
 				// Mở rộng tất cả section mặc định
 				const initial = {};
@@ -399,14 +468,51 @@ function CourseContent() {
 				Nội dung khóa học: {course.title || 'Tên khóa học'}
 			</h1>
 			
-			{/* Rating Button */}
-			<button 
-				className={styles.ratingButton}
-				onClick={() => setShowRatingModal(true)}
-			>
-				<Star size={20} />
-				Đánh giá khóa học
-			</button>
+			{/* Action buttons */}
+			<div className={styles.actionButtons}>
+				{/* Rating Button */}
+				<button 
+					className={styles.ratingButton}
+					onClick={() => setShowRatingModal(true)}
+				>
+					<Star size={20} />
+					Đánh giá khóa học
+				</button>
+
+				{/* Certificate Button - Only show if course has certificate */}
+				{course.hasCertificate && (
+					<>					{console.log('✅ Rendering certificate button - hasCertificate:', course.hasCertificate, 'certificateData:', certificateData)}						{certificateData ? (
+							// If certificate exists, show "View Certificate" button
+							<button 
+								className={styles.certificateButton}
+								onClick={handleViewCertificate}
+							>
+								<Award size={20} />
+								Xem chứng chỉ
+							</button>
+						) : (
+							// If no certificate, show "Get Certificate" button
+							<button 
+								className={`${styles.certificateButton} ${calculateProgress() < 100 ? styles.disabled : ''}`}
+								onClick={handleCreateCertificate}
+								disabled={calculateProgress() < 100 || creatingCertificate}
+								title={calculateProgress() < 100 ? 'Hoàn thành 100% khóa học để nhận chứng chỉ' : 'Nhận chứng chỉ'}
+							>
+								<Award size={20} />
+								{creatingCertificate ? 'Đang tạo...' : 'Nhận chứng chỉ'}
+							</button>
+						)}
+					</>
+				)}
+			</div>
+
+			{/* Certificate note - Show only if course has certificate and not completed */}
+			{course.hasCertificate && !certificateData && calculateProgress() < 100 && (
+				<div className={styles.certificateNote}>
+					<Award size={16} />
+					<span>Hoàn thành 100% bài học để nhận chứng chỉ</span>
+				</div>
+			)}
 
 			{/* Progress Bar */}
 			<div className={styles.progressSection}>
@@ -421,7 +527,7 @@ function CourseContent() {
 					></div>
 				</div>
 				<div className={styles.progressStats}>
-					<span>{completedLessons.length} / {sections.reduce((sum, s) => sum + s.lessons.length, 0)} bài học đã hoàn thành</span>
+					<span>{getValidCompletedCount()} / {sections.reduce((sum, s) => sum + s.lessons.length, 0)} bài học đã hoàn thành</span>
 				</div>
 			</div>
 

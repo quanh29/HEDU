@@ -313,8 +313,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
         selectedCategories: selectedCategoryIds,
-        hasPractice: courseInfo.has_practice === 1 || false,
-        hasCertificate: courseInfo.has_certificate === 1 || false,
+        hasPractice: courseInfo.has_practice === true || courseInfo.has_practice === 1,
+        hasCertificate: courseInfo.has_certificate === true || courseInfo.has_certificate === 1,
         originalPrice: courseInfo.originalPrice || 0,
         currentPrice: courseInfo.currentPrice || 0
       });
@@ -331,8 +331,8 @@ const CreateUpdateCourse = ({ mode = 'edit' }) => {
         objectives: (courseInfo.objectives && courseInfo.objectives.length) ? courseInfo.objectives : [''],
         requirements: (courseInfo.requirements && courseInfo.requirements.length) ? courseInfo.requirements : [''],
         selectedCategories: selectedCategoryIds,
-        hasPractice: courseInfo.has_practice === 1 || false,
-        hasCertificate: courseInfo.has_certificate === 1 || false,
+        hasPractice: courseInfo.has_practice === true || courseInfo.has_practice === 1,
+        hasCertificate: courseInfo.has_certificate === true || courseInfo.has_certificate === 1,
         originalPrice: courseInfo.originalPrice || 0,
         currentPrice: courseInfo.currentPrice || 0
       });

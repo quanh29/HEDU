@@ -164,7 +164,15 @@ function RatingSection({ courseId, isOpen, onClose }) {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return 'Không xác định';
+        
         const date = new Date(dateString);
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return 'Không xác định';
+        }
+        
         return date.toLocaleDateString('vi-VN', {
             year: 'numeric',
             month: 'long',
@@ -207,7 +215,7 @@ function RatingSection({ courseId, isOpen, onClose }) {
                                                     <p className={styles.userComment}>{userRating.user_comment}</p>
                                                 )}
                                                 <span className={styles.ratingDate}>
-                                                    Đánh giá vào {formatDate(userRating.created_at)}
+                                                    Đánh giá vào {formatDate(userRating.createdAt || userRating.created_at)}
                                                 </span>
                                             </div>
                                             <div className={styles.userRatingActions}>

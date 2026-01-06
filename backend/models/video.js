@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 const videoSchema = new mongoose.Schema({
-    section: {
-        type: String,
-        ref: 'Section',
-        required: false, // Optional for backward compatibility
-    },
+    // section: {
+    //     type: String,
+    //     ref: 'Section',
+    //     required: false, // Optional for backward compatibility
+    // },
     lesson: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lesson',

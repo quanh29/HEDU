@@ -30,6 +30,7 @@ import Messaging from './pages/Messaging/Messaging.jsx'
 import Profile from './pages/Profile/Profile.jsx'
 import PublicProfile from './pages/PublicProfile/PublicProfile.jsx'
 import NotFound from './pages/NotFound/NotFound.jsx'
+import CertificateView from './pages/CertificateView/CertificateView.jsx'
 
 function App() {
   const location = useLocation();
@@ -79,6 +80,9 @@ function App() {
           
           {/* Public Profile Route */}
           <Route path='/user/:userId' element={<PublicProfile/>}/>
+          
+          {/* Certificate Route - Public */}
+          <Route path='/certificate/:certificateId' element={<CertificateView/>}/>
           
           {/* Instructor Routes */}
           <Route path='/instructor' element={<Instructor/>}>

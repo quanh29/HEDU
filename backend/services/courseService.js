@@ -9,6 +9,12 @@ import Video from '../models/video.js';
 import Material from '../models/Material.js';
 import Quiz from '../models/Quiz.js';
 import CourseRevision from '../models/CourseDraft.js';
+import CourseDraft from '../models/CourseDraft.js';
+import SectionDraft from '../models/SectionDraft.js';
+import LessonDraft from '../models/LessonDraft.js';
+import VideoDraft from '../models/VideoDraft.js';
+import MaterialDraft from '../models/MaterialDraft.js';
+import QuizDraft from '../models/QuizDraft.js';
 import User from '../models/User.js';
 import Category from '../models/Category.js';
 import Language from '../models/Language.js';
@@ -761,7 +767,7 @@ export const getFullCourseContentService = async (courseId) => {
 export const getCourseContentForEnrolledUserService = async (courseId) => {
     // Lấy course từ MongoDB
     const mongoCourse = await Course.findOne({ _id: courseId, course_status: { $in: ['approved', 'inactive'] } }).lean();
-
+    
     if (!mongoCourse) {
         return null;
     }
@@ -770,7 +776,8 @@ export const getCourseContentForEnrolledUserService = async (courseId) => {
         course_id: mongoCourse._id,
         title: mongoCourse.title,
         des: mongoCourse.description,
-        picture_url: mongoCourse.thumbnail_url
+        picture_url: mongoCourse.thumbnail_url,
+        has_certificate: mongoCourse.has_certificate
     };
 
     // Lấy sections
@@ -859,12 +866,15 @@ export const getCourseContentForEnrolledUserService = async (courseId) => {
         };
     });
 
+    console.log('🎓 getCourseContentForEnrolledUserService - Returning course with hasCertificate:', course.has_certificate);
+    
     return {
         course: {
             courseId: course.course_id,
             title: course.title,
             description: course.des,
-            thumbnail: course.picture_url
+            thumbnail: course.picture_url,
+            hasCertificate: course.has_certificate
         },
         sections: sectionsWithContent
     };
@@ -1368,6 +1378,8 @@ export const updateSectionLessonsService = async (sectionId, lessons) => {
  */
 export const deleteCourseService = async (courseId) => {
     try {
+        console.log('🗑️ [Delete Course] Starting deletion for course:', courseId);
+        
         // kiểm tra course tồn tại
         const course = await Course.findById(courseId).lean();
         if (!course) {
@@ -1389,39 +1401,161 @@ export const deleteCourseService = async (courseId) => {
                 const publicId = publicIdMatch[1];
                 await deleteCloudinaryImage(publicId);
             }
-        };
-
-        // Xóa course từ MongoDB
-        await Course.findByIdAndDelete(courseId);
-        
-        // Xóa categories (Labeling)
-        await Labeling.deleteMany({ course_id: courseId });
+        }
         
         // Lấy tất cả sections của course
         const sections = await Section.find({ course_id: courseId }).lean();
         const sectionIds = sections.map(s => s._id);
-
+        console.log(`   Found ${sections.length} sections to delete`);
+        // Lấy tất cả lessons của course
+        const lessons = await Lesson.find({ section: { $in: sectionIds } }).lean();
+        const lessonIds = lessons.map(l => l._id);
+        console.log(`   Found ${lessons.length} lessons to delete`);
+        
         // Lấy tất cả videos để xóa MUX assets
-        const videos = await Video.find({ section: { $in: sectionIds } }).lean();
+        const videos = await Video.find({ lesson: { $in: lessonIds } }).lean();
         const videoIds = videos.map(v => v._id);
+        console.log(`   Found ${videos.length} videos to delete`);
 
         // Xóa videos và MUX assets
         if (videoIds.length > 0) {
             await deleteVideosWithMuxAssets(videoIds);
         }
 
-        // Xóa materials và quizzes
+        // Lấy tất cả materials để xóa từ Cloudinary
+        const materialIds = lessons
+            .filter(lesson => lesson.contentType === 'material' && lesson.material)
+            .map(lesson => lesson.material);
+        const materials = await Material.find({ _id: { $in: materialIds } }).lean();
+        console.log(`   Found ${materials.length} materials to delete`);
+        
+        // Xóa materials từ Cloudinary
+        if (materials.length > 0) {
+            await Promise.all(
+                materials.map(material => {
+                    if (material.contentUrl) {
+                        return deleteCloudinaryMaterial(material.contentUrl);
+                    }
+                })
+            );
+        }
+
+        // Lấy tất cả quizzes
+        const quizzes = await Quiz.find({ lesson: { $in: lessonIds } }).lean();
+        console.log(`   Found ${quizzes.length} quizzes to delete`);
+
+        // Xóa lessons (sẽ trigger pre-delete hooks để xóa content)
+        await Lesson.deleteMany({ section: { $in: sectionIds } });
+        console.log('   ✅ Deleted all lessons');
+
+        // Xóa materials và quizzes (nếu còn orphaned)
         await Promise.all([
-            Material.deleteMany({ section: { $in: sectionIds } }),
-            Quiz.deleteMany({ section: { $in: sectionIds } })
+            Material.deleteMany({ _id: { $in: materialIds } }),
+            Quiz.deleteMany({ lesson: { $in: lessonIds } })
         ]);
+        console.log('   ✅ Deleted orphaned materials and quizzes');
 
         // Xóa tất cả sections
         await Section.deleteMany({ course_id: courseId });
+        console.log('   ✅ Deleted all sections');
+        
+        // ========== XÓA DRAFT DOCUMENTS ==========
+        console.log('🗑️ [Delete Course] Deleting draft documents...');
+        
+        // Tìm CourseDraft
+        const courseDraft = await CourseDraft.findById(courseId).lean();
+        if (courseDraft) {
+            console.log('   Found CourseDraft to delete');
+            
+            // Lấy tất cả draft sections
+            const draftSections = await SectionDraft.find({ courseDraftId: courseId }).lean();
+            const draftSectionIds = draftSections.map(s => s._id);
+            console.log(`   Found ${draftSections.length} draft sections`);
+            
+            // Lấy tất cả draft lessons
+            const draftLessons = await LessonDraft.find({ courseDraftId: courseId }).lean();
+            console.log(`   Found ${draftLessons.length} draft lessons`);
+            
+            // Lấy tất cả draft videos để xóa MUX assets
+            const draftVideos = await VideoDraft.find({ courseDraftId: courseId }).lean();
+            console.log(`   Found ${draftVideos.length} draft videos`);
+            
+            // Xóa draft videos và MUX assets
+            if (draftVideos.length > 0) {
+                const draftVideoIds = draftVideos.map(v => v._id);
+                // Delete MUX assets for draft videos
+                const mux = new Mux();
+                await Promise.all(
+                    draftVideos.map(async (video) => {
+                        try {
+                            if (video.assetId) {
+                                console.log(`   🗑️ Deleting draft MUX asset: ${video.assetId}`);
+                                await mux.video.assets.delete(video.assetId);
+                                console.log(`   ✅ Draft MUX asset deleted: ${video.assetId}`);
+                            }
+                        } catch (error) {
+                            console.error(`   ❌ Error deleting draft MUX asset ${video.assetId}:`, error.message);
+                        }
+                    })
+                );
+                
+                // Delete draft video documents
+                await VideoDraft.deleteMany({ _id: { $in: draftVideoIds } });
+                console.log(`   ✅ Deleted ${draftVideoIds.length} draft videos`);
+            }
+            
+            // Lấy tất cả draft materials để xóa từ Cloudinary
+            const draftMaterials = await MaterialDraft.find({ courseDraftId: courseId }).lean();
+            console.log(`   Found ${draftMaterials.length} draft materials`);
+            
+            // Xóa draft materials từ Cloudinary
+            if (draftMaterials.length > 0) {
+                await Promise.all(
+                    draftMaterials.map(material => {
+                        if (material.contentUrl) {
+                            return deleteCloudinaryMaterial(material.contentUrl);
+                        }
+                    })
+                );
+                // Delete draft material documents
+                await MaterialDraft.deleteMany({ courseDraftId: courseId });
+                console.log(`   ✅ Deleted ${draftMaterials.length} draft materials`);
+            }
+            
+            // Xóa draft quizzes
+            const draftQuizzes = await QuizDraft.find({ courseDraftId: courseId }).lean();
+            console.log(`   Found ${draftQuizzes.length} draft quizzes`);
+            if (draftQuizzes.length > 0) {
+                await QuizDraft.deleteMany({ courseDraftId: courseId });
+                console.log(`   ✅ Deleted ${draftQuizzes.length} draft quizzes`);
+            }
+            
+            // Xóa draft lessons
+            await LessonDraft.deleteMany({ courseDraftId: courseId });
+            console.log(`   ✅ Deleted draft lessons`);
+            
+            // Xóa draft sections
+            await SectionDraft.deleteMany({ courseDraftId: courseId });
+            console.log(`   ✅ Deleted draft sections`);
+            
+            // Xóa CourseDraft
+            await CourseDraft.findByIdAndDelete(courseId);
+            console.log('   ✅ Deleted CourseDraft');
+        } else {
+            console.log('   No CourseDraft found for this course');
+        }
+        
+        // Xóa categories (Labeling)
+        await Labeling.deleteMany({ course_id: courseId });
+        console.log('   ✅ Deleted categories (Labeling)');
+        
+        // Xóa course từ MongoDB (cuối cùng)
+        await Course.findByIdAndDelete(courseId);
+        console.log('✅ [Delete Course] Course deleted successfully');
 
-        return { success: true, message: 'Course deleted successfully' };
+        return { success: true, message: 'Course and all related data deleted successfully' };
     } catch (error) {
-        console.error('Error deleting course:', error);
+        console.error('❌ [Delete Course] Error:', error);
         throw error;
     }
 };
@@ -1577,5 +1711,28 @@ const deleteCloudinaryImage = async (publicId) => {
 
     } catch (error) {
         console.error('❌ [Thumbnail Delete] Error:', error);
+    }
+};
+
+const deleteCloudinaryMaterial = async (contentUrl) => {
+    try {
+        console.log('🗑️ [Material Delete] Deleting material:', contentUrl);
+
+        const deleteResult = await cloudinary.uploader.destroy(
+            contentUrl,
+            { 
+                resource_type: 'raw', // For PDF, DOCX, etc.
+                type: 'private'
+            }
+        );
+
+        console.log('   Delete result:', deleteResult);
+
+        if (deleteResult.result === 'ok' || deleteResult.result === 'not found') {
+            console.log('✅ [Material Delete] Material deleted successfully');
+        }
+
+    } catch (error) {
+        console.error('❌ [Material Delete] Error:', error);
     }
 };
