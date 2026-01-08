@@ -8,7 +8,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
-import { Heart } from 'lucide-react';
+import { Heart, Book, FileText, Edit3, Award, Globe, BarChart2 } from 'lucide-react';
 
 function CoursePage() {
   // Lấy params từ URL - chỉ courseId (no slug)
@@ -681,13 +681,39 @@ function CoursePage() {
                 </div>
                 <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: 10, border: '1px solid #ddd' }}>
                   <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: 'bold' }}>Khóa học bao gồm:</h4>
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    <li>📚 {sections?.length || 0} chương học</li>
-                    <li>📖 {sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</li>
-                    {courseData?.hasPractice && <li>📝 Bài tập thực hành</li>}
-                    {courseData?.hasCertificate && <li>🏆 Chứng chỉ hoàn thành</li>}
-                    {courseData?.language && <li>🌐 Ngôn ngữ: {courseData.language}</li>}
-                    {courseData?.level && <li>📊 Trình độ: {courseData.level}</li>}
+                  <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <Book size={18} />
+                      <span>{sections?.length || 0} chương học</span>
+                    </li>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <FileText size={18} />
+                      <span>{sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</span>
+                    </li>
+                    {courseData?.hasPractice && (
+                      <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Edit3 size={18} />
+                        <span>Bài tập thực hành</span>
+                      </li>
+                    )}
+                    {courseData?.hasCertificate && (
+                      <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Award size={18} />
+                        <span>Chứng chỉ hoàn thành</span>
+                      </li>
+                    )}
+                    {courseData?.language && (
+                      <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Globe size={18} />
+                        <span>Ngôn ngữ: {courseData.language}</span>
+                      </li>
+                    )}
+                    {courseData?.level && (
+                      <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <BarChart2 size={18} />
+                        <span>Trình độ: {courseData.level}</span>
+                      </li>
+                    )}
                   </ul>
                 </div>
               </div>

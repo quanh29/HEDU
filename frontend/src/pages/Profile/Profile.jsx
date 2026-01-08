@@ -485,7 +485,7 @@ const Profile = () => {
                   className={styles.disabledInput}
                 />
                 <span className={styles.helperText}>
-                  Email không thể thay đổi (thực ra đổi được nhưng do hiện tại chưa làm nên tạm thời khóa lại 😄)
+                  Email không thể thay đổi
                 </span>
               </div>
 

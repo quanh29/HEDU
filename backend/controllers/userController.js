@@ -503,7 +503,7 @@ export const getPublicProfile = async (req, res) => {
     // Get user from MongoDB
     const user = await User.findById(userId).select('_id email is_admin is_superadmin full_name is_male dob headline bio profile_image_url');
 
-    if (!user || user.is_admin || !user.is_superadmin) {
+    if (!user || user.is_admin || user.is_superadmin) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
