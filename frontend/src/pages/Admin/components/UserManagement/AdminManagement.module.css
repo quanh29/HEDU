@@ -266,6 +266,11 @@
   color: #92400e;
 }
 
+.superadminBadge {
+  background: #ddd6fe;
+  color: #5b21b6;
+}
+
 .userBadge {
   background: #e0e7ff;
   color: #3730a3;
@@ -296,13 +301,19 @@
   background: transparent;
 }
 
+.activateBtn:disabled,
+.deactivateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .activateBtn {
   color: #065f46;
   border-color: #10b981; /* green outline */
   box-shadow: none;
 }
 
-.activateBtn:hover {
+.activateBtn:hover:not(:disabled) {
   background: #10b981; /* fill on hover */
   color: #ffffff;
   box-shadow: 0 6px 18px rgba(16,185,129,0.12);
@@ -313,18 +324,10 @@
   border-color: #ef4444; /* red outline */
 }
 
-.deactivateBtn:hover {
+.deactivateBtn:hover:not(:disabled) {
   background: #ef4444; /* fill on hover */
   color: #ffffff;
   box-shadow: 0 6px 18px rgba(239,68,68,0.12);
-}
-
-.activateBtn:disabled,
-.deactivateBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 /* Modal */

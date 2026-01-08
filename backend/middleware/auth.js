@@ -33,14 +33,58 @@ export const protectAdmin = async (req, res, next) => {
 
         const user = await clerkClient.users.getUser(userId);
 
-        if (user.privateMetadata.role !== 'admin') {
+        if (user.privateMetadata.role !== 'admin' && user.privateMetadata.role !== 'superadmin') {
             return res.status(401).json({ message: 'Unauthorized' });
         }
         logger.info(`✅ [protectAdmin] Admin access granted for userId: ${userId}`);
+        
+        // Attach user role to request for further checks
+        req.userRole = user.privateMetadata.role;
+        req.userId = userId;
+        
         next();
 
     } catch (error) {
         return res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const protectSuperAdmin = async (req, res, next) => {
+    try {
+        const { userId } = req.auth();
+
+        // Check if user is active
+        const isActive = await checkUserActive(userId);
+        if (!isActive) {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.' 
+            });
+        }
+
+        const user = await clerkClient.users.getUser(userId);
+
+        if (user.privateMetadata.role !== 'superadmin') {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Access denied - Superadmin role required' 
+            });
+        }
+        
+        logger.info(`✅ [protectSuperAdmin] Superadmin access granted for userId: ${userId}`);
+        
+        // Attach user role to request
+        req.userRole = 'superadmin';
+        req.userId = userId;
+        
+        next();
+
+    } catch (error) {
+        logger.error('Error in protectSuperAdmin middleware:', error);
+        return res.status(500).json({ 
+            success: false,
+            message: 'Server error' 
+        });
     }
 };
 

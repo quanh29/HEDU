@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import { 
   Users, 
   UserCheck, 
@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import styles from './AdminManagement.module.css';
 
-const AdminManagement = () => {
+const AdminManagement = ({ isSuperAdmin = false }) => {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +33,8 @@ const AdminManagement = () => {
     full_name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'admin'
   });
 
   const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
@@ -69,8 +71,20 @@ const AdminManagement = () => {
   }, [statusFilter, roleFilter, searchTerm]);
 
   // Toggle user status
-  const handleToggleStatus = async (userId, currentStatus) => {
-    if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) {
+  const handleToggleStatus = async (userId, currentStatus, targetUser) => {
+    // Check if superadmin is trying to deactivate themselves
+    if (isSuperAdmin && user?.id === userId && currentStatus === true) {
+      alert('Superadmin không thể vô hiệu hóa chính mình');
+      return;
+    }
+
+    // Check if current user has permission
+    if (!isSuperAdmin && (targetUser.is_admin || targetUser.is_superadmin)) {
+      alert('Chỉ có Superadmin mới có thể vô hiệu hóa/kích hoạt Admin hoặc Superadmin khác');
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn ${currentStatus ? 'vô hiệu hóa' : 'kích hoạt'} người dùng này?`)) {
       return;
     }
 
@@ -124,7 +138,8 @@ const AdminManagement = () => {
         {
           full_name: newAdmin.full_name,
           email: newAdmin.email,
-          password: newAdmin.password
+          password: newAdmin.password,
+          role: newAdmin.role
         },
         {
           headers: {
@@ -150,7 +165,8 @@ const AdminManagement = () => {
       full_name: '',
       email: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      role: 'admin'
     });
   };
 
@@ -171,13 +187,15 @@ const AdminManagement = () => {
           <Users className={styles.headerIcon} />
           <h2>User Management</h2>
         </div>
-        <button 
-          className={styles.createBtn}
-          onClick={() => setShowCreateModal(true)}
-        >
-          <UserPlus size={18} />
-          Create Admin
-        </button>
+        {isSuperAdmin && (
+          <button 
+            className={styles.createBtn}
+            onClick={() => setShowCreateModal(true)}
+          >
+            <UserPlus size={18} />
+            Tạo Admin
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -241,7 +259,8 @@ const AdminManagement = () => {
             onChange={(e) => setRoleFilter(e.target.value)}
             className={styles.filterSelect}
           >
-            <option value="all">All Roles</option>
+            <option value="all">Tất cả vai trò</option>
+            <option value="superadmin">Super Admin</option>
             <option value="admin">Admin</option>
             <option value="user">User</option>
           </select>
@@ -268,19 +287,19 @@ const AdminManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map(user => (
-                <tr key={user._id}>
+              {filteredUsers.map(targetUser => (
+                <tr key={targetUser._id}>
                   <td>
                     <div className={styles.userId}>
-                      {user._id.substring(0, 8)}...
+                      {targetUser._id.substring(0, 8)}...
                     </div>
                   </td>
                   <td>
                     <div className={styles.userInfo}>
-                      {user.profile_image_url ? (
+                      {targetUser.profile_image_url ? (
                         <img 
-                          src={user.profile_image_url} 
-                          alt={user.full_name}
+                          src={targetUser.profile_image_url} 
+                          alt={targetUser.full_name}
                           className={styles.avatar}
                         />
                       ) : (
@@ -288,17 +307,22 @@ const AdminManagement = () => {
                           <UserIcon size={18} />
                         </div>
                       )}
-                      <span>{user.full_name}</span>
+                      <span>{targetUser.full_name}</span>
                     </div>
                   </td>
                   <td>
                     <div className={styles.email}>
                       <Mail size={14} />
-                      {user.email}
+                      {targetUser.email}
                     </div>
                   </td>
                   <td>
-                    {user.is_admin ? (
+                    {targetUser.is_superadmin ? (
+                      <span className={`${styles.badge} ${styles.superadminBadge}`}>
+                        <Shield size={14} />
+                        Super Admin
+                      </span>
+                    ) : targetUser.is_admin ? (
                       <span className={`${styles.badge} ${styles.adminBadge}`}>
                         <Shield size={14} />
                         Admin
@@ -313,11 +337,11 @@ const AdminManagement = () => {
                   <td>
                     <div className={styles.date}>
                       <Calendar size={14} />
-                      {formatDate(user.createdAt)}
+                      {formatDate(targetUser.createdAt)}
                     </div>
                   </td>
                   <td>
-                    {user.is_active ? (
+                    {targetUser.is_active ? (
                       <span className={`${styles.badge} ${styles.activeBadge}`}>
                         <CheckCircle size={14} />
                         Active
@@ -331,21 +355,32 @@ const AdminManagement = () => {
                   </td>
                   <td>
                     <button
-                      className={user.is_active ? styles.deactivateBtn : styles.activateBtn}
-                      onClick={() => handleToggleStatus(user._id, user.is_active)}
-                      disabled={processingUserId === user._id}
+                      className={targetUser.is_active ? styles.deactivateBtn : styles.activateBtn}
+                      onClick={() => handleToggleStatus(targetUser._id, targetUser.is_active, targetUser)}
+                      disabled={
+                        processingUserId === targetUser._id || 
+                        (!isSuperAdmin && (targetUser.is_admin || targetUser.is_superadmin)) ||
+                        (isSuperAdmin && targetUser.is_active && targetUser._id === user?.id)
+                      }
+                      title={
+                        (!isSuperAdmin && (targetUser.is_admin || targetUser.is_superadmin)) 
+                          ? 'Chỉ Superadmin mới có thể thay đổi trạng thái Admin/Superadmin' 
+                          : (isSuperAdmin && targetUser.is_active && targetUser._id === user?.id)
+                          ? 'Không thể vô hiệu hóa chính mình'
+                          : ''
+                      }
                     >
-                      {processingUserId === user._id ? (
-                        'Processing...'
-                      ) : user.is_active ? (
+                      {processingUserId === targetUser._id ? (
+                        'Đang xử lý...'
+                      ) : targetUser.is_active ? (
                         <>
                           <UserX size={14} />
-                          Deactivate
+                          Vô hiệu hóa
                         </>
                       ) : (
                         <>
                           <UserCheck size={14} />
-                          Activate
+                          Kích hoạt
                         </>
                       )}
                     </button>
@@ -399,6 +434,18 @@ const AdminManagement = () => {
                     placeholder="admin@example.com"
                     className={styles.formInput}
                   />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Vai trò *</label>
+                  <select
+                    value={newAdmin.role}
+                    onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value})}
+                    className={styles.formInput}
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Super Admin</option>
+                  </select>
                 </div>
 
                 <div className={styles.formGroup}>

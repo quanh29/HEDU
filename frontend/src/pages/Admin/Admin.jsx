@@ -46,6 +46,7 @@ const Admin = () => {
   const [adminInfo, setAdminInfo] = useState({
     name: 'Admin',
     role: 'Admin',
+    isSuperAdmin: false,
     initials: 'A',
     avatarUrl: null
   });
@@ -99,15 +100,25 @@ const Admin = () => {
             ? `${firstName[0]}${lastName[0]}`.toUpperCase()
             : fullName.substring(0, 2).toUpperCase();
 
+          const isSuperAdmin = response.data.isSuperAdmin || false;
+          const roleLabel = isSuperAdmin ? 'Super Admin' : 'Admin';
+
           setAdminInfo({
             name: fullName,
-            role: 'Admin',
+            role: roleLabel,
+            isSuperAdmin: isSuperAdmin,
             initials: initials,
             avatarUrl: null
           });
           // Fetch public profile to get avatar and full_name mapping
           try {
-            const pub = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/user/public-profile/${user.id}`);
+            const pub = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/admin/profile/${user.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+            );
             if (pub.data?.success && pub.data.data?.user) {
               const u = pub.data.data.user;
               setAdminInfo(prev => ({
@@ -126,8 +137,8 @@ const Admin = () => {
         // User is signed in but not admin, force sign out
         await signOut();
         
-        // Redirect to admin login with error message
-        alert('Bạn không có quyền truy cập trang quản trị. Bạn đã được đăng xuất. Vui lòng đăng nhập bằng tài khoản admin.');
+        // Redirect to admin login with error message that looks like account doesn't exist
+        alert('Tài khoản không tồn tại hoặc không có quyền truy cập. Vui lòng kiểm tra lại thông tin đăng nhập.');
         navigate('/login-admin');
       } finally {
         setVerifying(false);
@@ -181,7 +192,7 @@ const Admin = () => {
       case 'promotions':
         return <PromotionManagement />;
       case 'admin-management':
-        return <AdminManagement />;
+        return <AdminManagement isSuperAdmin={adminInfo.isSuperAdmin} />;
       case 'support-tickets':
         return <SupportTickets />;
       case 'settings':

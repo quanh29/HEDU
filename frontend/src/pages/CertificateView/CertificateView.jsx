@@ -199,13 +199,6 @@ function CertificateView() {
                         Chứng chỉ này xác nhận rằng học viên đã hoàn thành tất cả các bài học 
                         và đáp ứng các yêu cầu của khóa học.
                     </p>
-                    <p className={styles.verifyText}>
-                        Để xác minh tính hợp lệ của chứng chỉ này, vui lòng truy cập: 
-                        <br />
-                        <span className={styles.verifyLink}>
-                            {window.location.href}
-                        </span>
-                    </p>
                 </div>
             </div>
         </div>

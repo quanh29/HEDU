@@ -228,7 +228,7 @@ export const AppProvider = ({ children }) => {
     const path = location.pathname;
 
     // Skip redirect for login pages
-    if (path.startsWith('/auth/') || path === '/login-admin') {
+    if (path.startsWith('/admin') || path === '/login-admin') {
       return;
     }
 

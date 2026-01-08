@@ -32,8 +32,9 @@ export const isAdmin = async (req, res) => {
         // Get user from Clerk to check metadata
         const user = await clerkClient.users.getUser(userId);
         
-        // Check if user has admin role in privateMetadata
-        const isAdminUser = user.privateMetadata?.role === 'admin';
+        // Check if user has admin or superadmin role in privateMetadata
+        const role = user.privateMetadata?.role;
+        const isAdminUser = role === 'admin' || role === 'superadmin';
         
         if (!isAdminUser) {
             return res.status(403).json({ 
@@ -43,12 +44,14 @@ export const isAdmin = async (req, res) => {
             });
         }
         
-        logger.info(`✅ [isAdmin] Admin check successful for userId: ${userId}`);
+        logger.info(`✅ [isAdmin] Admin check successful for userId: ${userId}, role: ${role}`);
         
         return res.status(200).json({ 
             success: true, 
             message: 'User is admin',
             isAdmin: true,
+            isSuperAdmin: role === 'superadmin',
+            role: role,
             userId: userId
         });
 
@@ -565,7 +568,15 @@ export const getAllUsers = async (req, res) => {
 
         // Filter by role
         if (role && role !== 'all') {
-            query.is_admin = role === 'admin';
+            if (role === 'admin') {
+                query.is_admin = true;
+                query.is_superadmin = { $ne: true };
+            } else if (role === 'superadmin') {
+                query.is_superadmin = true;
+            } else if (role === 'user') {
+                query.is_admin = { $ne: true };
+                query.is_superadmin = { $ne: true };
+            }
         }
 
         // Search by name, email, or ID
@@ -578,7 +589,7 @@ export const getAllUsers = async (req, res) => {
         }
 
         const users = await User.find(query)
-            .select('_id email full_name is_admin is_active createdAt profile_image_url')
+            .select('_id email full_name is_admin is_superadmin is_active createdAt profile_image_url')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit))
@@ -610,11 +621,14 @@ export const getAllUsers = async (req, res) => {
 
 /**
  * Toggle user active status
+ * Admin can only toggle regular users
+ * Superadmin can toggle anyone including other superadmins
  */
 export const toggleUserStatus = async (req, res) => {
     try {
         const { userId } = req.params;
         const { is_active } = req.body;
+        const currentUserRole = req.userRole; // Set by protectAdmin or protectSuperAdmin middleware
 
         const user = await User.findById(userId);
         
@@ -622,6 +636,33 @@ export const toggleUserStatus = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
+            });
+        }
+
+        // Get target user's role from Clerk
+        let targetUserRole = 'user'; // default
+        try {
+            const clerkUser = await clerkClient.users.getUser(userId);
+            targetUserRole = clerkUser.privateMetadata?.role || 'user';
+        } catch (clerkError) {
+            logger.warn('Failed to get user role from Clerk:', clerkError);
+        }
+
+        // Permission check: Admin can only toggle regular users
+        if (currentUserRole === 'admin') {
+            if (targetUserRole === 'admin' || targetUserRole === 'superadmin') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Admin không có quyền vô hiệu hóa/kích hoạt admin hoặc superadmin khác'
+                });
+            }
+        }
+        
+        // Prevent superadmin from deactivating themselves
+        if (currentUserRole === 'superadmin' && userId === req.userId && !is_active) {
+            return res.status(403).json({
+                success: false,
+                message: 'Superadmin không thể vô hiệu hóa chính mình'
             });
         }
 
@@ -659,11 +700,13 @@ export const toggleUserStatus = async (req, res) => {
 
 /**
  * Create admin user
+ * Only superadmin can create admin or superadmin users
  */
 export const createAdminUser = async (req, res) => {
     try {
-        const { email, password, full_name } = req.body;
+        const { email, password, full_name, role = 'admin' } = req.body;
 
+        // Only superadmin can create admin/superadmin users (already protected by protectSuperAdmin middleware)
         // Validate required fields
         if (!email || !password || !full_name) {
             return res.status(400).json({
@@ -672,28 +715,37 @@ export const createAdminUser = async (req, res) => {
             });
         }
 
-        // Create user in Clerk with admin role
+        // Validate role
+        if (!['admin', 'superadmin'].includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid role. Must be "admin" or "superadmin"'
+            });
+        }
+
+        // Create user in Clerk with specified role
         const clerkUser = await clerkClient.users.createUser({
             emailAddress: [email],
             password: password,
             firstName: full_name.split(' ')[0],
             lastName: full_name.split(' ').slice(1).join(' ') || '',
             privateMetadata: {
-                role: 'admin'
+                role: role
             }
         });
 
         // User will be created in MongoDB via webhook
-        logger.info(`✅ [Admin] Admin user created: ${email}`);
+        logger.info(`✅ [Superadmin] ${role} user created: ${email}`);
 
         res.status(201).json({
             success: true,
-            message: 'Admin user created successfully',
+            message: `${role === 'superadmin' ? 'Superadmin' : 'Admin'} user created successfully`,
             data: {
                 id: clerkUser.id,
                 email: email,
                 full_name: full_name,
-                is_admin: true
+                is_admin: role === 'admin',
+                is_superadmin: role === 'superadmin'
             }
         });
     } catch (error) {
@@ -714,4 +766,36 @@ export const createAdminUser = async (req, res) => {
             error: error.message
         });
     }
+};
+
+export const getProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('👤 [Public Profile] userId:', userId);
+
+    // Get user from MongoDB
+    const user = await User.findById(userId).select('_id email is_admin full_name is_male dob headline bio profile_image_url');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user.toObject()
+      }
+    });
+  } catch (error) {
+    console.error('❌ [Public Profile] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get public profile',
+      error: error.message
+    });
+  }
 };

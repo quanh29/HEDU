@@ -13,8 +13,8 @@
 
 .dashboardHeader h2 {
   margin: 0;
-  color: #2c3e50;
-  font-size: 2rem;
+  color: #1f2937;
+  font-size: 1.75rem;
   font-weight: 600;
 }
 
@@ -37,34 +37,40 @@
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-  transition: transform 0.3s, box-shadow 0.3s;
-  border-left: 4px solid #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e5e7eb;
 }
 
 .statCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .statIcon {
-  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: #f3f4f6;
+  border-radius: 12px;
   margin-right: 1rem;
-  opacity: 0.8;
+  color: #4f46e5;
 }
 
 .statInfo h3 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #1f2937;
   margin-bottom: 0.25rem;
 }
 
 .statInfo p {
   margin: 0;
-  color: #6c757d;
-  font-size: 0.95rem;
+  color: #6b7280;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -73,14 +79,15 @@
   background: white;
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
   margin-bottom: 2rem;
 }
 
 .recentActivities h3 {
   margin: 0 0 1.5rem 0;
-  color: #2c3e50;
-  font-size: 1.4rem;
+  color: #1f2937;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 
@@ -137,18 +144,21 @@
 
 .activityMessage {
   margin: 0 0 0.25rem 0;
-  color: #2c3e50;
+  color: #1f2937;
   font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .activityTime {
-  color: #6c757d;
-  font-size: 0.85rem;
+  color: #6b7280;
+  font-size: 0.8125rem;
 }
 
 .activityStatus {
-  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
   margin-left: 1rem;
+  color: #6b7280;
 }
 
 /* Quick Actions */
@@ -156,13 +166,14 @@
   background: white;
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
 }
 
 .quickActions h3 {
   margin: 0 0 1.5rem 0;
-  color: #2c3e50;
-  font-size: 1.4rem;
+  color: #1f2937;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 
@@ -176,23 +187,21 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0.875rem 1.25rem;
+  background: #4f46e5;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .actionBtn:hover {
+  background: #4338ca;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-}
-
-.actionBtn span {
-  font-size: 1.2rem;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
 /* Responsive Design */

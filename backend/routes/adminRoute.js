@@ -12,7 +12,8 @@ import {
     getAllUsers,
     toggleUserStatus,
     createAdminUser,
-    isAdmin
+    isAdmin,
+    getProfile
 } from '../controllers/adminController.js';
 import { 
     approveRevision, 
@@ -40,7 +41,7 @@ import {
     getAllHeadingsWithCategories,
     getAllCategories
 } from '../controllers/headingController.js';
-import { protectAdmin } from '../middleware/auth.js';
+import { protectAdmin, protectSuperAdmin } from '../middleware/auth.js';
 
 const adminRouter = express.Router();
 
@@ -94,11 +95,11 @@ adminRouter.post('/revisions/:revisionId/reject', protectAdmin, rejectRevision);
 // GET /api/admin/users - Get all users with filters
 adminRouter.get('/users', protectAdmin, getAllUsers);
 
-// PATCH /api/admin/users/:userId/status - Toggle user active status
+// PATCH /api/admin/users/:userId/status - Toggle user active status (superadmin for admin/superadmin, admin for regular users)
 adminRouter.patch('/users/:userId/status', protectAdmin, toggleUserStatus);
 
-// POST /api/admin/users/create-admin - Create new admin user
-adminRouter.post('/users/create-admin', protectAdmin, createAdminUser);
+// POST /api/admin/users/create-admin - Create new admin user (superadmin only)
+adminRouter.post('/users/create-admin', protectSuperAdmin, createAdminUser);
 
 // Voucher management routes
 // GET /api/admin/vouchers/statistics - Get voucher statistics
@@ -153,4 +154,5 @@ adminRouter.post('/categories/assign', protectAdmin, addCategoryToHeading);
 // DELETE /api/admin/categories/:headingId/:categoryId - Remove category from heading
 adminRouter.delete('/categories/:headingId/:categoryId', protectAdmin, removeCategoryFromHeading);
 
+adminRouter.get('/profile/:userId', protectAdmin, getProfile);
 export default adminRouter;

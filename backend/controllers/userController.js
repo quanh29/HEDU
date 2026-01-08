@@ -62,7 +62,8 @@ export const handleClerkWebhook = async (req, res) => {
       const profile_image_url = image_url || '';
 
       // Check if user has admin role in private metadata
-      const is_admin = private_metadata?.role === 'admin';
+      const is_admin = private_metadata?.role === 'admin' || private_metadata?.role === 'superadmin';
+      const is_superadmin = private_metadata?.role === 'superadmin';
 
       // Create or update user
       const userData = {
@@ -71,6 +72,7 @@ export const handleClerkWebhook = async (req, res) => {
         full_name,
         profile_image_url,
         is_admin,
+        is_superadmin
       };
 
       const user = await User.findOneAndUpdate(
@@ -499,9 +501,9 @@ export const getPublicProfile = async (req, res) => {
     console.log('👤 [Public Profile] userId:', userId);
 
     // Get user from MongoDB
-    const user = await User.findById(userId).select('_id email full_name is_male dob headline bio profile_image_url');
+    const user = await User.findById(userId).select('_id email is_admin is_superadmin full_name is_male dob headline bio profile_image_url');
 
-    if (!user) {
+    if (!user || user.is_admin || !user.is_superadmin) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
