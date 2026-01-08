@@ -7,6 +7,7 @@ import styles from './MyLearning.module.css';
 import EnrolledCard from '../../components/EnrolledCard/EnrolledCard';
 import TabSwitch from '../../components/TabSwitch/TabSwitch';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import { Book, Target, CheckCircle, Star, AlertTriangle, X, XCircle } from 'lucide-react';
 
 function MyLearning() {
   useDocumentTitle('Khóa học của tôi');
@@ -101,25 +102,25 @@ function MyLearning() {
     {
       id: 'all',
       label: 'Tất cả khóa học',
-      icon: '📚',
+      icon: <Book size={16} />,
       count: enrolledCourses.length
     },
     {
       id: 'in-progress',
       label: 'Đang học',
-      icon: '🎯',
+      icon: <Target size={16} />,
       count: enrolledCourses.filter(course => course.progress > 0 && course.progress < 100).length
     },
     {
       id: 'completed',
       label: 'Hoàn thành',
-      icon: '✅',
+      icon: <CheckCircle size={16} />,
       count: enrolledCourses.filter(course => course.progress === 100).length
     },
     {
       id: 'not-started',
       label: 'Chưa bắt đầu',
-      icon: '⭐',
+      icon: <Star size={16} />,
       count: enrolledCourses.filter(course => course.progress === 0).length
     },
   ];
@@ -231,7 +232,7 @@ function MyLearning() {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <p>❌ {error}</p>
+          <p><XCircle className={styles.errorIcon} size={20} /> {error}</p>
           <button onClick={() => window.location.reload()} className={styles.retryBtn}>
             Thử lại
           </button>
@@ -249,7 +250,7 @@ function MyLearning() {
           <p className={styles.subtitle}>Tiếp tục học tập và phát triển kỹ năng của bạn</p>
         </div>
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>📚</div>
+          <div className={styles.emptyIcon}><Book size={48} /></div>
           <h2>Bạn chưa đăng ký khóa học nào</h2>
           <p>Khám phá các khóa học để bắt đầu hành trình học tập của bạn</p>
           <button onClick={() => navigate('/')} className={styles.exploreBtn}>
@@ -325,7 +326,7 @@ function MyLearning() {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Yêu cầu hoàn tiền</h2>
               <button className={styles.closeButton} onClick={handleCloseRefundModal}>
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -343,7 +344,7 @@ function MyLearning() {
               </div>
 
               <div className={styles.refundNotice}>
-                <p>⚠️ <strong>Lưu ý quan trọng:</strong></p>
+                <p><AlertTriangle className={styles.warningIcon} size={18} /> <strong>Lưu ý quan trọng:</strong></p>
                 <ul>
                   <li>Yêu cầu hoàn tiền sẽ được xem xét và xử lý trong vòng 7-14 ngày làm việc</li>
                   <li>Sau khi yêu cầu được chấp nhận, bạn sẽ không còn quyền truy cập khóa học này</li>

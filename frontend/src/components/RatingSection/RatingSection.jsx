@@ -40,7 +40,7 @@ function RatingSection({ courseId, isOpen, onClose }) {
                 setUserRating(response.data.rating);
                 // Set form values to existing rating
                 setSelectedRating(response.data.rating.rating);
-                setComment(response.data.rating.user_comment || '');
+                setComment(response.data.rating.comment || '');
             } else {
                 // No rating yet, reset form
                 setUserRating(null);
@@ -138,7 +138,7 @@ function RatingSection({ courseId, isOpen, onClose }) {
         if (userRating) {
             // Reset to existing rating values
             setSelectedRating(userRating.rating);
-            setComment(userRating.user_comment || '');
+            setComment(userRating.comment || '');
         }
         setEditingRating(false);
     };
@@ -211,8 +211,8 @@ function RatingSection({ courseId, isOpen, onClose }) {
                                         <div className={styles.userRatingCard}>
                                             <div className={styles.ratingDisplay}>
                                                 {renderStars(userRating.rating)}
-                                                {userRating.user_comment && (
-                                                    <p className={styles.userComment}>{userRating.user_comment}</p>
+                                                {userRating.comment && (
+                                                    <p className={styles.userComment}>{userRating.comment}</p>
                                                 )}
                                                 <span className={styles.ratingDate}>
                                                     Đánh giá vào {formatDate(userRating.createdAt || userRating.created_at)}
