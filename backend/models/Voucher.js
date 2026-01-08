@@ -5,7 +5,7 @@ const voucherSchema = new mongoose.Schema({
   voucher_code: {
     type: String,
     required: true,
-    unique: true
+    index: true
   },
   discount_type: {
     type: String,
@@ -33,9 +33,6 @@ const voucherSchema = new mongoose.Schema({
 }, { 
   timestamps: true
 });
-
-voucherSchema.index({ voucher_code: 1 }, { unique: true });
-
 
 const Voucher = mongoose.model('Voucher', voucherSchema);
 

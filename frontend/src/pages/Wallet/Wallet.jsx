@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { 
   Wallet as WalletIcon, 
-  TrendingUp, 
-  TrendingDown,
+  BanknoteArrowUp, 
+  BanknoteArrowDown,
   ArrowUpCircle,
   ArrowDownCircle,
   Clock,
   CheckCircle,
   XCircle,
-  Search
+  Search,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import styles from './Wallet.module.css';
 import vietnamBanks from '../../data/vietnamBanks';
@@ -44,19 +48,24 @@ const Wallet = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalTransactions, setTotalTransactions] = useState(0);
   const TRANSACTIONS_PER_PAGE = 10;
+  
+  // Transaction section states
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [transactionsLoaded, setTransactionsLoaded] = useState(false);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      fetchWalletData();
+      fetchWalletOnly();
     }
   }, [user]);
 
-  const fetchWalletData = async (page = 1) => {
+  // Fetch only wallet info (without transactions)
+  const fetchWalletOnly = async () => {
     try {
       setLoading(true);
       const token = await getToken();
       
-      // Fetch wallet info
       const walletResponse = await fetch(`${API_URL}/api/wallet`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -69,8 +78,21 @@ const Wallet = () => {
 
       const walletData = await walletResponse.json();
       setWallet(walletData.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching wallet data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Fetch transactions with pagination
+  // Fetch transactions (lazy load on demand)
+  const fetchTransactions = async (page = 1) => {
+    try {
+      setTransactionsLoading(true);
+      const token = await getToken();
+      
       const transactionsResponse = await fetch(`${API_URL}/api/wallet/transactions?page=${page}&limit=${TRANSACTIONS_PER_PAGE}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -83,14 +105,28 @@ const Wallet = () => {
         setCurrentPage(transactionsData.pagination?.page || 1);
         setTotalPages(transactionsData.pagination?.totalPages || 1);
         setTotalTransactions(transactionsData.pagination?.total || 0);
+        setTransactionsLoaded(true);
       }
-
-      setError(null);
     } catch (err) {
-      console.error('Error fetching wallet data:', err);
-      setError(err.message);
+      console.error('Error fetching transactions:', err);
     } finally {
-      setLoading(false);
+      setTransactionsLoading(false);
+    }
+  };
+
+  // Toggle transaction section - load on first open
+  const toggleTransactions = () => {
+    if (!showTransactions && !transactionsLoaded) {
+      fetchTransactions();
+    }
+    setShowTransactions(!showTransactions);
+  };
+
+  // For refreshing data after deposit/withdraw
+  const fetchWalletData = async (page = 1) => {
+    await fetchWalletOnly();
+    if (transactionsLoaded) {
+      await fetchTransactions(page);
     }
   };
 
@@ -315,7 +351,7 @@ const Wallet = () => {
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      fetchWalletData(newPage);
+      fetchTransactions(newPage);
     }
   };
 
@@ -374,64 +410,113 @@ const Wallet = () => {
         </div>
       </div>
 
-      {/* Transaction History */}
+      {/* Transaction History - Collapsible */}
       <div className={styles.transactionSection}>
-        <h2 className={styles.sectionTitle}>Lịch sử giao dịch</h2>
-        
-        {transactions.length === 0 ? (
-          <div className={styles.emptyState}>
-            <Clock size={64} className={styles.emptyIcon} />
-            <p>Chưa có giao dịch nào</p>
+        <div 
+          className={styles.transactionHeader}
+          onClick={toggleTransactions}
+        >
+          <h2 className={styles.sectionTitle}>Lịch sử giao dịch</h2>
+          <div className={styles.transactionHeaderRight}>
+            {transactionsLoaded && totalTransactions > 0 && (
+              <span className={styles.transactionCount}>{totalTransactions} giao dịch</span>
+            )}
+            <ChevronDown 
+              size={24} 
+              className={`${styles.chevronIcon} ${showTransactions ? styles.chevronRotated : ''}`}
+            />
           </div>
-        ) : (
-          <div className={styles.transactionList}>
-            {transactions.map((transaction) => (
-              <div key={transaction._id} className={styles.transactionItem}>
-                <div className={styles.transactionIcon}>
-                  {transaction.operation === 'credit' ? (
-                    <TrendingUp size={24} className={styles.creditIcon} />
-                  ) : (
-                    <TrendingDown size={24} className={styles.debitIcon} />
-                  )}
-                </div>
-                <div className={styles.transactionDetails}>
-                  <p className={styles.transactionDesc}>{transaction.description}</p>
-                  <p className={styles.transactionDate}>{formatDate(transaction.createdAt)}</p>
-                </div>
-                <div className={styles.transactionAmount}>
-                  <p className={transaction.operation === 'credit' ? styles.creditAmount : styles.debitAmount}>
-                    {transaction.operation === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                  </p>
-                  <p className={styles.transactionBalance}>Số dư: {formatCurrency(transaction.balance)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        </div>
         
-        {/* Pagination */}
-        {transactions.length > 0 && totalPages > 1 && (
-          <div className={styles.pagination}>
-            <button 
-              className={styles.pageBtn}
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              ← Trước
-            </button>
-            <div className={styles.pageInfo}>
-              <span>Trang {currentPage} / {totalPages}</span>
-              <span className={styles.totalInfo}>({totalTransactions} giao dịch)</span>
+        <div className={`${styles.transactionContent} ${showTransactions ? styles.transactionContentOpen : ''}`}>
+          {transactionsLoading ? (
+            <div className={styles.transactionLoading}>
+              <Loader2 size={32} className={styles.spinnerIcon} />
+              <p>Đang tải lịch sử giao dịch...</p>
             </div>
-            <button 
-              className={styles.pageBtn}
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Sau →
-            </button>
-          </div>
-        )}
+          ) : transactions.length === 0 ? (
+            <div className={styles.emptyState}>
+              <Clock size={64} className={styles.emptyIcon} />
+              <p>Chưa có giao dịch nào</p>
+            </div>
+          ) : (
+            <>
+              <div className={styles.transactionList}>
+                {transactions.map((transaction) => (
+                  <div key={transaction._id} className={styles.transactionItem}>
+                    <div className={`${styles.transactionIcon} ${transaction.operation === 'credit' ? styles.creditIconWrapper : styles.debitIconWrapper}`}>
+                      {transaction.operation === 'credit' ? (
+                        <BanknoteArrowUp size={20} />
+                      ) : (
+                        <BanknoteArrowDown size={20} />
+                      )}
+                    </div>
+                    <div className={styles.transactionDetails}>
+                      <p className={styles.transactionDesc}>{transaction.description}</p>
+                      <p className={styles.transactionDate}>{formatDate(transaction.createdAt)}</p>
+                    </div>
+                    <div className={styles.transactionAmount}>
+                      <p className={transaction.operation === 'credit' ? styles.creditAmount : styles.debitAmount}>
+                        {transaction.operation === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      </p>
+                      <p className={styles.transactionBalance}>Số dư: {formatCurrency(transaction.balance)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <button 
+                    className={styles.pageBtn}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft size={20} />
+                    Trước
+                  </button>
+                  
+                  <div className={styles.pageNumbers}>
+                    {[...Array(totalPages)].map((_, index) => {
+                      const pageNumber = index + 1;
+                      if (
+                        pageNumber === 1 ||
+                        pageNumber === totalPages ||
+                        (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNumber}
+                            className={`${styles.pageNumber} ${currentPage === pageNumber ? styles.activePage : ''}`}
+                            onClick={() => handlePageChange(pageNumber)}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      } else if (
+                        pageNumber === currentPage - 2 ||
+                        pageNumber === currentPage + 2
+                      ) {
+                        return <span key={pageNumber} className={styles.ellipsis}>...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
+                  
+                  <button 
+                    className={styles.pageBtn}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Payment Methods Section */}

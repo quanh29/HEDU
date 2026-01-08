@@ -725,7 +725,7 @@ export const payWithWallet = async (req, res) => {
       ? { voucherCode, courseIds }
       : { voucherCode };
 
-    const orderResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3000'}/api/order/create`, {
+    const orderResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/order/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

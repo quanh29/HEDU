@@ -41,7 +41,7 @@ import certificateRouter from './routes/certificateRoute.js';
 
 const app = express();
 const server = createServer(app);
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Initialize Socket.IO with CORS configuration
 const io = new Server(server, {
