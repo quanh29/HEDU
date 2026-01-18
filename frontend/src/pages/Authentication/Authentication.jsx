@@ -7,7 +7,7 @@ import LoginForm from '../../components/LoginForm/LoginForm.jsx';
 import SignupForm from '../../components/SignupForm/SignupForm.jsx';
 import ResetPassword from '../../components/ResetPassword/ResetPassword.jsx';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
-import leftSideImg from '../../assets/9 SCENE.svg';
+import leftSideImg from '/src/assets/9 SCENE.svg';
 
 export default function Authentication() {
     const location = useLocation();

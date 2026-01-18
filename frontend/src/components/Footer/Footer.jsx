@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin } from 'lucide-react';
 import styles from './Footer.module.css';
-import moit_logo from '../../assets/moit_logo.png';
+import moit_logo from '/src/assets/moit_logo.png';
 
 function Footer() {
   return (
