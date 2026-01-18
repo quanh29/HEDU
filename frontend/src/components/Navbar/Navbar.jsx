@@ -165,7 +165,7 @@ const Navbar = () => {
             disabled={!searchValue}
             onClick={handleSearch}
           >
-            <img src="/src/assets/search-svgrepo-com.svg" alt="Search" width="16" height="16" />
+            <img src="../../assets/search-svgrepo-com.svg" alt="Search" width="16" height="16" />
           </button>
         </div>
         
