@@ -7,6 +7,7 @@ import LoginForm from '../../components/LoginForm/LoginForm.jsx';
 import SignupForm from '../../components/SignupForm/SignupForm.jsx';
 import ResetPassword from '../../components/ResetPassword/ResetPassword.jsx';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import leftSideImg from '../../assets/9 SCENE.svg';
 
 export default function Authentication() {
     const location = useLocation();
@@ -36,7 +37,7 @@ export default function Authentication() {
     return (
         <div className={styles.container}>
             <div className={styles.leftImage}>
-                <img className={styles.leftImageImg} src="/src/assets/9 SCENE.svg" alt="leftSideImage" />
+                <img className={styles.leftImageImg} src={leftSideImg} alt="leftSideImage" />
             </div>
             <div className={styles.rightContent}>
                 {isLoginPage && <LoginForm />}
