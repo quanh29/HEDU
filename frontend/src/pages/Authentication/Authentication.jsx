@@ -36,7 +36,7 @@ export default function Authentication() {
     return (
         <div className={styles.container}>
             <div className={styles.leftImage}>
-                <img className={styles.leftImageImg} src="../../assets/6 SCENE.svg" alt="leftSideImage" />
+                <img className={styles.leftImageImg} src="/src/assets/9 SCENE.svg" alt="leftSideImage" />
             </div>
             <div className={styles.rightContent}>
                 {isLoginPage && <LoginForm />}

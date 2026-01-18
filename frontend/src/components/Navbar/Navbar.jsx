@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import styles from './Navbar.module.css';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { LogOut } from 'lucide-react';
+import { LogOut, Search } from 'lucide-react';
 import Cart from '../Cart/Cart.jsx';
 import Wishlist from '../Wishlist/Wishlist.jsx';
 import NotificationIcon from '../NotificationIcon/NotificationIcon.jsx';
@@ -164,8 +164,9 @@ const Navbar = () => {
             className={`${styles.searchBtn} ${!searchValue ? styles.notAllowed : ''}`}
             disabled={!searchValue}
             onClick={handleSearch}
+            aria-label="Search"
           >
-            <img src="../../assets/search-svgrepo-com.svg" alt="Search" width="16" height="16" />
+            <Search size={16} />
           </button>
         </div>
         

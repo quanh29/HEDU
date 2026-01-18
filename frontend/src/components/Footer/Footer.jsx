@@ -88,7 +88,7 @@ function Footer() {
                 title="Đã thông báo Bộ Công Thương"
               >
                 <img 
-                  src="../../assets/logo-da-thong-bao-bo-cong-thuong-mau-xanh.png" 
+                  src="/src/assets/logo_moit.png" 
                   alt="Đã thông báo Bộ Công Thương" 
                   className={styles.govLogo}
                 />
