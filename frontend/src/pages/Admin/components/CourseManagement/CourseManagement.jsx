@@ -25,8 +25,8 @@ import {
 
 // Silence console.log in this module (temporary; easiest way to "comment out" without changing every line)
 // To restore logs, remove the next two lines or set console.log = _origConsoleLog;
-// const _origConsoleLog = console.log;
-// console.log = () => {};
+const _origConsoleLog = console.log;
+console.log = () => {};
 
 const CourseManagement = () => {
   const { getToken } = useAuth();
