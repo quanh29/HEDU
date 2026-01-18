@@ -1,0 +1,1 @@
+when deploy, take all the files out of this folder and remove the local. in the name of each files
