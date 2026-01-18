@@ -1,21 +1,111 @@
 version: "3.9"
 
 services:
-  app:
-    build: .
-    image: my-node-app
-    env_file:
-      - .env
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Message Queue Service
+  messagequeue:
+    build:
+      context: ../messageQueue
+      dockerfile: Dockerfile
+    container_name: messagequeue
+    # ports:
+    #   - "3001:3001"
     expose:
-      - "3000"
+      - "3001"
+    env_file:
+      - ../messageQueue/.env
+    environment:
+      PORT: 3001
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
 
+  # Email Server Service
+  emailserver:
+    build:
+      context: ../emailServer
+      dockerfile: Dockerfile
+    container_name: emailserver
+    # ports:
+    #   - "3002:3002"
+    expose:
+      - "3002"
+    env_file:
+      - ../emailServer/.env
+    environment:
+      PORT: 3002
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Backend API Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    expose:
+      - "3000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Cronjob Service - Clear Pending Earnings
+  cronjob:
+    build:
+      context: .
+      dockerfile: Dockerfile.cronjob
+    container_name: cronjob
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
   nginx:
-    image: nginx:latest
+    image: nginx:alpine
+    container_name: nginx
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
