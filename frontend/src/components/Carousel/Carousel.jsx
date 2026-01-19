@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Card from '../Card/Card.jsx';
+import SkeletonCard from '../SkeletonCard/SkeletonCard.jsx';
 import styles from './Carousel.module.css';
 
-const Carousel = ({ courses = [], title = "Khóa Học Nổi Bật" }) => {
+const Carousel = ({ courses = [], title = "Khóa Học Nổi Bật", loading = false }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cardsPerView, setCardsPerView] = useState(4);
   const trackRef = useRef(null);
@@ -100,6 +101,13 @@ const Carousel = ({ courses = [], title = "Khóa Học Nổi Bật" }) => {
     // Add your card click logic here
   };
 
+  // Render skeleton cards when loading
+  const renderSkeletonCards = () => {
+    return Array.from({ length: cardsPerView }).map((_, index) => (
+      <SkeletonCard key={`skeleton-${index}`} />
+    ));
+  };
+
   return (
     <div style={{ background: 'rgba(244, 241, 237, 0.75)', width: '100%' }}>
       <div className={styles.carouselRoot}>
@@ -126,20 +134,24 @@ const Carousel = ({ courses = [], title = "Khóa Học Nổi Bật" }) => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              {courses.map((course, index) => (
-                <Card
-                  key={index}
-                  courseId={course.courseId}
-                  title={course.title}
-                  instructors={course.instructors}
-                  rating={course.rating}
-                  reviewCount={course.reviewCount}
-                  originalPrice={course.originalPrice}
-                  currentPrice={course.currentPrice}
-                  image={course.image}
-                  onClick={() => handleCardClick(course, index)}
-                />
-              ))}
+              {loading ? (
+                renderSkeletonCards()
+              ) : (
+                courses.map((course, index) => (
+                  <Card
+                    key={index}
+                    courseId={course.courseId}
+                    title={course.title}
+                    instructors={course.instructors}
+                    rating={course.rating}
+                    reviewCount={course.reviewCount}
+                    originalPrice={course.originalPrice}
+                    currentPrice={course.currentPrice}
+                    image={course.image}
+                    onClick={() => handleCardClick(course, index)}
+                  />
+                ))
+              )}
             </div>
           </div>
           

@@ -64,18 +64,16 @@ function Home() {
     <>
       <Hero />
       <TrustedBrand/>
-      {!loading && (
-        <>
-          <Carousel 
-            courses={featuredCourses}
-            title="Khóa Học Nổi Bật"
-          />
-          <Carousel 
-            courses={latestCourses}
-            title="Khóa Học Mới Nhất"
-          />
-        </>
-      )}
+      <Carousel 
+        courses={featuredCourses}
+        title="Khóa Học Nổi Bật"
+        loading={loading}
+      />
+      <Carousel 
+        courses={latestCourses}
+        title="Khóa Học Mới Nhất"
+        loading={loading}
+      />
       <Testimonial />
     </>
   );

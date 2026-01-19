@@ -5,6 +5,7 @@
   margin: 0 auto;
   position: relative;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 2rem 1rem;
 }
 
 .carouselTitle {
@@ -37,6 +38,7 @@
   font-size: 20px;
   color: #333;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .carouselNav:disabled {
@@ -64,20 +66,110 @@
   padding: 10px 0;
 }
 
+/* Responsive Design */
 @media (max-width: 1200px) {
+  .carouselRoot {
+    padding: 1.5rem 1rem;
+  }
+  
   .carouselWrapper {
     gap: 15px;
+  }
+  
+  .carouselTrack {
+    gap: 15px;
+  }
+  
+  .carouselTitle {
+    font-size: 28px;
+    margin-bottom: 35px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .carouselRoot {
+    padding: 1.25rem 0.75rem;
+  }
+  
+  .carouselTitle {
+    font-size: 26px;
+    margin-bottom: 30px;
+  }
+  
+  .carouselNav {
+    width: 48px;
+    height: 48px;
+    font-size: 19px;
   }
 }
 
 @media (max-width: 768px) {
-  .carouselNav {
-    width: 45px !important;
-    height: 45px !important;
-    font-size: 18px !important;
+  .carouselRoot {
+    padding: 1rem 0.5rem;
   }
+  
+  .carouselNav {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+  
   .carouselTitle {
-    font-size: 24px !important;
-    margin-bottom: 30px !important;
+    font-size: 24px;
+    margin-bottom: 25px;
+  }
+  
+  .carouselWrapper {
+    gap: 10px;
+  }
+  
+  .carouselTrack {
+    gap: 12px;
+  }
+  
+  .carouselContainer {
+    padding: 0 5px;
   }
 }
+
+@media (max-width: 480px) {
+  .carouselRoot {
+    padding: 0.75rem 0.25rem;
+  }
+  
+  .carouselNav {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .carouselTitle {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .carouselWrapper {
+    gap: 8px;
+  }
+  
+  .carouselTrack {
+    gap: 10px;
+    padding: 5px 0;
+  }
+  
+  .carouselContainer {
+    padding: 0;
+  }
+}
+
+/* Tablet Landscape */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .carouselRoot {
+    padding: 1.5rem 1rem;
+  }
+  
+  .carouselTitle {
+    font-size: 26px;
+  }
+}
+

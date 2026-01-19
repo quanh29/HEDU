@@ -28,6 +28,7 @@
   align-items: center;
   padding: 0 2rem;
   gap: 2rem;
+  flex-wrap: nowrap;
 }
 
 .logo {
@@ -48,6 +49,8 @@
   display: flex;
   align-items: center;
   gap: 2rem;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .navDiscover {
@@ -279,6 +282,7 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -456,7 +460,8 @@
 /* Cart Component */
 .cartWrapper {
   position: relative;
-  margin: 0 1rem;
+  margin: 0 0.5rem;
+  flex-shrink: 0;
 }
 
 .cartButton {
@@ -672,7 +677,35 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .navContainer {
+    padding: 0 1.5rem;
+    gap: 1rem;
+  }
+  
+  .navLeft {
+    gap: 1rem;
+  }
+  
+  .searchBar {
+    max-width: 300px;
+  }
+  
+  .navLinks {
+    gap: 1.5rem;
+  }
+}
+
 @media (max-width: 768px) {
+  .navContainer {
+    padding: 0 1rem;
+    gap: 0.75rem;
+  }
+  
+  .navLeft {
+    gap: 0.75rem;
+  }
+  
   .navLinks {
     display: none;
   }
@@ -682,11 +715,11 @@
   }
 
   .cartWrapper {
-    margin: 0 0.5rem;
+    margin: 0 0.25rem;
   }
 
   .cartDropdown {
-    min-width: 320px;
+    min-width: 300px;
     right: -20px;
   }
 
@@ -696,25 +729,148 @@
 
   .authButtons .btn {
     padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  .dropdownMenu {
-    min-width: 200px;
-    left: -50px;
+    font-size: 0.85rem;
+    white-space: nowrap;
   }
 
   .navDiscover {
     padding: 0.4rem 1rem;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
-
-  /* Hide sub-menu on mobile */
+  
+  .logo {
+    font-size: 1.5rem;
+  }
+  
+  .dropdownMenu {
+    min-width: 220px;
+    left: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  
+  /* Show sub-menu on mobile as nested list */
   .subMenu {
-    display: none;
+    position: static;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0 0 0 1rem;
+    background: #f8f9fa;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
   }
-
+  
+  .dropdownCategory:hover .subMenu {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+  
+  .subMenuItem {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
   .categoryArrow {
     display: none;
+  }
+  
+  .dropdownCategoryTitle {
+    font-size: 0.9rem;
+  }
+  
+  .dropdownCategoryDesc {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navContainer {
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  .logo {
+    font-size: 1.3rem;
+  }
+  
+  .navLeft {
+    gap: 0.5rem;
+  }
+  
+  .navDiscover {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .authButtons {
+    gap: 0.25rem;
+  }
+  
+  .authButtons .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .cartWrapper {
+    margin: 0 0.15rem;
+  }
+  
+  .cartButton {
+    padding: 0.35rem;
+  }
+  
+  .cartBadge {
+    width: 16px;
+    height: 16px;
+    font-size: 0.65rem;
+    top: -2px;
+    right: -2px;
+  }
+  
+  .dropdownMenu {
+    min-width: 200px;
+    font-size: 0.85rem;
+  }
+  
+  .dropdownCategoryLink {
+    padding: 0.6rem 1rem;
+  }
+  
+  .subMenu {
+    padding: 0 0 0 0.75rem;
+  }
+  
+  .subMenuItem {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .navContainer {
+    padding: 0 0.5rem;
+    gap: 0.35rem;
+  }
+  
+  .logo {
+    font-size: 1.2rem;
+  }
+  
+  .navDiscover {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+  
+  .authButtons .btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+  }
+  
+  .cartButton {
+    padding: 0.3rem;
   }
 }

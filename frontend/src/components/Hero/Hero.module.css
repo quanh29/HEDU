@@ -1,7 +1,7 @@
 /* Hero Section */
 .hero {
     background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
-    padding: 80px 0 30px;
+    padding: 120px 0 30px;
     position: relative;
     overflow: hidden;
 }
@@ -88,19 +88,67 @@
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+    .heroContainer {
+        gap: 3rem;
+        padding: 0 1.5rem;
+    }
+
+    .heroContent h1 {
+        font-size: 3rem;
+    }
+
+    .heroContent p {
+        font-size: 1.1rem;
+    }
+
+    .heroVisual {
+        height: 450px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .hero {
+        padding: 60px 0 30px;
+    }
+
+    .heroContainer {
+        gap: 2.5rem;
+    }
+
+    .heroContent h1 {
+        font-size: 2.75rem;
+    }
+
+    .heroVisual {
+        height: 400px;
+    }
+
+    .hero::before {
+        width: 20%;
+    }
+}
+
 @media (max-width: 768px) {
+    .hero {
+        padding: 100px 0 20px;
+    }
+
     .heroContainer {
         grid-template-columns: 1fr;
         text-align: center;
         gap: 2rem;
+        padding: 0 1rem;
     }
 
     .heroContent h1 {
         font-size: 2.5rem;
+        margin-bottom: 1.25rem;
     }
 
     .heroContent p {
         font-size: 1rem;
+        margin-bottom: 2rem;
     }
 
     .heroButtons {
@@ -119,5 +167,80 @@
 
     .hero::before {
         width: 15%;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero {
+        padding: 90px 0 15px;
+    }
+
+    .heroContainer {
+        gap: 1.5rem;
+        padding: 0 0.75rem;
+    }
+
+    .heroContent h1 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .heroContent p {
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .heroButtons {
+        gap: 1rem;
+    }
+
+    .btnHero {
+        padding: 0.7rem 1.25rem;
+        font-size: 0.95rem;
+        border-radius: 20px;
+    }
+
+    .heroVisual {
+        height: 250px;
+    }
+
+    .hero::before {
+        width: 10%;
+        clip-path: polygon(98% 0%, 100% 0%, 100% 100%, 0% 100%);
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 360px) {
+    .heroContent h1 {
+        font-size: 1.75rem;
+    }
+
+    .heroContent p {
+        font-size: 0.85rem;
+    }
+
+    .btnHero {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .heroVisual {
+        height: 220px;
+    }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .heroContainer {
+        gap: 2rem;
+    }
+
+    .heroContent h1 {
+        font-size: 2.5rem;
+    }
+
+    .heroVisual {
+        height: 350px;
     }
 }
