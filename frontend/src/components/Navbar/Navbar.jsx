@@ -14,6 +14,8 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [headings, setHeadings] = useState([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const navigate = useNavigate();
   const { isSignedIn, isLoaded, user } = useUser();
   const { signOut } = useClerk();
@@ -112,6 +114,21 @@ const Navbar = () => {
     }
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+    if (isMobileSearchOpen) setIsMobileSearchOpen(false);
+  };
+
+  const toggleMobileSearch = () => {
+    setIsMobileSearchOpen(!isMobileSearchOpen);
+    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+  };
+
+  const closeMobileMenus = () => {
+    setIsMobileMenuOpen(false);
+    setIsMobileSearchOpen(false);
+  };
+
   return (
     <nav className={`${styles.navbar} ${isScrolled ? styles.scrolled : ''}`}>
       <div className={styles.navContainer}>
@@ -122,7 +139,7 @@ const Navbar = () => {
           >
             HEDU
           </Link>
-          <div className={styles.navDiscover}>
+          <div className={`${styles.navDiscover} ${isMobileMenuOpen ? styles.mobileMenuOpen : ''}`} onClick={toggleMobileMenu}>
             <span>Khám phá</span>
             <span className={styles.dropdownArrow}>▼</span>
             <div className={styles.dropdownMenu}>
@@ -141,6 +158,7 @@ const Navbar = () => {
                         key={category.category_id} 
                         to={`/course/search?category=${encodeURIComponent(category.title)}`} 
                         className={styles.subMenuItem}
+                        onClick={closeMobileMenus}
                       >
                         {category.title}
                       </Link>
@@ -151,6 +169,10 @@ const Navbar = () => {
             </div>
           </div>
         </div>
+        
+        <button className={styles.mobileSearchIcon} onClick={toggleMobileSearch} aria-label="Search">
+          <Search size={20} />
+        </button>
         
         <div className={styles.searchBar}>
           <input
@@ -225,6 +247,27 @@ const Navbar = () => {
           )}
         </div>
       </div>
+      
+      {/* Mobile Search Bar */}
+      {isMobileSearchOpen && (
+        <div className={styles.mobileSearchBar}>
+          <input
+            type="text"
+            placeholder="Tìm kiếm khóa học..."
+            value={searchValue}
+            onChange={e => setSearchValue(e.target.value)}
+            onKeyPress={handleSearchKeyPress}
+          />
+          <button
+            className={`${styles.searchBtn} ${!searchValue ? styles.notAllowed : ''}`}
+            disabled={!searchValue}
+            onClick={handleSearch}
+            aria-label="Search"
+          >
+            <Search size={16} />
+          </button>
+        </div>
+      )}
     </nav>
   );
 };

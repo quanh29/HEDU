@@ -94,6 +94,7 @@
   min-width: 250px;
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
   transform: translateY(-10px);
   transition: all 0.3s ease;
   z-index: 1000;
@@ -103,6 +104,7 @@
 .navDiscover:hover .dropdownMenu {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
   transform: translateY(0);
 }
 
@@ -161,6 +163,7 @@
   min-width: 220px;
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
   transform: translateX(-10px);
   transition: all 0.3s ease;
   z-index: 1001;
@@ -170,6 +173,7 @@
 .dropdownCategory:hover .subMenu {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
   transform: translateX(0);
 }
 
@@ -192,6 +196,22 @@
 .subMenuItem:hover {
   background: #f8f9fa;
   border-left-color: #FF6B6B;
+}
+
+.mobileSearchIcon {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: #374151;
+}
+
+.mobileSearchIcon:hover {
+  background: #f3f4f6;
+  color: #6366f1;
 }
 
 .searchBar {
@@ -246,6 +266,38 @@
 
 .searchBar:focus-within .searchBtn {
   color: #000000;
+}
+
+.mobileSearchBar {
+  display: none;
+  position: relative;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+}
+
+.mobileSearchBar input {
+  width: 100%;
+  padding: 0.8rem 2.5rem 0.8rem 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 25px;
+  outline: none;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.mobileSearchBar input:focus {
+  border-color: #4a4a4a;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  background: white;
+}
+
+.mobileSearchBar .searchBtn {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .navLinks {
@@ -712,6 +764,34 @@
 
   .searchBar {
     display: none;
+  }
+  
+  .mobileSearchIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .mobileSearchBar {
+    display: block;
+  }
+  
+  /* Make dropdown work with click on mobile */
+  .navDiscover:hover .dropdownMenu {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+  }
+  
+  .navDiscover.mobileMenuOpen .dropdownMenu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  
+  .navDiscover.mobileMenuOpen .dropdownArrow {
+    transform: rotate(180deg);
   }
 
   .cartWrapper {
